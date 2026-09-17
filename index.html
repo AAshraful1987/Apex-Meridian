@@ -690,7 +690,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-15e-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-16a-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -2611,6 +2611,7 @@ const K_HR   = K_PREFIX + ':hr';     // HR headcount by date and shift
 const K_REQ  = K_PREFIX + ':req';    // manpower transfer requests (shared by everyone)
 const K_QF   = K_PREFIX + ':qf';     // quality decision-pending flags (reject awaiting Quality Management)
 const K_NOTICE = K_PREFIX + ':notice'; // notices/interactions pushed to lines (day-scoped, block until acknowledged)
+const K_PHOTOS = K_PREFIX + ':photos'; // person photos, keyed by ID No. — shared by everyone, no role gate (any session can update its own)
 function lineKey(ln){ return K_PREFIX + ':line:' + slugify(ln); }
 
 // Requests are the one list several roles write to at once, so deletions have to be
@@ -2788,9 +2789,10 @@ function noticeSig(){
   return (store.notices||[]).map(n=>n.id+':'+n.status+':'+JSON.stringify(n.supervisorAcks||{})+':'+JSON.stringify(n.qualityAcks||{})).sort().join('|');
 }
 function hrSig(){ return JSON.stringify(store.hr||{}); }
-function metaSig(){ return JSON.stringify({g:store.globalUnlock, u:store.userPasswords, m:store.mgmtPassword, ps:store.pwSchema, mr:store.monthRanges, ct:store.categoryTargets, cats:store.categories, icats:store.inactiveCategories}); }
-let baseReqSig='', baseHrSig='', baseMetaSig='', baseQfSig='', baseNoticeSig='';
-function rebaseSigs(){ baseReqSig=reqSig(); baseHrSig=hrSig(); baseMetaSig=metaSig(); baseQfSig=qfSig(); baseNoticeSig=noticeSig(); }
+function metaSig(){ return JSON.stringify({g:store.globalUnlock, u:store.userPasswords, m:store.mgmtPassword, ps:store.pwSchema, mr:store.monthRanges, ct:store.categoryTargets, cats:store.categories, icats:store.inactiveCategories, cf:store.categoryFreezing}); }
+function photosSig(){ return JSON.stringify(store.personPhotos||{}); }
+let baseReqSig='', baseHrSig='', baseMetaSig='', baseQfSig='', baseNoticeSig='', basePhotosSig='';
+function rebaseSigs(){ baseReqSig=reqSig(); baseHrSig=hrSig(); baseMetaSig=metaSig(); baseQfSig=qfSig(); baseNoticeSig=noticeSig(); basePhotosSig=photosSig(); }
 
 function showSaveError(msg){
   let el = document.getElementById('saveErrBar');
@@ -2823,19 +2825,21 @@ async function migrateOldStore(){
     let results;
     if(!old) {
       results = await writeKeysSequential([
-        [K_META, {globalUnlock:{active:false,expiresAt:null}, userPasswords:{}, mgmtPassword:DEFAULT_PW, pwSchema:PW_SCHEMA, categoryTargets:{}, categories:[], inactiveCategories:[]}],
+        [K_META, {globalUnlock:{active:false,expiresAt:null}, userPasswords:{}, mgmtPassword:DEFAULT_PW, pwSchema:PW_SCHEMA, categoryTargets:{}, categories:[], inactiveCategories:[], categoryFreezing:{}}],
         [K_QF, []],
-        [K_NOTICE, []]
+        [K_NOTICE, []],
+        [K_PHOTOS, {}]
       ]);
     } else {
       results = await writeKeysSequential([
         [K_META, {globalUnlock: old.globalUnlock||{active:false,expiresAt:null},
                   userPasswords: old.userPasswords||{}, mgmtPassword: old.mgmtPassword||DEFAULT_PW,
-                  monthRanges: old.monthRanges||[], categoryTargets: old.categoryTargets||{}, categories: old.categories||[], inactiveCategories: old.inactiveCategories||[]}],
+                  monthRanges: old.monthRanges||[], categoryTargets: old.categoryTargets||{}, categories: old.categories||[], inactiveCategories: old.inactiveCategories||[], categoryFreezing: old.categoryFreezing||{}}],
         [K_HR, old.hr||{}],
         [K_REQ, old.handoverRequests||[]],
         [K_QF, old.qualityFlags||[]],
         [K_NOTICE, old.notices||[]],
+        [K_PHOTOS, old.personPhotos||{}],
         ...Object.keys(old.lines||{}).map(ln=>[lineKey(ln), old.lines[ln]])
       ]);
     }
@@ -2859,10 +2863,10 @@ async function loadStore(lines, opts){
   // yet re-reading them on every routine poll costs a storage message every time. Polls can
   // ask to skip it; sign-in and the periodic deep refresh still read it.
   const needMeta = !(opts && opts.skipMeta);
-  const [meta, hr, req, qf, notice] = await Promise.all([
+  const [meta, hr, req, qf, notice, photos] = await Promise.all([
     needMeta ? readKey(K_META, null) : Promise.resolve(null),
     needHr ? readKey(K_HR, null) : Promise.resolve(null),
-    readKey(K_REQ, null), readKey(K_QF, null), readKey(K_NOTICE, null)
+    readKey(K_REQ, null), readKey(K_QF, null), readKey(K_NOTICE, null), readKey(K_PHOTOS, null)
   ]);
   if(!store.lines) store.lines = {};
   store.hr = hr || store.hr || {};
@@ -2870,6 +2874,7 @@ async function loadStore(lines, opts){
   store.qualityFlags = qf || store.qualityFlags || [];
   pruneOldQualityFlags();
   store.notices = notice || store.notices || [];
+  store.personPhotos = photos || store.personPhotos || {};
   if(meta){
     // Got a real answer from storage — trust it fully.
     const m = meta;
@@ -2888,6 +2893,7 @@ async function loadStore(lines, opts){
     store.categoryTargets = (m.categoryTargets && typeof m.categoryTargets==='object') ? m.categoryTargets : {};
     store.categories = Array.isArray(m.categories) ? m.categories : [];
     store.inactiveCategories = Array.isArray(m.inactiveCategories) ? m.inactiveCategories : [];
+    store.categoryFreezing = (m.categoryFreezing && typeof m.categoryFreezing==='object') ? m.categoryFreezing : {};
   } else if(store.pwSchema === undefined){
     // meta came back empty even after readKey's retries. If this is genuinely the very
     // first load this session (nothing in memory yet), factory defaults are correct.
@@ -2899,6 +2905,7 @@ async function loadStore(lines, opts){
     store.categoryTargets = {};
     store.categories = [];
     store.inactiveCategories = [];
+    store.categoryFreezing = {};
   }
   // else: meta fetch failed but we already have real password data in memory from an
   // earlier successful load this session — a transient network hiccup must NOT wipe it
@@ -3134,7 +3141,16 @@ async function doSaveStore(){
     if(session && (session.role==='hr' || session.role==='management' || session.role==='ie')){
       if(session.role!=='ie' && hrSig()!==baseHrSig) pendingWrites.push([K_HR, store.hr]);
       if(metaSig()!==baseMetaSig) pendingWrites.push([K_META, {globalUnlock:store.globalUnlock,
-        userPasswords:store.userPasswords, mgmtPassword:store.mgmtPassword, pwSchema:store.pwSchema, monthRanges:store.monthRanges, categoryTargets:store.categoryTargets, categories:store.categories, inactiveCategories:store.inactiveCategories}]);
+        userPasswords:store.userPasswords, mgmtPassword:store.mgmtPassword, pwSchema:store.pwSchema, monthRanges:store.monthRanges, categoryTargets:store.categoryTargets, categories:store.categories, inactiveCategories:store.inactiveCategories, categoryFreezing:store.categoryFreezing}]);
+    }
+    // Person photos are shared by everyone (any role, including supervisors) — field-merged
+    // by ID No. so two different people updating their own photo around the same moment
+    // never clobber each other, the same shape as quality flags/notices above.
+    if(photosSig()!==basePhotosSig){
+      const freshPhotos = await readKey(K_PHOTOS, {});
+      const merged = Object.assign({}, freshPhotos, store.personPhotos);
+      store.personPhotos = merged;
+      pendingWrites.push([K_PHOTOS, merged]);
     }
     // Written ONE AT A TIME with a small gap (writeKeysSequential), not Promise.all \u2014 a
     // save that touches several keys at once (line + qualityFlags + notice + meta, say)
