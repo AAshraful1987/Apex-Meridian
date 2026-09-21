@@ -18,7 +18,14 @@
     --danger:#B91C1C; --success:#15803D; --border:#DCE2DF; --board:#151B19; --blue:#185FA5;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI','Noto Sans Bengali','Nirmala UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+  html{overscroll-behavior:none;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI','Noto Sans Bengali','Nirmala UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;overscroll-behavior:none;}
+  /* iOS Safari only: pressing and holding anywhere (a card, a button, a label) normally
+     triggers the text-selection magnifier/callout menu, which looks like the whole form
+     "jiggling" under a touch-and-drag. Buttons and structural text never need to be
+     copy-selected, so this is switched off for them specifically — real inputs (where
+     someone genuinely needs to select/edit typed text) are deliberately left untouched. */
+  button, .card h2, .card h3, label, .dot, .note, th{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}
   .mono{font-family:'Consolas','SFMono-Regular','Roboto Mono',monospace;}
   .wrap{max-width:900px;margin:0 auto;padding:16px 16px 60px;}
   /* Management dashboard gets more room on laptops/monitors; phones/tablets are unaffected
@@ -690,7 +697,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-21a-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-21d-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -5427,6 +5434,42 @@ function renderTabs(){
     tabsEl.appendChild(d);
   });
 
+  // Central "Share to WhatsApp" button — supervisors only, sits in the same tab-bar row,
+  // pushed to the right by the flex layout so it's always visible alongside the tab(s)
+  // rather than in its own separate row. Pre-fills a quick status message (Lost Time by
+  // category in raw minutes — not man-minutes, Line + Supervisor identity, and today's
+  // 1st Time Pass / Repair / total sent to QC) that the supervisor can send as-is or clear
+  // and write their own message before sending, straight into their factory WhatsApp group.
+  if(session.role==='supervisor'){
+    const waBtn = document.createElement('button');
+    waBtn.id = 'shareWaBtn';
+    waBtn.type = 'button';
+    waBtn.style.cssText = 'margin-left:auto;flex-shrink:0;white-space:nowrap;background:#25D366;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:600;font-size:13px;';
+    waBtn.textContent = 'Share to WhatsApp';
+    waBtn.onclick = ()=>{
+      const lnHere = session.line;
+      const dateStr = todayStr();
+      const day = liveDay(lnHere, dateStr, currentShift);
+      const supName = day.supervisorName || '\u2014';
+      const supMobile = day.supervisorMobile || '\u2014';
+      const lostByCategory = {};
+      (day.lostTime||[]).forEach(lt=>{
+        const cat = lt.category || 'Other';
+        lostByCategory[cat] = (lostByCategory[cat]||0) + (Number(lt.lostMinutes)||0);
+      });
+      let firstTimePass = 0, totalRepair = 0;
+      (day.hourlyProd||[]).forEach(p=>{ firstTimePass += Number(p.qty)||0; });
+      (day.quality||[]).forEach(q=>{ totalRepair += Number(q.repair)||0; });
+      const qcQty = firstTimePass + totalRepair;
+      let msg = `Line: ${lineLabel(lnHere)}\nSupervisor: ${supName} (${supMobile})\n\nLost Time:\n`;
+      const catKeys = Object.keys(lostByCategory);
+      msg += catKeys.length ? catKeys.map(cat=>`- ${cat}: ${lostByCategory[cat]} min`).join('\n') : '- None';
+      msg += `\n\n1st Time Pass: ${firstTimePass}\nTotal Repair: ${totalRepair}\nSent to QC Qty: ${qcQty}`;
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    };
+    tabsEl.appendChild(waBtn);
+  }
+
   const panelsEl = document.getElementById('panels');
   panelsEl.innerHTML = '';
   tabList.forEach((t,i)=>{
@@ -5546,9 +5589,11 @@ function preparationPanelHTML(){
 
   <div class="card">
     <h2><span class="dot"></span>Manpower Handover &amp; Takeover</h2>
-    <!-- Type keeps the slot to its right empty; only "Others" fills it with a Specify
-         field, mirroring Lost Time Entry's Category | Specify pairing. Every other type's
-         own field (Send to Line, Source Name, note) stays on the row below, as before. -->
+    <!-- Type pairs with whichever type-specific field applies (Specify for "Others", or
+         hoLineWrap's own dynamic field for every other type) — only one of the two ever
+         shows at once, so together they always fill exactly one row. Time and No. of M/P
+         form their own row below; Target Shift (only for "Handover Out") sits on its own
+         row underneath since it only ever appears alone. -->
     <div class="row2">
       <div class="field"><label>Type</label>
         <select id="hoType">
@@ -5560,12 +5605,13 @@ function preparationPanelHTML(){
         </select>
       </div>
       <div class="field hidden" id="hoSpecifyWrap"><label>Specify</label><input id="hoSpecify" type="text" placeholder="Type the reason"></div>
-    </div>
-    <div class="row3">
       <div class="field" id="hoLineWrap"><label>Send to Line</label><select id="hoLine"></select></div>
+    </div>
+    <div class="row2">
       <div class="field"><label>Time</label><input id="hoTime" type="time"></div>
       <div class="field"><label>No. of M/P</label><input id="hoMp" type="number"></div>
     </div>
+    <div class="field hidden" id="hoTargetShiftWrap"></div>
     <button class="btn-secondary" id="addHoBtn">Add</button>
     <div class="table-scroll"><table><thead><tr><th>Time</th><th>Type</th><th>M/P</th><th>Line</th><th>Status</th><th></th></tr></thead><tbody id="hoBody"></tbody></table></div>
     <div class="empty" id="hoEmpty"></div>
@@ -6023,12 +6069,14 @@ function supervisorPanelHTML(){
       <div class="field hidden" id="ltOtherWrap"><label>Specify</label><input id="ltOtherText" type="text" placeholder="Type the category"></div>
     </div>
     <div class="field"><label>Reason (Note)</label><input id="ltReason" type="text" placeholder="e.g. Needle machine motor fault"></div>
-    <div class="row3">
+    <div class="row2">
       <div class="field"><label>Article</label><select id="ltLayout"></select></div>
       <div class="field"><label>Start Time</label><input id="ltStart" type="time"></div>
-      <div class="field"><label>End Time</label><input id="ltEnd" type="time"></div>
     </div>
-    <div class="field" style="max-width:220px;"><label>Man-power (affected) — auto-filled from Start Time</label><input id="ltMp" type="number" placeholder="0"></div>
+    <div class="row2">
+      <div class="field"><label>End Time</label><input id="ltEnd" type="time"></div>
+      <div class="field"><label>Man-power (affected)</label><input id="ltMp" type="number" placeholder="0"></div>
+    </div>
     <button class="btn-secondary" id="addLtBtn">Add Lost Time</button>
     <div class="table-scroll"><table><thead><tr><th>#</th><th>Category</th><th>Article</th><th>Start–End</th><th>Lost Min</th><th>M/P</th><th>Man-Min</th><th></th></tr></thead><tbody id="ltBody"></tbody></table></div>
     <div class="empty" id="ltEmpty"></div>
@@ -6036,9 +6084,11 @@ function supervisorPanelHTML(){
 
   <div class="card">
     <h2><span class="dot"></span>Manpower Handover &amp; Takeover</h2>
-    <!-- Type keeps the slot to its right empty; only "Others" fills it with a Specify
-         field, mirroring Lost Time Entry's Category | Specify pairing. Every other type's
-         own field (Send to Line, Source Name, note) stays on the row below, as before. -->
+    <!-- Type pairs with whichever type-specific field applies (Specify for "Others", or
+         hoLineWrap's own dynamic field for every other type) — only one of the two ever
+         shows at once, so together they always fill exactly one row. Time and No. of M/P
+         form their own row below; Target Shift (only for "Handover Out") sits on its own
+         row underneath since it only ever appears alone. -->
     <div class="row2">
       <div class="field"><label>Type</label>
         <select id="hoType">
@@ -6050,12 +6100,13 @@ function supervisorPanelHTML(){
         </select>
       </div>
       <div class="field hidden" id="hoSpecifyWrap"><label>Specify</label><input id="hoSpecify" type="text" placeholder="Type the reason"></div>
-    </div>
-    <div class="row3">
       <div class="field" id="hoLineWrap"><label>Send to Line</label><select id="hoLine"></select></div>
+    </div>
+    <div class="row2">
       <div class="field"><label>Time</label><input id="hoTime" type="time"></div>
       <div class="field"><label>No. of M/P</label><input id="hoMp" type="number"></div>
     </div>
+    <div class="field hidden" id="hoTargetShiftWrap"></div>
     <button class="btn-secondary" id="addHoBtn">Add</button>
     <div class="table-scroll"><table><thead><tr><th>Time</th><th>Type</th><th>M/P</th><th>Line</th><th>Status</th><th></th></tr></thead><tbody id="hoBody"></tbody></table></div>
     <div class="empty" id="hoEmpty"></div>
@@ -6687,23 +6738,28 @@ function attachPanelEvents(key){
       const hoTypeSel = document.getElementById('hoType');
       const hoLineWrap = document.getElementById('hoLineWrap');
       const hoSpecifyWrap = document.getElementById('hoSpecifyWrap');
+      const hoTargetShiftWrap = document.getElementById('hoTargetShiftWrap');
       function renderHoLineField(){
         // "Others" is the only type whose input sits beside Type (the Specify slot); every
-        // other type keeps its own field on the row below, exactly where it always was.
+        // other type keeps its own field beside Type too, in the same row.
         const isOthers = hoTypeSel.value==='others';
         hoSpecifyWrap.classList.toggle('hidden', !isOthers);
         hoLineWrap.classList.toggle('hidden', isOthers);
-        if(isOthers){ hoLineWrap.innerHTML = ''; return; }
+        if(isOthers){ hoLineWrap.innerHTML = ''; hoTargetShiftWrap.classList.add('hidden'); hoTargetShiftWrap.innerHTML=''; return; }
         if(hoTypeSel.value==='out'){
           const targets = ALL_LINES.filter(l=>l!==ln);
-          hoLineWrap.innerHTML = `<label>Send to Line</label><select id="hoLine">${targets.map(l=>`<option value="${l}">${l}</option>`).join('')}</select>
-            <label style="margin-top:6px;">Target Shift</label><select id="hoTargetShift">${allowedTargetShifts(shiftForRequest).map(s=>`<option value="${s}">${SHIFT_LABELS[s]}</option>`).join('')}</select>`;
+          hoLineWrap.innerHTML = `<label>Send to Line</label><select id="hoLine">${targets.map(l=>`<option value="${l}">${l}</option>`).join('')}</select>`;
+          hoTargetShiftWrap.classList.remove('hidden');
+          hoTargetShiftWrap.innerHTML = `<label>Target Shift</label><select id="hoTargetShift">${allowedTargetShifts(shiftForRequest).map(s=>`<option value="${s}">${SHIFT_LABELS[s]}</option>`).join('')}</select>`;
         } else if(hoTypeSel.value==='short_leave'){
           hoLineWrap.innerHTML = `<label>Reason (optional)</label><input id="hoLine" type="text" placeholder="e.g. personal reason">`;
+          hoTargetShiftWrap.classList.add('hidden'); hoTargetShiftWrap.innerHTML='';
         } else if(hoTypeSel.value==='recontrol'){
           hoLineWrap.innerHTML = `<label>Note (optional)</label><input id="hoLine" type="text" placeholder="e.g. Article XYZ stitching fault">`;
+          hoTargetShiftWrap.classList.add('hidden'); hoTargetShiftWrap.innerHTML='';
         } else {
           hoLineWrap.innerHTML = `<label>Source Name</label><input id="hoLine" type="text" placeholder="e.g. New Casual Worker">`;
+          hoTargetShiftWrap.classList.add('hidden'); hoTargetShiftWrap.innerHTML='';
         }
       }
       renderHoLineField();
