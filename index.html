@@ -690,7 +690,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-16a-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-21a-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -2361,6 +2361,68 @@ function computePrepSizeBalance(articleNo, shopOrderNo){
     received: receivedBySize[size]||0,
     consumed: consumedBySize[size]||0,
     balance: (receivedBySize[size]||0) - (consumedBySize[size]||0)
+  }));
+}
+
+// For the rare "SFG then FG" two-pass workflow: an article charged first as SFG (partial
+// lasting work, e.g. before Roughing) and later charged again as FG (same Article + Shop
+// Order, on the same or a different Line) for final size-wise completion. The FG pass never
+// draws a second time from Preparation's own balance — the upper was only pulled once, at
+// SFG time — so its size-wise "available" figure is the SFG pass's own achieved output,
+// minus whatever the FG pass itself has already produced so far.
+function sizesAchievedForArticle(lineName, layoutNo){
+  const bySize = {};
+  const lineObj = store.lines[lineName];
+  if(lineObj && lineObj.days){
+    Object.values(lineObj.days).forEach(dayShifts=>{
+      SHIFTS.forEach(s=>{
+        const day = dayShifts[s];
+        if(day && day.hourlyProd){
+          day.hourlyProd.forEach(hp=>{
+            if(hp.layoutNo===layoutNo && hp.sizesUsed){
+              hp.sizesUsed.forEach(su=>{ bySize[su.size] = (bySize[su.size]||0) + (Number(su.qty)||0); });
+            }
+          });
+        }
+      });
+    });
+  }
+  return bySize;
+}
+function findSfgSiblings(articleNo, shopOrderNo){
+  const out = [];
+  PRODUCTION_LINES.forEach(ln=>{
+    getArticles(ln).forEach(a=>{
+      if(a.articleNo===articleNo && a.shopOrderNo===shopOrderNo && a.outputType==='SFG') out.push({ ln, layoutNo:a.layoutNo });
+    });
+  });
+  return out;
+}
+function findFgSiblings(articleNo, shopOrderNo){
+  const out = [];
+  PRODUCTION_LINES.forEach(ln=>{
+    getArticles(ln).forEach(a=>{
+      if(a.articleNo===articleNo && a.shopOrderNo===shopOrderNo && a.outputType==='FG') out.push({ ln, layoutNo:a.layoutNo });
+    });
+  });
+  return out;
+}
+function computeSfgToFgSizeBalance(articleNo, shopOrderNo){
+  const sfgBySize = {};
+  findSfgSiblings(articleNo, shopOrderNo).forEach(({ln,layoutNo})=>{
+    const bySize = sizesAchievedForArticle(ln, layoutNo);
+    Object.keys(bySize).forEach(sz=>{ sfgBySize[sz] = (sfgBySize[sz]||0) + bySize[sz]; });
+  });
+  const fgUsedBySize = {};
+  findFgSiblings(articleNo, shopOrderNo).forEach(({ln,layoutNo})=>{
+    const bySize = sizesAchievedForArticle(ln, layoutNo);
+    Object.keys(bySize).forEach(sz=>{ fgUsedBySize[sz] = (fgUsedBySize[sz]||0) + bySize[sz]; });
+  });
+  return Object.keys(sfgBySize).map(Number).sort((a,b)=>a-b).map(size=>({
+    size,
+    received: sfgBySize[size]||0,
+    consumed: fgUsedBySize[size]||0,
+    balance: (sfgBySize[size]||0) - (fgUsedBySize[size]||0)
   }));
 }
 
@@ -8205,7 +8267,12 @@ function attachPanelEvents(key){
     function refreshProdSizeUI(){
       const art = findArticle(ln, Number(prodSel.value));
       if((isPrepFed(ln) || (art && art.outputType==='FG')) && art && art.shopOrderNo){
-        let balances = computePrepSizeBalance(art.articleNo, art.shopOrderNo);
+        // The rare SFG-then-FG two-pass workflow: this FG article's own upper was already
+        // drawn from Preparation once, at SFG time — its size-wise "available" here is what
+        // the SFG pass achieved, not Preparation's balance a second time.
+        let balances = (art.outputType==='FG' && findSfgSiblings(art.articleNo, art.shopOrderNo).length)
+          ? computeSfgToFgSizeBalance(art.articleNo, art.shopOrderNo)
+          : computePrepSizeBalance(art.articleNo, art.shopOrderNo);
         // Mocassin's material usually comes from the Job Work round trip, not from
         // Preparation directly — if there's nothing on the Preparation side, fall back to
         // what's been received back from job work minus what's already been Formed.
