@@ -697,7 +697,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-21d-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-21e-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1744,6 +1744,7 @@ function wirePersonPhoto(idFieldId, btnId, inputId, frameId){
       const dataUrl = await compressImageToBase64(file, 220);
       store.personPhotos = store.personPhotos || {};
       store.personPhotos[idNo] = dataUrl;
+      photosDirty = true;
       await saveStore();
       refreshFrame();
       toast('Photo saved', 'ok');
@@ -2861,6 +2862,14 @@ function hrSig(){ return JSON.stringify(store.hr||{}); }
 function metaSig(){ return JSON.stringify({g:store.globalUnlock, u:store.userPasswords, m:store.mgmtPassword, ps:store.pwSchema, mr:store.monthRanges, ct:store.categoryTargets, cats:store.categories, icats:store.inactiveCategories, cf:store.categoryFreezing}); }
 function photosSig(){ return JSON.stringify(store.personPhotos||{}); }
 let baseReqSig='', baseHrSig='', baseMetaSig='', baseQfSig='', baseNoticeSig='', basePhotosSig='';
+// Deliberately NOT part of rebaseSigs()/photosSig(): a background load (every 2-3 minutes)
+// calls rebaseSigs() too, and if that happens to land between a photo being set locally and
+// this device's own save reaching the server, the signature comparison alone would wrongly
+// treat the still-unsaved photo as "already matches the baseline" and skip writing it \u2014 the
+// upload would report success locally but the photo would never actually reach Supabase.
+// This flag is set only by an actual photo upload and cleared only once that specific write
+// has succeeded, so it can never be short-circuited by an unrelated load.
+let photosDirty = false;
 function rebaseSigs(){ baseReqSig=reqSig(); baseHrSig=hrSig(); baseMetaSig=metaSig(); baseQfSig=qfSig(); baseNoticeSig=noticeSig(); basePhotosSig=photosSig(); }
 
 function showSaveError(msg){
@@ -3215,7 +3224,7 @@ async function doSaveStore(){
     // Person photos are shared by everyone (any role, including supervisors) — field-merged
     // by ID No. so two different people updating their own photo around the same moment
     // never clobber each other, the same shape as quality flags/notices above.
-    if(photosSig()!==basePhotosSig){
+    if(photosDirty){
       const freshPhotos = await readKey(K_PHOTOS, {});
       const merged = Object.assign({}, freshPhotos, store.personPhotos);
       store.personPhotos = merged;
@@ -3234,6 +3243,7 @@ async function doSaveStore(){
       }
     } else {
       rebaseSigs();
+      photosDirty = false;
       // Everything queued has now landed, so forget it. Without this the list only ever grew:
       // Quality Management decides on one line, then another, then another, and every later
       // save re-wrote every line it had ever touched this session — a handful of decisions
