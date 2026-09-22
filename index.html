@@ -697,7 +697,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-21e-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-21f-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1747,7 +1747,15 @@ function wirePersonPhoto(idFieldId, btnId, inputId, frameId){
       photosDirty = true;
       await saveStore();
       refreshFrame();
-      toast('Photo saved', 'ok');
+      // doSaveStore() never throws on a failed write (it shows its own banner and returns
+      // normally) \u2014 photosDirty only clears inside that function's confirmed-success branch,
+      // so checking it here is the one reliable way to know whether this photo actually
+      // reached the server, not just this device's own memory.
+      if(photosDirty){
+        toast('\u26a0 Photo shown here, but not saved yet \u2014 check your connection and try again before closing the app', 'error');
+      } else {
+        toast('Photo saved', 'ok');
+      }
     }catch(e){ toast('Could not read that photo \u2014 try again'); }
     input.value = '';
   });
@@ -2952,7 +2960,10 @@ async function loadStore(lines, opts){
   store.qualityFlags = qf || store.qualityFlags || [];
   pruneOldQualityFlags();
   store.notices = notice || store.notices || [];
-  store.personPhotos = photos || store.personPhotos || {};
+  // Merge, never replace: a background load landing between a photo being set locally and
+  // that same device's own save reaching the server must not silently erase the pending
+  // local photo — local (possibly not-yet-saved) entries always win over the server's copy.
+  store.personPhotos = Object.assign({}, photos||{}, store.personPhotos||{});
   if(meta){
     // Got a real answer from storage — trust it fully.
     const m = meta;
