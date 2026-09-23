@@ -697,7 +697,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-21f-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-23h-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1855,6 +1855,64 @@ function getArticles(lineName){ return ensureLine(lineName).activeArticles; }
 function getActiveArticles(lineName){ return getArticles(lineName).filter(a=>a.status==='active'); }
 function findArticle(lineName, layoutNo){ return getArticles(lineName).find(a=>a.layoutNo===layoutNo); }
 
+// ---- Line article supply (build 21h) ----
+// A Preparation-fed article (Line 1-6, Mocassin, Artisan FG) takes its Order Qty and its
+// Received Qty LIVE from the upstream receive records, never from a figure typed on the line:
+// Order Qty = Preparation's "Article Qty (Order)", Received Qty = everything received so far
+// (it grows with every repeat receive). Mocassin's Forming is fed by the Job Work round trip,
+// so its Received Qty is what came back from Job Work. No matching receive at all = no work.
+function articleNeedsSupply(lineName, art){
+  if(!art) return false;
+  if(lineName==='Artisan') return art.outputType==='FG';
+  return isPrepFed(lineName);
+}
+// A layout reopened from ANOTHER line carries a frozen remaining-qty snapshot as its Order Qty
+// (its Achieved restarts at 0 there) — that snapshot must keep winning over Preparation's total.
+function isOrderQtyFrozen(lineName, art){
+  if(!art) return false;
+  if(art.orderQtyFrozen) return true;
+  return (art.history||[]).some(h=>h && h.line && h.line!==lineName);
+}
+function getArticleSupply(lineName, articleNo, shopOrderNo){
+  const an = (articleNo||'').trim(), so = (shopOrderNo||'').trim();
+  const res = { found:false, orderQty:0, receivedQty:0, source:'' };
+  if(!an || !so) return res;
+  const { groups } = computeUpperReceiptProgress();
+  const prep = Object.values(groups).filter(g=>(g.article||'').trim()===an && (g.shopOrder||'').trim()===so);
+  const prepWithQty = prep.find(g=>g.articleQty>0);
+  if(lineName==='Mocassin'){
+    const recs = getAllSubcontractReceives().filter(r=>(r.article||'').trim()===an && (r.shopOrder||'').trim()===so);
+    if(!recs.length) return res;
+    res.found = true; res.source = 'jobwork';
+    res.receivedQty = recs.reduce((t,r)=>t+(Number(r.totalQty)||0),0);
+    if(prepWithQty){ res.orderQty = prepWithQty.articleQty; }
+    else {
+      const { groups: sg } = computeSubcontractSendProgress();
+      const m = Object.values(sg).find(g=>(g.article||'').trim()===an && (g.shopOrder||'').trim()===so && g.orderQty>0);
+      res.orderQty = m ? m.orderQty : 0;
+    }
+    return res;
+  }
+  if(!prep.length) return res;
+  res.found = true; res.source = 'prep';
+  res.receivedQty = prep.reduce((t,g)=>t+(Number(g.totalReceived)||0),0);
+  res.orderQty = prepWithQty ? prepWithQty.articleQty : 0;
+  return res;
+}
+function getEffectiveOrderQty(lineName, art){
+  if(!art) return 0;
+  const stored = Number(art.orderQty)||0;
+  if(!articleNeedsSupply(lineName, art) || isOrderQtyFrozen(lineName, art)) return stored;
+  const sup = getArticleSupply(lineName, art.articleNo, art.shopOrderNo);
+  return (sup.found && sup.orderQty>0) ? sup.orderQty : stored;
+}
+// null = this article isn't fed by a receive (hand-entered line), so there is nothing to show.
+function getArticleReceivedQty(lineName, art){
+  if(!articleNeedsSupply(lineName, art)) return null;
+  const sup = getArticleSupply(lineName, art.articleNo, art.shopOrderNo);
+  return sup.found ? sup.receivedQty : 0;
+}
+
 function addArticle(lineName, articleNo, chargingTime, orderQty, shopOrderNo, outputType){
   const lineObj = ensureLine(lineName);
   if(getActiveArticles(lineName).length>=6) return null;
@@ -1867,7 +1925,8 @@ function addArticle(lineName, articleNo, chargingTime, orderQty, shopOrderNo, ou
   lineObj.nextLayoutNo = layoutNo + 1;
   const art = { layoutNo, articleNo, shopOrderNo: (shopOrderNo||'').trim(), chargingTime, chargingDate: currentDate,
                 layoutReceiveTime:'', layoutReceiveDate:'', smv:0, targetPercent:0, outputType: outputType==='FG'?'FG':'SFG',
-                category:'', orderQty:Number(orderQty)||0, status:'active', startDate: todayStr() };
+                category:'', orderQty:Number(orderQty)||0, status:'active', startDate: todayStr(),
+                savedAtEpoch: savedNowEpoch() };
   lineObj.activeArticles.push(art);
   return art;
 }
@@ -1883,7 +1942,7 @@ function addArticle(lineName, articleNo, chargingTime, orderQty, shopOrderNo, ou
 // it can never be matched again — the superseding record becomes the new tail of the chain.
 function closeArticleWithSnapshot(art, lineName, dateStr, shift){
   const achieved = getArticleTotalAchieved(lineName, art.layoutNo);
-  const remaining = Math.max(0, (Number(art.orderQty)||0) - achieved);
+  const remaining = Math.max(0, getEffectiveOrderQty(lineName, art) - achieved);
   art.status = 'closed';
   art.closedAt = { date: dateStr, shift };
   art.closedAtEpoch = savedNowEpoch();
@@ -1917,7 +1976,9 @@ function findReopenableArticle(articleNo, shopOrderNo){
 function reopenArticleSameLine(art, lineName, dateStr, shift){
   art.status = 'active';
   if(!art.history) art.history = [];
-  art.history.push({ event:'reopened', line:lineName, date:dateStr, shift, epoch: savedNowEpoch() });
+  const reopenEpoch = savedNowEpoch();
+  art.history.push({ event:'reopened', line:lineName, date:dateStr, shift, epoch: reopenEpoch });
+  art.lastReopenedAtEpoch = reopenEpoch;
   art.reopenCount = (art.reopenCount||0) + 1;
   delete art.closedAt; delete art.closedAtEpoch; delete art.closedRemainingQty;
 }
@@ -1936,7 +1997,8 @@ function reopenArticleOnOtherLine(sourceLine, sourceArt, targetLine, chargingTim
                     smv: sourceArt.smv||0, targetPercent: sourceArt.targetPercent||0, outputType: sourceArt.outputType||'SFG',
                     category: sourceArt.category||'', orderQty: sourceArt.closedRemainingQty||0,
                     status:'active', startDate: dateStr,
-                    reopenCount: (sourceArt.reopenCount||0)+1, history };
+                    reopenCount: (sourceArt.reopenCount||0)+1, history,
+                    orderQtyFrozen: true, savedAtEpoch: epoch, lastReopenedAtEpoch: epoch };
   lineObj.activeArticles.push(newArt);
   sourceArt.supersededBy = { line: targetLine, layoutNo, epoch };
   return newArt;
@@ -5264,7 +5326,8 @@ function renderMgmtOverviewCharts(){
   /* ---- Line table ---- */
   document.getElementById('dashLineBody').innerHTML = m.lineRows.length
     ? m.lineRows.map(r=>{
-        const col = r.ratio>=100 ? 'var(--success)' : (r.ratio<90 ? 'var(--danger)' : 'var(--ink)');
+        const smvMissing = getActiveArticles(r.line).some(a=>!a.smv);
+        const col = smvMissing ? 'var(--danger)' : (r.ratio>=100 ? 'var(--success)' : (r.ratio<90 ? 'var(--danger)' : 'var(--ink)'));
         return `<tr><td style="text-align:left;color:${col};font-weight:700;">${r.line}</td>
           <td>${dashNum(r.qty)}</td><td>${r.wtdSmv>0?r.wtdSmv.toFixed(2):'\u2014'}</td><td>${r.eff.toFixed(2)}%</td>
           <td>${r.target.toFixed(0)}%</td>
@@ -6000,7 +6063,7 @@ function supervisorPanelHTML(){
         </div>
       </div>
     </div>
-    <div class="table-scroll"><table><thead><tr><th>#</th><th>Article</th><th>Shop Order</th><th>Category</th><th>Order Qty</th><th>Achieved</th><th>Progress</th><th>Charging</th><th>Layout Recv</th><th></th></tr></thead><tbody id="articleBody"></tbody></table></div>
+    <div class="table-scroll"><table><thead><tr><th>#</th><th>Article</th><th>Shop Order</th><th>Category</th><th>Order Qty</th><th>Rcv Qty</th><th>Achieved</th><th>Progress</th><th>Charging</th><th>Layout Recv</th><th></th></tr></thead><tbody id="articleBody"></tbody></table></div>
     <div class="empty" id="articleEmpty"></div>
 
     <div id="closedArticlesWrap" class="hidden" style="margin-top:8px;">
@@ -6214,7 +6277,7 @@ function iePanelHTML(){
     </div>
     <div class="note" id="ieOrderQtyNote"></div>
     <button class="btn-primary" id="ieSaveBtn">Save</button>
-    <div class="table-scroll"><table><thead><tr><th>Layout</th><th>Article</th><th>Category</th><th>SMV</th><th>Target%</th><th>Order Qty</th></tr></thead><tbody id="ieTableBody"></tbody></table></div>
+    <div class="table-scroll"><table><thead><tr><th>Layout</th><th>Article</th><th>Category</th><th>SMV</th><th>Target%</th><th>Order Qty</th><th>Rcv Qty</th></tr></thead><tbody id="ieTableBody"></tbody></table></div>
   </div>
   `;
 }
@@ -8041,6 +8104,31 @@ function attachPanelEvents(key){
       artOutputTypeWrap.classList.remove('hidden');
       if(NUMBERED_LINES.includes(ln)) artOutputTypeSel.value = 'FG';
     }
+    // Build 21h: on a Preparation-fed form the Shop Order + Article must be an actual receive
+    // (picked from the suggestion list, or typed letter-for-letter the same), and the Order Qty
+    // is never typed here — it is shown read-only, straight from the receive record.
+    function formUsesSupply(){
+      if(ln==='Artisan') return !!(artOutputTypeSel && artOutputTypeSel.value==='FG');
+      return isPrepFed(ln);
+    }
+    function supplyValidationPool(){
+      return (ln==='Mocassin') ? getAllSubcontractReceives() : getAllUpperReceipts();
+    }
+    // Case-insensitive exact match against a real receive; returns the receive's own spelling.
+    function resolveSupplyPick(shopOrderNo, artNo){
+      const so = (shopOrderNo||'').trim().toLowerCase(), an = (artNo||'').trim().toLowerCase();
+      if(!so || !an) return null;
+      const hit = supplyValidationPool().find(en=>
+        (en.shopOrder||'').trim().toLowerCase()===so && (en.article||'').trim().toLowerCase()===an);
+      return hit ? { shopOrder:(hit.shopOrder||'').trim(), article:(hit.article||'').trim() } : null;
+    }
+    function applyOrderQtyLock(){
+      const inp = document.getElementById('orderQty');
+      if(pendingReopen) return; // Reopen manages its own frozen value
+      const locked = formUsesSupply();
+      inp.readOnly = locked;
+      inp.placeholder = locked ? 'Auto from receive' : '0';
+    }
     function checkReopenState(){
       const artNo = document.getElementById('artNo').value.trim();
       const shopOrderNo = document.getElementById('artShopOrder').value.trim();
@@ -8059,7 +8147,7 @@ function attachPanelEvents(key){
       } else {
         if(pendingReopen && orderQtyInput.readOnly) orderQtyInput.value='';
         pendingReopen = null;
-        orderQtyInput.readOnly = false;
+        applyOrderQtyLock();
         artReopenNote.classList.add('hidden');
         addLayoutBtnEl.textContent = 'Add Article';
       }
@@ -8068,15 +8156,28 @@ function attachPanelEvents(key){
     document.getElementById('artNo').addEventListener('change', checkReopenState);
     document.getElementById('artShopOrder').addEventListener('input', checkReopenState);
     document.getElementById('artShopOrder').addEventListener('change', checkReopenState);
+    applyOrderQtyLock(); // initial state for this line's form
 
     document.getElementById('addLayoutBtn').onclick = async ()=>{
       if(!shiftTimesSet(liveDay(ln, dateStr, currentShift))){ toast('⚠ Set Shift Start and End time first (Shift & Manpower card), then Save.'); return; }
-      const artNo = document.getElementById('artNo').value.trim();
-      const shopOrderNo = document.getElementById('artShopOrder').value.trim();
+      let artNo = document.getElementById('artNo').value.trim();
+      let shopOrderNo = document.getElementById('artShopOrder').value.trim();
       const chargeTime = document.getElementById('chargeTime').value;
-      const orderQty = document.getElementById('orderQty').value;
+      let orderQty = document.getElementById('orderQty').value;
       const outputType = (ln==='Artisan' || NUMBERED_LINES.includes(ln)) ? artOutputTypeSel.value : 'SFG';
       if(!artNo){ toast('Enter an Article No'); return; }
+      if(!pendingReopen && formUsesSupply()){
+        if(!shopOrderNo){ toast('⚠ Select the Shop Order from the suggestion list'); return; }
+        const pick = resolveSupplyPick(shopOrderNo, artNo);
+        if(!pick){
+          toast(ln==='Mocassin'
+            ? '⚠ No Job Work receive found for this Shop Order + Article — select both from the suggestion list'
+            : '⚠ Preparation has not received this Shop Order + Article yet — select both from the suggestion list');
+          return;
+        }
+        shopOrderNo = pick.shopOrder; artNo = pick.article;
+        orderQty = getArticleSupply(ln, artNo, shopOrderNo).orderQty || 0;
+      }
       if(pendingReopen){
         if(pendingReopen.line===ln){
           reopenArticleSameLine(pendingReopen.art, ln, dateStr, currentShift);
@@ -8108,26 +8209,17 @@ function attachPanelEvents(key){
     // wins over Preparation's original total.
     function autofillLineOrderQtyFromPrep(){
       if(pendingReopen) return;
-      // Same rule as the suggestion pool above: Artisan only pulls from Preparation while
-      // its Output Type is set to FG. Every other non-Prep-fed line has nothing to pull.
-      const usesPrep = (ln==='Artisan') ? !!(artOutputTypeSel && artOutputTypeSel.value==='FG') : isPrepFed(ln);
-      if(!usesPrep) return; // this line prepares its own work, nothing to pull from
+      if(!formUsesSupply()) return; // hand-entered line: Order Qty stays whatever was typed
       const orderQtyInput = document.getElementById('orderQty');
-      if(orderQtyInput.value) return; // don't override what's already typed
-      const artNo = document.getElementById('artNo').value.trim();
-      const shopOrderNo = document.getElementById('artShopOrder').value.trim();
-      if(!artNo || !shopOrderNo) return;
-      const { groups } = computeUpperReceiptProgress();
-      const match = Object.values(groups).find(g=>g.article===artNo && g.shopOrder===shopOrderNo && g.articleQty>0);
-      if(match){ orderQtyInput.value = match.articleQty; return; }
-      if(ln==='Mocassin'){
-        const { groups: sendGroups } = computeSubcontractSendProgress();
-        const sendMatch = Object.values(sendGroups).find(g=>g.article===artNo && g.shopOrder===shopOrderNo && g.orderQty>0);
-        if(sendMatch) orderQtyInput.value = sendMatch.orderQty;
-      }
+      const pick = resolveSupplyPick(document.getElementById('artShopOrder').value, document.getElementById('artNo').value);
+      if(!pick){ orderQtyInput.value = ''; return; }
+      const sup = getArticleSupply(ln, pick.article, pick.shopOrder);
+      orderQtyInput.value = sup.orderQty>0 ? sup.orderQty : '';
     }
     document.getElementById('artNo').addEventListener('change', autofillLineOrderQtyFromPrep);
     document.getElementById('artShopOrder').addEventListener('change', autofillLineOrderQtyFromPrep);
+    document.getElementById('artNo').addEventListener('input', autofillLineOrderQtyFromPrep);
+    document.getElementById('artShopOrder').addEventListener('input', autofillLineOrderQtyFromPrep);
     // Preparation's data is normally never loaded for Artisan at all (it isn't Prep-fed for
     // its usual bulk SFG work) — kickLateScopeLoad only pulls it in once an FG article is
     // ALREADY active. Charging the very FIRST FG article needs it sooner than that: as soon
@@ -8143,6 +8235,7 @@ function attachPanelEvents(key){
     }
     if(ln==='Artisan') artOutputTypeSel.addEventListener('change', async ()=>{
       document.getElementById('orderQty').value = ''; // let FG re-pull Preparation's qty, or SFG go back to manual
+      applyOrderQtyLock();
       if(artOutputTypeSel.value==='FG') await ensureArtisanPrepDataLoaded();
       autofillLineOrderQtyFromPrep();
     });
@@ -8238,14 +8331,16 @@ function attachPanelEvents(key){
     activeArticlesForLine.forEach(l=>{
       const achieved = getArticleTotalAchieved(ln, l.layoutNo);
       // Floor (not round): 99.5% must not display as 100%. "100%" means genuinely complete.
-      const progressPct = l.orderQty>0 ? Math.min(100, Math.floor(achieved/l.orderQty*100)) : 0;
+      const effOrderQty = getEffectiveOrderQty(ln, l);
+      const rcvQty = getArticleReceivedQty(ln, l);
+      const progressPct = effOrderQty>0 ? Math.min(100, Math.floor(achieved/effOrderQty*100)) : 0;
       const canDelete = !hasAnyProductionData(ln, l.layoutNo);
       const actionHtml = `<button class="btn-ghost" data-close-article="${l.layoutNo}">Close</button>` +
         (canDelete ? ` <button class="btn-ghost" style="color:var(--danger);" data-delete-article="${l.layoutNo}">Delete</button>` : '');
       const tr=document.createElement('tr');
       const outputTag = (ln==='Artisan' || NUMBERED_LINES.includes(ln))
         ? ` <span class="note" style="color:var(--accent-dark);font-weight:700;">(${l.outputType==='FG'?'FG':'SFG'})</span>` : '';
-      tr.innerHTML = `<td class="num">${l.layoutNo}</td><td>${l.articleNo}${outputTag}</td><td>${l.shopOrderNo||'—'}</td><td>${l.category||'—'}</td><td class="num">${l.orderQty||'—'}</td><td class="num">${achieved}</td><td class="num">${l.orderQty?progressPct.toFixed(0)+'%':'—'}</td><td class="num">${stampText(l.chargingDate, l.chargingTime)}</td><td class="num">${stampText(l.layoutReceiveDate, l.layoutReceiveTime)}</td><td>${actionHtml}</td>`;
+      tr.innerHTML = `<td class="num">${l.layoutNo}</td><td>${l.articleNo}${outputTag}</td><td>${l.shopOrderNo||'—'}</td><td>${l.category||'—'}</td><td class="num">${effOrderQty||'—'}</td><td class="num">${rcvQty===null?'—':rcvQty}</td><td class="num">${achieved}</td><td class="num">${effOrderQty?progressPct.toFixed(0)+'%':'—'}</td><td class="num">${stampText(l.chargingDate, l.chargingTime)}</td><td class="num">${stampText(l.layoutReceiveDate, l.layoutReceiveTime)}</td><td>${actionHtml}</td>`;
       articleBody.appendChild(tr);
     });
 
@@ -8402,6 +8497,15 @@ function attachPanelEvents(key){
       const hour = prodHourSel.value;
       const layoutNo = Number(prodSel.value)||1;
       const breakMin = Number(document.getElementById('prodBreak').value)||0;
+      // Build 21h: a Preparation-fed article with no receive at all cannot record output —
+      // the material it would be made from has not been received on record yet.
+      const prodArt = findArticle(ln, layoutNo);
+      if(prodArt && articleNeedsSupply(ln, prodArt) && !getArticleSupply(ln, prodArt.articleNo, prodArt.shopOrderNo).found){
+        toast(ln==='Mocassin'
+          ? `⚠ L-${layoutNo} ${prodArt.articleNo}: no Job Work receive on record for this Shop Order — output cannot be added`
+          : `⚠ L-${layoutNo} ${prodArt.articleNo}: Preparation has not received this Shop Order + Article — output cannot be added`);
+        return null;
+      }
       let qty, sizesUsed;
       if(prodSizeModeActive){
         sizesUsed = [];
@@ -8865,8 +8969,13 @@ function attachPanelEvents(key){
       document.getElementById('ieTarget').value = l ? (iv.targetPercent||'') : '';
       // Order Qty belongs to the line \u2014 the supervisor enters it when adding the article.
       // Shown here only so IE can see the run size while deciding SMV and target.
-      document.getElementById('ieOrderQtyNote').textContent =
-        l ? (l.orderQty ? `Order Qty: ${l.orderQty} (entered on the line)` : 'Order Qty not entered on the line yet') : '';
+      document.getElementById('ieOrderQtyNote').textContent = (()=>{
+        if(!l) return '';
+        const oq = getEffectiveOrderQty(selectedLine, l);
+        const rq = getArticleReceivedQty(selectedLine, l);
+        if(rq!==null) return oq ? `Order Qty: ${oq} \u00b7 Received: ${rq} (from receive)` : `Order Qty not available \u00b7 Received: ${rq}`;
+        return oq ? `Order Qty: ${oq} (entered on the line)` : 'Order Qty not entered on the line yet';
+      })();
       const saveBtn = document.getElementById('ieSaveBtn');
       if(l && iv.smv){ flashSaved(saveBtn); } else { saveBtn.style.background=''; saveBtn.textContent='Save'; }
     };
@@ -8901,8 +9010,8 @@ function attachPanelEvents(key){
     const tb = document.getElementById('ieTableBody');
     tb.innerHTML = getArticles(selectedLine).map(l=>{
       const iv = shiftIEValues(selectedLine, currentDate, currentShift, l.layoutNo);
-      return `<tr><td class="num">${l.layoutNo}</td><td>${l.articleNo}${l.status==='closed'?' <span class="note">(Closed)</span>':''}</td><td>${l.category||'\u2014'}</td><td class="num" style="${!iv.smv?'color:var(--danger);font-weight:700;':''}">${iv.smv||'\u26a0 0'}</td><td class="num">${iv.targetPercent}%</td><td class="num">${l.orderQty||'\u2014'}</td></tr>`;
-    }).join('') || '<tr><td colspan="6" class="empty">No articles</td></tr>';
+      return `<tr><td class="num">${l.layoutNo}</td><td>${l.articleNo}${l.status==='closed'?' <span class="note">(Closed)</span>':''}</td><td>${l.category||'\u2014'}</td><td class="num" style="${!iv.smv?'color:var(--danger);font-weight:700;':''}">${iv.smv||'\u26a0 0'}</td><td class="num">${iv.targetPercent}%</td><td class="num">${getEffectiveOrderQty(selectedLine, l)||'\u2014'}</td><td class="num">${(rq=>rq===null?'\u2014':rq)(getArticleReceivedQty(selectedLine, l))}</td></tr>`;
+    }).join('') || '<tr><td colspan="7" class="empty">No articles</td></tr>';
   }
 
   if(key==='quality'){
@@ -10720,8 +10829,12 @@ function doExport(){
         'Output Type':l.outputType==='FG'?'FG':'SFG',
         'Charging Date':l.chargingDate||'', 'Charging Time':l.chargingTime,
         'Layout Recv Date':l.layoutReceiveDate||'', 'Layout Recv Time':l.layoutReceiveTime, SMV:l.smv, 'Target%':l.targetPercent,
-        'Order Qty':l.orderQty||0, 'Total Achieved':getArticleTotalAchieved(ln, l.layoutNo),
-        'Start Date':l.startDate });
+        'Order Qty':getEffectiveOrderQty(ln, l)||0,
+        'Received Qty':(rq=>rq===null?'':rq)(getArticleReceivedQty(ln, l)),
+        'Total Achieved':getArticleTotalAchieved(ln, l.layoutNo),
+        'Start Date':l.startDate,
+        'Saved At': l.savedAtEpoch ? fmtSavedAt(l.savedAtEpoch) : '',
+        'Last Reopened At': l.lastReopenedAtEpoch ? fmtSavedAt(l.lastReopenedAtEpoch) : '' });
     });
   });
   const prodRows = [];
