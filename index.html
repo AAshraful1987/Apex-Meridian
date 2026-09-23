@@ -697,7 +697,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-24i-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-24j-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1730,6 +1730,24 @@ function resolveIE(lineName, dateStr, shift, layoutNo){
 }
 function shiftSmv(lineName, dateStr, shift, layoutNo){ return resolveIE(lineName, dateStr, shift, layoutNo).smv; }
 function shiftTarget(lineName, dateStr, shift, layoutNo){ return resolveIE(lineName, dateStr, shift, layoutNo).targetPercent; }
+// IE's article list (build 21i): every ACTIVE article, plus any closed article that was closed on
+// this date or recorded output/quality on this date (any shift). Older closed articles drop off,
+// so the list stays short — but looking at a past date still shows what ran that day, so an
+// HR-opened back-dated SMV fix remains possible.
+function ieVisibleArticles(lineName, dateStr){
+  const lo = store.lines[lineName];
+  if(!lo || !Array.isArray(lo.activeArticles)) return [];
+  const usedToday = new Set();
+  const shifts = lo.days && lo.days[dateStr] ? lo.days[dateStr] : {};
+  Object.keys(shifts).forEach(sh=>{
+    const d = shifts[sh] || {};
+    (d.hourlyProd||[]).forEach(p=>usedToday.add(p.layoutNo));
+    (d.quality||[]).forEach(q=>usedToday.add(q.layoutNo));
+  });
+  return lo.activeArticles.filter(a=> a.status==='active'
+    || (a.closedAt && a.closedAt.date===dateStr)
+    || usedToday.has(a.layoutNo));
+}
 // True when this line has at least one ACTIVE article with no SMV for this date+shift.
 // Read-only: a line not loaded on this device is reported as not flagged.
 function lineMissingSmv(lineName, dateStr, shift){
@@ -9085,7 +9103,7 @@ function attachPanelEvents(key){
     ieShift.value = currentShift;
     ieShift.onchange = ()=>{ currentShift = ieShift.value; buildPanel('ie'); };
     const sel = document.getElementById('ieLayoutSel');
-    sel.innerHTML = getArticles(selectedLine).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${esc(l.articleNo)}${l.status==='closed'?' — Closed':''}</option>`).join('') || '<option value="">No articles</option>';
+    sel.innerHTML = ieVisibleArticles(selectedLine, currentDate).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${esc(l.articleNo)}${l.status==='closed'?' — Closed':''}</option>`).join('') || '<option value="">No articles</option>';
     const catSel = document.getElementById('ieCategory');
     function refreshCatOptions(currentCategory){
       const catList = articleCategoriesForNewArticle(currentCategory);
@@ -9178,7 +9196,7 @@ function attachPanelEvents(key){
     };
 
     const tb = document.getElementById('ieTableBody');
-    tb.innerHTML = getArticles(selectedLine).map(l=>{
+    tb.innerHTML = ieVisibleArticles(selectedLine, currentDate).map(l=>{
       const iv = shiftIEValues(selectedLine, currentDate, currentShift, l.layoutNo);
       return `<tr><td class="num">${l.layoutNo}</td><td>${esc(l.articleNo)}${l.status==='closed'?' <span class="note">(Closed)</span>':''}</td><td>${esc(l.category)||'\u2014'}</td><td class="num" style="${!iv.smv?'color:var(--danger);font-weight:700;':''}">${iv.smv||'\u26a0 0'}</td><td class="num">${iv.targetPercent}%</td><td class="num">${getEffectiveOrderQty(selectedLine, l)||'\u2014'}</td><td class="num">${(rq=>rq===null?'\u2014':rq)(getArticleReceivedQty(selectedLine, l))}</td></tr>`;
     }).join('') || '<tr><td colspan="7" class="empty">No articles</td></tr>';
