@@ -697,7 +697,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-23h-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-24i-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1229,7 +1229,7 @@ const STORAGE_KEY = 'ie_tracker_v2';
 let session = null; // {username, role, line}
 let selectedLine = null;
 let currentShift = 'A'; // A/B/G — which shift's record the current entry/view refers to
-let store = { lines:{}, hr:{}, handoverRequests:[], qualityFlags:[], notices:[], globalUnlock:{active:false, expiresAt:null}, userPasswords:{}, mgmtPassword:DEFAULT_PW, pwSchema:PW_SCHEMA, monthRanges:[], categoryTargets:{}, categories:[], inactiveCategories:[] };
+let store = { lines:{}, hr:{}, handoverRequests:[], qualityFlags:[], notices:[], unlocks:[], globalUnlock:{active:false, expiresAt:null}, userPasswords:{}, mgmtPassword:DEFAULT_PW, pwSchema:PW_SCHEMA, monthRanges:[], categoryTargets:{}, categories:[], inactiveCategories:[] };
 let refreshInterval = null;
 let visibilityRefreshHandler = null;
 // Size grids show Preparation's live per-size balance, but the background sync
@@ -1657,19 +1657,85 @@ function shiftRunMinutes(day){
 // so IE sets it a lower target). The per-shift value lives on the day record; when none is
 // set — including every record made before this feature — the article's base value is used,
 // so nothing already entered changes.
-function shiftSmv(lineName, dateStr, shift, layoutNo){
-  const day = ensureLineDay(lineName, dateStr, shift);
-  const ov = day.ieByLayout && day.ieByLayout[layoutNo];
-  if(ov && ov.smv!==undefined && ov.smv!=='' && ov.smv!==null) return Number(ov.smv)||0;
-  const l = findArticle(lineName, layoutNo);
-  return l ? Number(l.smv)||0 : 0;
+// ---- SMV / Target resolution (build 21h: carry-forward + no back-date effect) ----
+// Every IE save now appends to the article's smvLog instead of silently rewriting a single base
+// value. The value for any date+shift is resolved in this order:
+//   1. An exact per-shift record on that day (day.ieByLayout) — a shift IE saved on, a shift that
+//      was frozen when a later save landed on the same date, or an HR-unlocked back-dated fill.
+//   2. Otherwise the latest carry-forward log entry whose fromDate is on/before that date
+//      (SMV: any shift; Target%: that shift's own latest value, else the latest any-shift value).
+//      A 'reset' entry (article reopened) blanks both from its date onward.
+//   3. An article with no log yet (never saved since this build) behaves exactly as before:
+//      its base value, from its charging date on.
+// Nothing here writes to the store — it is safe to call for every line on every render.
+function smvLogOf(art){
+  if(Array.isArray(art.smvLog) && art.smvLog.length) return art.smvLog;
+  return [{ kind:'baseline', smv:Number(art.smv)||0, targetPercent:Number(art.targetPercent)||0,
+            fromDate:'0000-00-00', fromShift:'', epoch:0 }];
 }
-function shiftTarget(lineName, dateStr, shift, layoutNo){
-  const day = ensureLineDay(lineName, dateStr, shift);
-  const ov = day.ieByLayout && day.ieByLayout[layoutNo];
-  if(ov && ov.targetPercent!==undefined && ov.targetPercent!=='' && ov.targetPercent!==null) return Number(ov.targetPercent)||0;
-  const l = findArticle(lineName, layoutNo);
-  return l ? Number(l.targetPercent)||0 : 0;
+// Epoch at which one line's date+shift ended (overnight-aware), or null if Shift End isn't set.
+// Read-only twin of hasShiftEnded().
+function shiftEndEpoch(lineName, dateStr, shift){
+  const day = store.lines[lineName]?.days?.[dateStr]?.[shift];
+  if(!day || !day.shiftEnd) return null;
+  const [y,mo,d] = dateStr.split('-').map(Number);
+  if(!y||!mo||!d) return null;
+  const [eh,em] = day.shiftEnd.split(':').map(Number);
+  const end = new Date(y, mo-1, d, eh, em, 0, 0);
+  if(day.shiftStart){
+    const [sh,sm] = day.shiftStart.split(':').map(Number);
+    if((eh*60+em) <= (sh*60+sm)) end.setDate(end.getDate()+1);
+  }
+  return end.getTime();
+}
+// Does a carry-forward entry reach this date+shift? Later dates: always. Its own shift: yes.
+// Another shift on the SAME date: only if that shift had not already ended when the entry was
+// saved — a shift that was over by then keeps what it ran with (no back-date effect).
+function carryEntryReaches(e, lineName, dateStr, shift){
+  const fd = e.fromDate||'';
+  if(fd < dateStr) return true;
+  if(fd > dateStr) return false;
+  if(!e.fromShift || e.fromShift===shift) return true;
+  const endEp = shiftEndEpoch(lineName, dateStr, shift);
+  return !(endEp!==null && endEp <= (e.epoch||0));
+}
+function resolveCarryForward(art, dateStr, shift, lineName){
+  const chain = smvLogOf(art)
+    .filter(e=>e.kind!=='backdated' && carryEntryReaches(e, lineName, dateStr, shift))
+    .sort((a,b)=> (a.fromDate===b.fromDate) ? (a.epoch||0)-(b.epoch||0) : (a.fromDate<b.fromDate?-1:1));
+  let smv = 0, anyTarget = 0; const shiftTarget = {};
+  chain.forEach(e=>{
+    smv = Number(e.smv)||0;
+    if(e.kind==='reset' || e.kind==='baseline'){
+      anyTarget = Number(e.targetPercent)||0;
+      Object.keys(shiftTarget).forEach(k=>delete shiftTarget[k]);
+    } else {
+      anyTarget = Number(e.targetPercent)||0;
+      if(e.fromShift) shiftTarget[e.fromShift] = anyTarget;
+    }
+  });
+  const tp = (shiftTarget[shift]!==undefined) ? shiftTarget[shift] : anyTarget;
+  return { smv, targetPercent: tp };
+}
+function resolveIE(lineName, dateStr, shift, layoutNo){
+  const day = store.lines[lineName]?.days?.[dateStr]?.[shift];
+  const ov = day && day.ieByLayout && day.ieByLayout[layoutNo];
+  const l = (store.lines[lineName]?.activeArticles||[]).find(a=>a.layoutNo===layoutNo);
+  const cf = l ? resolveCarryForward(l, dateStr, shift, lineName) : { smv:0, targetPercent:0 };
+  const pick = (v, fb)=> (v!==undefined && v!=='' && v!==null) ? (Number(v)||0) : fb;
+  return {
+    smv: ov ? pick(ov.smv, cf.smv) : cf.smv,
+    targetPercent: ov ? pick(ov.targetPercent, cf.targetPercent) : cf.targetPercent
+  };
+}
+function shiftSmv(lineName, dateStr, shift, layoutNo){ return resolveIE(lineName, dateStr, shift, layoutNo).smv; }
+function shiftTarget(lineName, dateStr, shift, layoutNo){ return resolveIE(lineName, dateStr, shift, layoutNo).targetPercent; }
+// True when this line has at least one ACTIVE article with no SMV for this date+shift.
+// Read-only: a line not loaded on this device is reported as not flagged.
+function lineMissingSmv(lineName, dateStr, shift){
+  const lo = store.lines[lineName];
+  if(!lo || !Array.isArray(lo.activeArticles)) return false;
+  return lo.activeArticles.some(a=>a.status==='active' && !resolveIE(lineName, dateStr, shift, a.layoutNo).smv);
 }
 function shiftIEValues(lineName, dateStr, shift, layoutNo){
   return { smv: shiftSmv(lineName,dateStr,shift,layoutNo), targetPercent: shiftTarget(lineName,dateStr,shift,layoutNo) };
@@ -1765,6 +1831,14 @@ function wirePersonPhoto(idFieldId, btnId, inputId, frameId){
 // The message shows briefly then fades on its own; the guard that called it still does
 // `return`, so the wrong data is NOT saved — only the message disappears, not the block.
 let _toastTimer = null;
+// Build 21h+: anything a person typed (Article, Shop Order, Project, reasons, notes, names)
+// is inserted into innerHTML templates all over this file. Escaping it means a typed "<b>" or
+// "<script>" shows as plain text instead of being run on someone else's screen — typing itself
+// is not restricted in any way.
+function esc(v){
+  if(v===null || v===undefined) return v;
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function toast(msg, kind){
   let el = document.getElementById('appToast');
   if(!el){
@@ -1979,6 +2053,11 @@ function reopenArticleSameLine(art, lineName, dateStr, shift){
   const reopenEpoch = savedNowEpoch();
   art.history.push({ event:'reopened', line:lineName, date:dateStr, shift, epoch: reopenEpoch });
   art.lastReopenedAtEpoch = reopenEpoch;
+  // Reopen = IE must set SMV again: blank it from the reopen date onward (earlier dates keep theirs).
+  art.smvLog = smvLogOf(art).slice();
+  art.smvLog.push({ kind:'reset', smv:0, targetPercent:0, fromDate:dateStr, fromShift:shift, epoch:reopenEpoch,
+                    prevSmv: resolveCarryForward(art, dateStr, shift, lineName).smv });
+  art.smv = 0; art.targetPercent = 0; // base mirrors the latest value, which is now blank
   art.reopenCount = (art.reopenCount||0) + 1;
   delete art.closedAt; delete art.closedAtEpoch; delete art.closedRemainingQty;
 }
@@ -1994,11 +2073,13 @@ function reopenArticleOnOtherLine(sourceLine, sourceArt, targetLine, chargingTim
   history.push({ event:'reopened', line:targetLine, date:dateStr, shift, epoch });
   const newArt = { layoutNo, articleNo: sourceArt.articleNo, shopOrderNo: sourceArt.shopOrderNo,
                     chargingTime, chargingDate: dateStr, layoutReceiveTime:'', layoutReceiveDate:'',
-                    smv: sourceArt.smv||0, targetPercent: sourceArt.targetPercent||0, outputType: sourceArt.outputType||'SFG',
+                    smv: 0, targetPercent: 0, outputType: sourceArt.outputType||'SFG',
                     category: sourceArt.category||'', orderQty: sourceArt.closedRemainingQty||0,
                     status:'active', startDate: dateStr,
                     reopenCount: (sourceArt.reopenCount||0)+1, history,
-                    orderQtyFrozen: true, savedAtEpoch: epoch, lastReopenedAtEpoch: epoch };
+                    orderQtyFrozen: true, savedAtEpoch: epoch, lastReopenedAtEpoch: epoch,
+                    smvLog: [{ kind:'reset', smv:0, targetPercent:0, fromDate:dateStr, fromShift:shift, epoch,
+                               prevSmv: Number(sourceArt.smv)||0 }] };
   lineObj.activeArticles.push(newArt);
   sourceArt.supersededBy = { line: targetLine, layoutNo, epoch };
   return newArt;
@@ -2319,7 +2400,7 @@ function wireSuggest(inputEl, listEl, values){
     const q = inputEl.value.trim().toLowerCase();
     const matches = q ? pool.filter(v=>v.toLowerCase().includes(q)) : pool;
     if(!matches.length){ listEl.classList.add('hidden'); listEl.innerHTML=''; return; }
-    listEl.innerHTML = matches.slice(0,8).map(v=>`<div class="suggest-item">${v}</div>`).join('');
+    listEl.innerHTML = matches.slice(0,8).map(v=>`<div class="suggest-item">${esc(v)}</div>`).join('');
     listEl.classList.remove('hidden');
   }
   inputEl.addEventListener('focus', renderList);
@@ -2751,6 +2832,7 @@ const K_HR   = K_PREFIX + ':hr';     // HR headcount by date and shift
 const K_REQ  = K_PREFIX + ':req';    // manpower transfer requests (shared by everyone)
 const K_QF   = K_PREFIX + ':qf';     // quality decision-pending flags (reject awaiting Quality Management)
 const K_NOTICE = K_PREFIX + ':notice'; // notices/interactions pushed to lines (day-scoped, block until acknowledged)
+const K_UNLOCK = K_PREFIX + ':unlock'; // HR backdate-entry grants, one per Line+Date+Shift (build 21h)
 const K_PHOTOS = K_PREFIX + ':photos'; // person photos, keyed by ID No. — shared by everyone, no role gate (any session can update its own)
 function lineKey(ln){ return K_PREFIX + ':line:' + slugify(ln); }
 
@@ -2929,9 +3011,10 @@ function noticeSig(){
   return (store.notices||[]).map(n=>n.id+':'+n.status+':'+JSON.stringify(n.supervisorAcks||{})+':'+JSON.stringify(n.qualityAcks||{})).sort().join('|');
 }
 function hrSig(){ return JSON.stringify(store.hr||{}); }
+function unlockSig(){ return JSON.stringify(store.unlocks||[]); }
 function metaSig(){ return JSON.stringify({g:store.globalUnlock, u:store.userPasswords, m:store.mgmtPassword, ps:store.pwSchema, mr:store.monthRanges, ct:store.categoryTargets, cats:store.categories, icats:store.inactiveCategories, cf:store.categoryFreezing}); }
 function photosSig(){ return JSON.stringify(store.personPhotos||{}); }
-let baseReqSig='', baseHrSig='', baseMetaSig='', baseQfSig='', baseNoticeSig='', basePhotosSig='';
+let baseReqSig='', baseHrSig='', baseMetaSig='', baseQfSig='', baseNoticeSig='', basePhotosSig='', baseUnlockSig='';
 // Deliberately NOT part of rebaseSigs()/photosSig(): a background load (every 2-3 minutes)
 // calls rebaseSigs() too, and if that happens to land between a photo being set locally and
 // this device's own save reaching the server, the signature comparison alone would wrongly
@@ -2940,7 +3023,7 @@ let baseReqSig='', baseHrSig='', baseMetaSig='', baseQfSig='', baseNoticeSig='',
 // This flag is set only by an actual photo upload and cleared only once that specific write
 // has succeeded, so it can never be short-circuited by an unrelated load.
 let photosDirty = false;
-function rebaseSigs(){ baseReqSig=reqSig(); baseHrSig=hrSig(); baseMetaSig=metaSig(); baseQfSig=qfSig(); baseNoticeSig=noticeSig(); basePhotosSig=photosSig(); }
+function rebaseSigs(){ baseReqSig=reqSig(); baseHrSig=hrSig(); baseMetaSig=metaSig(); baseQfSig=qfSig(); baseNoticeSig=noticeSig(); basePhotosSig=photosSig(); baseUnlockSig=unlockSig(); }
 
 function showSaveError(msg){
   let el = document.getElementById('saveErrBar');
@@ -3011,11 +3094,14 @@ async function loadStore(lines, opts){
   // yet re-reading them on every routine poll costs a storage message every time. Polls can
   // ask to skip it; sign-in and the periodic deep refresh still read it.
   const needMeta = !(opts && opts.skipMeta);
-  const [meta, hr, req, qf, notice, photos] = await Promise.all([
+  const [meta, hr, req, qf, notice, photos, unlocks] = await Promise.all([
     needMeta ? readKey(K_META, null) : Promise.resolve(null),
     needHr ? readKey(K_HR, null) : Promise.resolve(null),
-    readKey(K_REQ, null), readKey(K_QF, null), readKey(K_NOTICE, null), readKey(K_PHOTOS, null)
+    readKey(K_REQ, null), readKey(K_QF, null), readKey(K_NOTICE, null), readKey(K_PHOTOS, null),
+    readKey(K_UNLOCK, null)
   ]);
+  // Read on every poll (it's tiny), so a grant HR opens reaches the line within one refresh.
+  if(Array.isArray(unlocks)) store.unlocks = unlocks; else if(!Array.isArray(store.unlocks)) store.unlocks = [];
   if(!store.lines) store.lines = {};
   store.hr = hr || store.hr || {};
   store.handoverRequests = req || store.handoverRequests || [];
@@ -3263,6 +3349,13 @@ async function doSaveStore(){
       pruneOldQualityFlags(); // the server copy may still carry ones we already aged out
       pendingWrites.push([K_QF, store.qualityFlags]);
     }
+    if(session && session.role==='hr' && unlockSig()!==baseUnlockSig){
+      const freshU = await readKey(K_UNLOCK, []);
+      const byId = new Map((Array.isArray(freshU)?freshU:[]).map(u=>[u.id, u]));
+      (store.unlocks||[]).forEach(u=>byId.set(u.id, u)); // HR is the only writer — its copy wins
+      store.unlocks = Array.from(byId.values());
+      pendingWrites.push([K_UNLOCK, store.unlocks]);
+    }
     if(noticeSig()!==baseNoticeSig){
       const freshN = await readKey(K_NOTICE, []);
       const byId = new Map((freshN||[]).map(n=>[n.id, n]));
@@ -3344,7 +3437,9 @@ function refreshScope(){
     return Array.from(new Set([ln, 'Preparation', ...linesSharingArticlesWith(ln)]));
   };
   if(session.role==='supervisor') return scopeFor(session.line);
-  if(session.role==='ie' || session.role==='quality') return scopeFor(selectedLine);
+  // IE watches every production line so its SMV-missing flags on the line buttons stay current.
+  if(session.role==='ie') return Array.from(new Set([...scopeFor(selectedLine), ...PRODUCTION_LINES]));
+  if(session.role==='quality') return scopeFor(selectedLine);
   // Quality Management works off the shared quality-flag key; line records only supply the
   // article name shown on each card, which is already loaded at sign-in and re-read for the
   // specific line whenever a decision is saved. Polling all 13 lines here made this the
@@ -3435,11 +3530,23 @@ function hasShiftEnded(lineName, dateStr, shift){
   return new Date() > endDateTime;
 }
 
-function isEntryLocked(dateStr, day){
-  // HR can temporarily open backdated entry for everyone, everywhere.
-  if(store.globalUnlock && store.globalUnlock.active && store.globalUnlock.expiresAt && Date.now() < store.globalUnlock.expiresAt){
-    return false;
-  }
+// HR backdate grants (build 21h) replace the old open-everything window: each grant opens exactly
+// one Line + Date + Shift, for both that line's supervisor and IE, until it expires or HR closes it.
+function activeUnlockFor(lineName, dateStr, shift){
+  const now = Date.now();
+  return (store.unlocks||[]).find(u=>u.line===lineName && u.date===dateStr && u.shift===shift &&
+    !u.closedAt && u.expiresAt && now < u.expiresAt) || null;
+}
+// For audit exports: the reason of an HR grant that was open for this Line/Date/Shift at the
+// moment an entry was saved, or '' if none was.
+function unlockReasonAt(lineName, dateStr, shift, epoch){
+  if(!epoch) return '';
+  const u = (store.unlocks||[]).find(x=>x.line===lineName && x.date===dateStr && x.shift===shift &&
+    epoch>=x.openedAt && epoch < (x.closedAt || x.expiresAt));
+  return u ? u.reason : '';
+}
+function isEntryLocked(dateStr, day, lineName, shift){
+  if(lineName && shift && activeUnlockFor(lineName, dateStr, shift)) return false;
   if(!day.shiftEnd){
     // No Shift End filled in yet — only allow starting a fresh entry for today; a
     // past date with nothing filled in is treated as locked (prevents fresh backdating).
@@ -3648,7 +3755,9 @@ function computeMetrics(lineName, dateStr, shift){
   let earnMinutes = 0, totalAchieve = 0;
   day.hourlyProd.forEach(p=>{
     const layout = findArticle(lineName, p.layoutNo);
-    const smv = layout ? Number(layout.smv)||0 : currentSmv;
+    // That day+shift's own SMV (carry-forward resolved) — never today's base value, or a later
+    // SMV change would silently rewrite every earlier day's efficiency.
+    const smv = layout ? shiftSmv(lineName, dateStr, shift, p.layoutNo) : currentSmv;
     earnMinutes += (Number(p.qty)||0) * smv;
     totalAchieve += Number(p.qty)||0;
   });
@@ -3660,7 +3769,7 @@ function computeMetrics(lineName, dateStr, shift){
     const repairQty = Number(q.repair)||0;
     if(repairQty<=0) return;
     const layout = findArticle(lineName, q.layoutNo);
-    const smv = layout ? Number(layout.smv)||0 : currentSmv;
+    const smv = layout ? shiftSmv(lineName, dateStr, shift, q.layoutNo) : currentSmv;
     earnMinutes += repairQty * smv;
     totalAchieve += repairQty;
   });
@@ -4474,6 +4583,7 @@ function exportAllData(){
     req: store.handoverRequests,
     qf: store.qualityFlags,
     notice: store.notices,
+    unlock: store.unlocks,
     lines: store.lines };
   const blob = new Blob([JSON.stringify(dump,null,2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -4487,7 +4597,7 @@ function exportAllData(){
 // Erases every stored record and returns the app to a first-run state. Deliberately manual
 // and double-confirmed: it cannot be undone, and it also resets all passwords to 1234.
 async function wipeAllData(){
-  const keys = [K_META, K_HR, K_REQ, K_QF, K_NOTICE, ...ALL_LINES.map(lineKey)];
+  const keys = [K_META, K_HR, K_REQ, K_QF, K_NOTICE, K_UNLOCK, ...ALL_LINES.map(lineKey)];
   let failed = 0;
   for(const k of keys){
     try{ await backendDelete(k); }
@@ -4514,6 +4624,7 @@ async function importAllData(file){
   if(dump.req)  pairs.push([K_REQ, dump.req]);
   if(dump.qf)     pairs.push([K_QF, dump.qf]);
   if(dump.notice) pairs.push([K_NOTICE, dump.notice]);
+  if(dump.unlock) pairs.push([K_UNLOCK, dump.unlock]);
   Object.keys(dump.lines||{}).forEach(ln=>{ if(dump.lines[ln]) pairs.push([lineKey(ln), dump.lines[ln]]); });
   const results = await writeKeysSequential(pairs);
   if(results.some(r=>r===false) || !BACKEND_CONFIGURED){
@@ -4792,7 +4903,9 @@ async function initApp(){
     // entry, is what decides whether the floor stays under the platform's rate limit.
     // Nothing here is second-critical: an M/P transfer or a Preparation receipt showing up
     // within two minutes is well inside how fast the floor moves.
-  }, heavy ? 180000 : 120000);
+  }, heavy ? 90000 : 60000);
+  // Build 21i: halved to 1 minute (heavy roles 1.5 min). Measured on Supabase: egress for the
+  // whole floor was 0.02 GB of the free plan's 5 GB/month, so doubling the poll rate is safe.
   // Coming back to the app should feel current without waiting for the next tick.
   if(visibilityRefreshHandler) document.removeEventListener('visibilitychange', visibilityRefreshHandler);
   visibilityRefreshHandler = async ()=>{
@@ -4958,7 +5071,7 @@ function wireMgmtDateControls(){
       mgmtMonthName = cur ? cur.name : months[0].name;
     }
     monthSel.innerHTML = months.map(m=>
-      `<option value="${m.name}"${m.name===mgmtMonthName?' selected':''}>${m.name} (${fmtShort(m.from)} \u2013 ${fmtShort(m.to)})</option>`).join('');
+      `<option value="${esc(m.name)}"${m.name===mgmtMonthName?' selected':''}>${esc(m.name)} (${fmtShort(m.from)} \u2013 ${fmtShort(m.to)})</option>`).join('');
   }
   monthSel.onchange = ()=>{ mgmtMonthName = monthSel.value; renderMgmtOverviewCharts(); };
 
@@ -5041,7 +5154,7 @@ function glassyDonutHTML(rows, centerLabel, centerValueOverride){
     const [,c2] = r.colorPair || ['#DEE2E8','#9AA2B0'];
     return `<div style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink);margin-bottom:5px;">
       <i style="width:9px;height:9px;border-radius:3px;background:${c2};flex-shrink:0;"></i>
-      <span style="flex:1;min-width:0;">${r.name}</span>
+      <span style="flex:1;min-width:0;">${esc(r.name)}</span>
       <span style="white-space:nowrap;color:var(--steel);">${dashNum(r.value)} ${r.unitLabel||''} &middot; <b style="color:var(--ink);">${pct.toFixed(2)}%</b></span>
     </div>`;
   }).join('');
@@ -5064,7 +5177,7 @@ function renderMgmtOverviewCharts(){
   // ---- Category-wise PPP table (FG only, its own manpower) ----
   if(cwp.rows.length){
     document.getElementById('dashPppBody').innerHTML = cwp.rows.map(r=>`<tr>
-      <td style="border:1px solid var(--border);padding:3px 5px;">${r.name}</td>
+      <td style="border:1px solid var(--border);padding:3px 5px;">${esc(r.name)}</td>
       <td class="num" style="border:1px solid var(--border);padding:3px 5px;">${dashNum(r.qty)}</td>
       <td class="num" style="border:1px solid var(--border);padding:3px 5px;">${dashNum(r.directMM+r.indirectMM)}</td>
       <td class="num" style="border:1px solid var(--border);padding:3px 5px;">${r.directMP.toFixed(1)}</td>
@@ -5079,7 +5192,7 @@ function renderMgmtOverviewCharts(){
     document.getElementById('dashPppFSmv').textContent = cwp.full.weightedSmv.toFixed(1);
     document.getElementById('dashPppFPpp').textContent = cwp.full.ppp.toFixed(2);
     const top = cwp.rows.slice().sort((a,b)=>b.ppp-a.ppp)[0];
-    document.getElementById('dashPppNote').innerHTML = `<b>${top.name}</b> has the highest PPP at <b>${top.ppp.toFixed(2)}</b>.`;
+    document.getElementById('dashPppNote').innerHTML = `<b>${esc(top.name)}</b> has the highest PPP at <b>${top.ppp.toFixed(2)}</b>.`;
   } else {
     document.getElementById('dashPppBody').innerHTML = '';
     document.getElementById('dashPppFOut').textContent = '\u2014';
@@ -5110,14 +5223,14 @@ function renderMgmtOverviewCharts(){
   if(cr.length){
     document.getElementById('dashCat').innerHTML = cr.map(r=>`
       <div class="tube-cat-block">
-        <div class="tube-cat-name">${r.name}</div>
+        <div class="tube-cat-name">${esc(r.name)}</div>
         ${tubeRowHTML('Actual', dashNum(r.qty)+' pr', r.eff, 'eff')}
         ${tubeRowHTML('Wtd Target', dashNum(r.targetQty)+' pr', r.target, 'wtgt')}
         ${tubeRowHTML('IE Target', r.monthlyTargetPct>0 ? r.monthlyTargetPct.toFixed(2)+'% goal' : '\u2014', r.monthlyTargetPct, 'ietgt')}
       </div>`).join('');
     const worst = cr.slice().sort((a,b)=>(a.target>0?a.eff/a.target:9)-(b.target>0?b.eff/b.target:9))[0];
     document.getElementById('dashCatNote').innerHTML = worst && worst.target>0
-      ? `${worst.name} is furthest from its target \u2014 <b>${worst.eff.toFixed(2)}%</b> against <b>${worst.target.toFixed(2)}%</b>`
+      ? `${esc(worst.name)} is furthest from its target \u2014 <b>${worst.eff.toFixed(2)}%</b> against <b>${worst.target.toFixed(2)}%</b>`
       : 'Set a category and target on each article to see this comparison.';
   } else {
     document.getElementById('dashCat').innerHTML = '';
@@ -5312,11 +5425,11 @@ function renderMgmtOverviewCharts(){
       document.getElementById('dashMixWrap').innerHTML = '<span style="color:var(--danger);font-weight:600;">\u26a0 Chart could not load \u2014 the connection was likely too weak when the page opened. Reload with a stronger signal/Wi-Fi.</span>';
     }
     document.getElementById('dashMixList').innerHTML = cr.map((r,i)=>
-      `<div class="dash-mixrow"><span class="n"><i class="dash-sw" style="background:${DASH_COLORS[i%DASH_COLORS.length]}"></i>${r.name}</span>
+      `<div class="dash-mixrow"><span class="n"><i class="dash-sw" style="background:${DASH_COLORS[i%DASH_COLORS.length]}"></i>${esc(r.name)}</span>
        <span class="v">${dashNum(r.qty)} pr &middot; ${totWork>0?(r.work/totWork*100).toFixed(0):0}% of time</span></div>`).join('');
     const top = cr[0];
     document.getElementById('dashMixNote').innerHTML = (totQty>0 && totWork>0)
-      ? `${top.name} is ${(top.qty/totQty*100).toFixed(0)}% of pairs but <b>${(top.work/totWork*100).toFixed(0)}% of the working minutes</b>`
+      ? `${esc(top.name)} is ${(top.qty/totQty*100).toFixed(0)}% of pairs but <b>${(top.work/totWork*100).toFixed(0)}% of the working minutes</b>`
       : '';
   } else {
     document.getElementById('dashMixList').innerHTML = '';
@@ -5373,7 +5486,7 @@ function renderMgmtOverviewCharts(){
       const rejWidthPct = totalFillPct * rejShare;
       const repWidthPct = totalFillPct - rejWidthPct;
       return `<div class="qual-combo-block">
-        <div class="tube-cat-name">${r.name}</div>
+        <div class="tube-cat-name">${esc(r.name)}</div>
         <div class="qual-combo-row">
           <div class="qual-combo-tube">
             ${rejWidthPct>0 ? `<div class="qual-combo-seg qreject" style="width:${rejWidthPct.toFixed(2)}%;"></div>` : ''}
@@ -5388,7 +5501,7 @@ function renderMgmtOverviewCharts(){
     }).join('');
     const worstRep = cr.slice().sort((a,b)=>b.repPct-a.repPct)[0];
     document.getElementById('dashQualNote').innerHTML = worstRep && worstRep.repPct>0
-      ? `${worstRep.name} has the highest repair rate at <b>${worstRep.repPct.toFixed(2)}%</b> \u2014 ${dashNum(worstRep.rep)} pr`
+      ? `${esc(worstRep.name)} has the highest repair rate at <b>${worstRep.repPct.toFixed(2)}%</b> \u2014 ${dashNum(worstRep.rep)} pr`
       : 'No reject or repair recorded for this period.';
   } else {
     document.getElementById('dashQual').innerHTML = '';
@@ -5401,12 +5514,12 @@ function renderMgmtOverviewCharts(){
   document.getElementById('dashSubBody').innerHTML = subRows.length
     ? subRows.map(r=>{
         if(r.isPrep){
-          return `<tr><td style="text-align:left;">${r.name}</td>
+          return `<tr><td style="text-align:left;">${esc(r.name)}</td>
             <td>${dash}</td><td>${dash}</td>
             <td>${r.mp.toFixed(2)}</td>
             <td>${dashNum(Math.round(r.workMin))||dash}</td><td>${dash}</td></tr>`;
         }
-        return `<tr><td style="text-align:left;">${r.name}</td>
+        return `<tr><td style="text-align:left;">${esc(r.name)}</td>
           <td>${dashNum(r.prod)}</td>
           <td>${r.smv.toFixed(2)}</td>
           <td>${r.mp.toFixed(2)}</td>
@@ -5417,6 +5530,20 @@ function renderMgmtOverviewCharts(){
   document.getElementById('dashSubNote').innerHTML = '';
 }
 
+// IE only (build 21h): a line button turns red with a warning mark when that line has an ACTIVE
+// article with no SMV for the date + shift being viewed. Re-evaluated on every renderAll(), so
+// a shift change, an IE save or a background refresh updates it without rebuilding the row.
+function refreshLineSmvFlags(){
+  if(!session || session.role!=='ie') return;
+  document.querySelectorAll('#lineSelectWrap .btn-line[data-line]').forEach(b=>{
+    const ln = b.dataset.line;
+    const missing = lineMissingSmv(ln, currentDate, currentShift);
+    b.textContent = (missing ? '\u26a0 ' : '') + lineLabel(ln);
+    b.style.background = missing ? 'var(--danger)' : '';
+    b.style.boxShadow = (missing && ln===selectedLine) ? '0 0 0 3px var(--ink)' : '';
+    b.title = missing ? 'An active article on this line has no SMV for this shift' : '';
+  });
+}
 function renderLineSelector(){
   const wrap = document.getElementById('lineSelectWrap');
   wrap.innerHTML = '';
@@ -5453,6 +5580,7 @@ function renderLineSelector(){
   lines.forEach(ln=>{
     const b = document.createElement('button');
     b.className = 'btn-line'; b.textContent = lineLabel(ln);
+    b.dataset.line = ln;
     b.style.opacity = (ln===selectedLine)?1:0.55;
     b.addEventListener('click', async ()=>{
       selectedLine=ln;
@@ -5479,6 +5607,7 @@ function renderLineSelector(){
     });
     lineBtnRow.appendChild(b);
   });
+  refreshLineSmvFlags();
 }
 
 function renderTabs(){
@@ -6276,6 +6405,7 @@ function iePanelHTML(){
       <div class="field"><label>Target %</label><input id="ieTarget" type="number" step="0.1"></div>
     </div>
     <div class="note" id="ieOrderQtyNote"></div>
+    <div id="ieLockNote" class="note" style="margin:6px 0;font-weight:600;"></div>
     <button class="btn-primary" id="ieSaveBtn">Save</button>
     <div class="table-scroll"><table><thead><tr><th>Layout</th><th>Article</th><th>Category</th><th>SMV</th><th>Target%</th><th>Order Qty</th><th>Rcv Qty</th></tr></thead><tbody id="ieTableBody"></tbody></table></div>
   </div>
@@ -6440,12 +6570,19 @@ function hrPanelHTML(){
 
   <div class="card" id="unlockCard">
     <h2><span class="dot"></span>Backdate Entry Open</h2>
-    <div id="unlockStatus" class="note" style="font-size:13px;margin-bottom:10px;"></div>
-    <div class="row2" style="max-width:320px;">
+    <div class="note" style="font-size:12.5px;margin-bottom:10px;">Opens ONE Line + Date + Shift only &mdash; for that line's supervisor and IE. Every opening is kept permanently in the Excel "Backdate Unlocks" sheet.</div>
+    <div class="row2">
       <div class="field"><label>Open for (hours)</label><input id="unlockHours" type="number" min="1" value="1"></div>
-      <div class="field" style="display:flex;align-items:flex-end;"><button class="btn-primary" id="unlockOpenBtn" style="width:100%;">Open Entry</button></div>
+      <div class="field"><label>Line</label><select id="unlockLine"></select></div>
     </div>
-    <button class="btn-ghost" id="unlockCloseBtn" style="margin-top:6px;">Close now</button>
+    <div class="row2">
+      <div class="field"><label>Date</label><input id="unlockDate" type="date"></div>
+      <div class="field"><label>Shift</label><select id="unlockShift"><option value="">Select&hellip;</option><option value="A">A Shift</option><option value="B">B Shift</option><option value="G">G (General) Shift</option></select></div>
+    </div>
+    <div class="field"><label>Reason (required, at least 10 characters)</label><input id="unlockReason" type="text" maxlength="200" placeholder="Why this line/shift needs a backdated entry"></div>
+    <button class="btn-primary" id="unlockOpenBtn" style="width:100%;margin-top:4px;">Open Entry</button>
+    <div style="font-size:11.5px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 4px;">Currently open</div>
+    <div id="unlockStatus"></div>
   </div>
 
   <div class="card">
@@ -6946,7 +7083,7 @@ function attachPanelEvents(key){
         document.getElementById('qsSnapEmpty').style.display = linePendingFlags.length ? 'none' : 'block';
         snapBody.innerHTML = linePendingFlags.slice().sort((a,b)=>a.flaggedAtEpoch-b.flaggedAtEpoch).map(f=>{
           const art = findArticle(f.line, f.layoutNo);
-          const artLabel = art ? art.articleNo : '\u2014';
+          const artLabel = art ? esc(art.articleNo) : '\u2014';
           const codeMatch = DEFECT_CODES.find(([c,n])=>`${c} \u2014 ${n}`===f.reason);
           const codeChip = codeMatch ? codeMatch[0] : '\u2014';
           const defectName = codeMatch ? codeMatch[1] : (f.reason||'\u2014');
@@ -7415,7 +7552,7 @@ function attachPanelEvents(key){
           const computed = byId[en.id];
           const balanceLabel = computed && computed.balanceAfter!==null ? computed.balanceAfter : '—';
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td class="num">${en.time}</td><td>${en.project}</td><td>${en.shopOrder}</td><td>${formatFreezingMonth(en.freezingMonth)}</td><td>${en.article}</td>
+          tr.innerHTML = `<td class="num">${en.time}</td><td>${esc(en.project)}</td><td>${esc(en.shopOrder)}</td><td>${formatFreezingMonth(en.freezingMonth)}</td><td>${esc(en.article)}</td>
             <td class="num">${en.totalQty}</td><td class="num">${balanceLabel}</td><td><div class="size-chips">${chips}</div></td>
             <td><button class="btn-ghost" data-del-ur="${en.id}">Delete</button></td>`;
           body.appendChild(tr);
@@ -7461,7 +7598,7 @@ function attachPanelEvents(key){
             </div>`).join('');
           return `<div class="ap-row" data-key="${keyAttr}" style="background:#FBFCFB;border:1px solid ${isOpen?'#BFDBF3':'var(--border)'};border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">            <div style="display:flex;justify-content:space-between;align-items:center;">
               <div>
-                <div style="font-size:14px;font-weight:600;color:var(--ink);">${g.article} <span style="font-weight:400;color:var(--steel);font-size:12px;">\u2014 ${g.shopOrder}</span></div>
+                <div style="font-size:14px;font-weight:600;color:var(--ink);">${esc(g.article)} <span style="font-weight:400;color:var(--steel);font-size:12px;">\u2014 ${esc(g.shopOrder)}</span></div>
                 <div style="font-size:12px;color:var(--steel);margin-top:2px;">${g.articleQty||'\u2014'} order \u00b7 Received ${g.totalReceived} \u00b7 Balance ${g.balance!==null?g.balance:'\u2014'}${g.balance===0?' \u2713':''}</div>
               </div>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:${isOpen?'var(--blue)':'var(--steel)'};flex-shrink:0;transform:rotate(${isOpen?180:0}deg);transition:transform .15s;"><path d="m6 9 6 6 6-6"/></svg>
@@ -7681,7 +7818,7 @@ function attachPanelEvents(key){
         list.slice().reverse().forEach(en=>{
           const chips = en.sizes.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('');
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td class="num">${en.time}</td><td>${en.project}</td><td>${en.shopOrder}</td><td>${en.subcontractor}</td><td>${en.article}</td>
+          tr.innerHTML = `<td class="num">${en.time}</td><td>${esc(en.project)}</td><td>${esc(en.shopOrder)}</td><td>${esc(en.subcontractor)}</td><td>${esc(en.article)}</td>
             <td class="num">${en.orderQty||'—'}</td><td class="num">${en.totalQty}</td><td><div class="size-chips">${chips}</div></td>
             <td><button class="btn-ghost" data-del-sc="${en.id}">Delete</button></td>`;
           body.appendChild(tr);
@@ -7727,7 +7864,7 @@ function attachPanelEvents(key){
             </div>`).join('');
           return `<div class="ap-row" data-key="${keyAttr}" style="background:#FBFCFB;border:1px solid ${isOpen?'#BFDBF3':'var(--border)'};border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">            <div style="display:flex;justify-content:space-between;align-items:center;">
               <div>
-                <div style="font-size:14px;font-weight:600;color:var(--ink);">${g.article} <span style="font-weight:400;color:var(--steel);font-size:12px;">— ${g.shopOrder}</span></div>
+                <div style="font-size:14px;font-weight:600;color:var(--ink);">${esc(g.article)} <span style="font-weight:400;color:var(--steel);font-size:12px;">— ${esc(g.shopOrder)}</span></div>
                 <div style="font-size:12px;color:var(--steel);margin-top:2px;">${g.orderQty||'—'} order · Sent ${g.totalSent} · Balance ${g.balance!==null?g.balance:'—'}${g.balance===0?' ✓':''}</div>
               </div>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:${isOpen?'var(--blue)':'var(--steel)'};flex-shrink:0;transform:rotate(${isOpen?180:0}deg);transition:transform .15s;"><path d="m6 9 6 6 6-6"/></svg>
@@ -7915,7 +8052,7 @@ function attachPanelEvents(key){
         list.slice().reverse().forEach(en=>{
           const chips = en.sizes.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('');
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td class="num">${en.time}</td><td>${en.project}</td><td>${en.shopOrder}</td><td>${en.article}</td>
+          tr.innerHTML = `<td class="num">${en.time}</td><td>${esc(en.project)}</td><td>${esc(en.shopOrder)}</td><td>${esc(en.article)}</td>
             <td>${en.needsForming===false ? 'No' : 'Yes'}</td>
             <td class="num">${en.totalQty}</td><td><div class="size-chips">${chips}</div></td>
             <td><button class="btn-ghost" data-del-jw="${en.id}">Delete</button></td>`;
@@ -7938,7 +8075,7 @@ function attachPanelEvents(key){
 
     const lockWrap = document.getElementById('lockWrap');
     const restWrap2 = document.getElementById('restOfEntryCards');
-    const locked = isEntryLocked(dateStr, day);
+    const locked = isEntryLocked(dateStr, day, ln, currentShift);
     if(locked){
       lockWrap.innerHTML = `<div class="lock-card">
         <h2><span class="dot"></span>🔒 Entry Locked (View Only)</h2>
@@ -8306,7 +8443,7 @@ function attachPanelEvents(key){
     })();
 
     const layoutRecvSel = document.getElementById('layoutRecvArticleSel');
-    layoutRecvSel.innerHTML = getActiveArticles(ln).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${l.articleNo}${l.layoutReceiveTime?' — received '+stampText(l.layoutReceiveDate,l.layoutReceiveTime):''}</option>`).join('') || '<option value="">No article added yet</option>';
+    layoutRecvSel.innerHTML = getActiveArticles(ln).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${esc(l.articleNo)}${l.layoutReceiveTime?' — received '+stampText(l.layoutReceiveDate,l.layoutReceiveTime):''}</option>`).join('') || '<option value="">No article added yet</option>';
 
     document.getElementById('addLayoutRecvBtn').onclick = async ()=>{
       const layoutNo = Number(layoutRecvSel.value);
@@ -8340,7 +8477,7 @@ function attachPanelEvents(key){
       const tr=document.createElement('tr');
       const outputTag = (ln==='Artisan' || NUMBERED_LINES.includes(ln))
         ? ` <span class="note" style="color:var(--accent-dark);font-weight:700;">(${l.outputType==='FG'?'FG':'SFG'})</span>` : '';
-      tr.innerHTML = `<td class="num">${l.layoutNo}</td><td>${l.articleNo}${outputTag}</td><td>${l.shopOrderNo||'—'}</td><td>${l.category||'—'}</td><td class="num">${effOrderQty||'—'}</td><td class="num">${rcvQty===null?'—':rcvQty}</td><td class="num">${achieved}</td><td class="num">${effOrderQty?progressPct.toFixed(0)+'%':'—'}</td><td class="num">${stampText(l.chargingDate, l.chargingTime)}</td><td class="num">${stampText(l.layoutReceiveDate, l.layoutReceiveTime)}</td><td>${actionHtml}</td>`;
+      tr.innerHTML = `<td class="num">${l.layoutNo}</td><td>${esc(l.articleNo)}${outputTag}</td><td>${esc(l.shopOrderNo)||'—'}</td><td>${esc(l.category)||'—'}</td><td class="num">${effOrderQty||'—'}</td><td class="num">${rcvQty===null?'—':rcvQty}</td><td class="num">${achieved}</td><td class="num">${effOrderQty?progressPct.toFixed(0)+'%':'—'}</td><td class="num">${stampText(l.chargingDate, l.chargingTime)}</td><td class="num">${stampText(l.layoutReceiveDate, l.layoutReceiveTime)}</td><td>${actionHtml}</td>`;
       articleBody.appendChild(tr);
     });
 
@@ -8385,7 +8522,7 @@ function attachPanelEvents(key){
           ? `<button class="btn-ghost" style="color:var(--danger);" data-delete-article="${l.layoutNo}">Delete</button>`
           : '<span class="note">Has production</span>';
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="num">${l.layoutNo}</td><td>${l.articleNo}</td><td>${l.shopOrderNo||'\u2014'}</td><td>${l.category||'\u2014'}</td><td class="num">${l.closedRemainingQty!=null?l.closedRemainingQty:'\u2014'}</td><td class="num">${l.closedAt?l.closedAt.date:'\u2014'}</td><td>${actionHtml}</td>`;
+        tr.innerHTML = `<td class="num">${l.layoutNo}</td><td>${esc(l.articleNo)}</td><td>${esc(l.shopOrderNo)||'\u2014'}</td><td>${esc(l.category)||'\u2014'}</td><td class="num">${l.closedRemainingQty!=null?l.closedRemainingQty:'\u2014'}</td><td class="num">${l.closedAt?l.closedAt.date:'\u2014'}</td><td>${actionHtml}</td>`;
         closedBody.appendChild(tr);
       });
       wireDeleteArticleButtons();
@@ -8406,13 +8543,13 @@ function attachPanelEvents(key){
     suggestBreakForSelectedHour();
 
     const prodSel = document.getElementById('prodLayout');
-    prodSel.innerHTML = getActiveArticles(ln).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${l.articleNo}</option>`).join('') || '<option value="">No article added yet</option>';
+    prodSel.innerHTML = getActiveArticles(ln).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${esc(l.articleNo)}</option>`).join('') || '<option value="">No article added yet</option>';
     if(lastProdLayout && prodSel.querySelector(`option[value="${lastProdLayout}"]`)){ prodSel.value = lastProdLayout; }
     else { lastProdLayout = prodSel.value; }
     function checkProdSmvWarning(){
       const art = findArticle(ln, Number(prodSel.value));
       const warnEl = document.getElementById('prodSmvWarning');
-      warnEl.textContent = (art && !art.smv) ? '⚠ SMV has not been set for this Article ('+art.articleNo+') — inform IE, otherwise Efficiency will be wrong' : '';
+      warnEl.textContent = (art && !shiftSmv(ln, dateStr, currentShift, art.layoutNo)) ? '⚠ SMV has not been set for this Article ('+art.articleNo+') — inform IE, otherwise Efficiency will be wrong' : '';
     }
     checkProdSmvWarning();
 
@@ -8613,7 +8750,7 @@ function attachPanelEvents(key){
         head.innerHTML = `<th>Hour</th><th>1st Time Pass</th><th>Repair</th><th>Reject</th><th>D/G</th><th>Total</th><th>Reason</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th>`;
         list.slice().reverse().forEach(p=>{
           const layout = findArticle(ln, p.layoutNo);
-          const artLabel = layout ? (p.layoutNo+' ('+layout.articleNo+')') : p.layoutNo;
+          const artLabel = layout ? (p.layoutNo+' ('+esc(layout.articleNo)+')') : p.layoutNo;
           let repairQ=0, rejectQ=0, dgradeQ=0;
           day.quality.forEach(q=>{
             if(q.hour===p.hour && q.layoutNo===p.layoutNo){
@@ -8625,7 +8762,7 @@ function attachPanelEvents(key){
             ? `<div class="size-chips">${p.sizesUsed.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>`
             : '—';
           const tr=document.createElement('tr');
-          tr.innerHTML = `<td>${p.hour}</td><td class="num">${p.qty}</td><td class="num">${repairQ}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td>${p.reason||'—'}</td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-sideline="${p.id}">Delete</button></td>`;
+          tr.innerHTML = `<td>${p.hour}</td><td class="num">${p.qty}</td><td class="num">${repairQ}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td>${esc(p.reason)||'—'}</td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-sideline="${p.id}">Delete</button></td>`;
           prodBody.appendChild(tr);
         });
         prodBody.querySelectorAll('[data-del-sideline]').forEach(b=>{
@@ -8642,7 +8779,7 @@ function attachPanelEvents(key){
       head.innerHTML = `<th>Hour</th><th>1st Time Pass</th><th>Repair</th><th>Reject</th><th>D/G</th><th>Total</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th>`;
       day.hourlyProd.slice().reverse().forEach(p=>{
         const layout = findArticle(ln, p.layoutNo);
-        const artLabel = layout ? (p.layoutNo+' ('+layout.articleNo+')') : p.layoutNo;
+        const artLabel = layout ? (p.layoutNo+' ('+esc(layout.articleNo)+')') : p.layoutNo;
         // Repair/Reject/D-grade for this exact hour+layout come from Quality Management's
         // DECIDED flags only (day.quality) — read-only here, never typed in directly. If a
         // decision is still pending, these simply show 0 until Quality Management resolves it.
@@ -8674,7 +8811,7 @@ function attachPanelEvents(key){
     ltCategorySel.addEventListener('change', refreshLtOtherField);
 
     const ltLayoutSel = document.getElementById('ltLayout');
-    ltLayoutSel.innerHTML = getActiveArticles(ln).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${l.articleNo}</option>`).join('') || '<option value="">No article added yet</option>';
+    ltLayoutSel.innerHTML = getActiveArticles(ln).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${esc(l.articleNo)}</option>`).join('') || '<option value="">No article added yet</option>';
 
     document.getElementById('ltStart').addEventListener('change', ()=>{
       const t = document.getElementById('ltStart').value;
@@ -8712,11 +8849,11 @@ function attachPanelEvents(key){
     ltBody.innerHTML='';
     day.lostTime.slice().reverse().forEach((lt,i)=>{
       const layout = findArticle(ln, lt.layoutNo);
-      const artLabel = layout ? layout.articleNo : lt.layoutNo;
+      const artLabel = layout ? esc(layout.articleNo) : lt.layoutNo;
       const ordinal = day.lostTime.length - i;
       const live = computeLostTimeManMinutes(ln, dateStr, currentShift, lt.startTime, lt.endTime);
       const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${ordinal}</td><td>${lt.category}${lt.reason?(' — '+lt.reason):''}</td><td>${artLabel}</td><td class="num">${lt.startTime}–${lt.endTime}</td><td class="num">${live.lostMinutes}</td><td class="num">${live.avgMp}</td><td class="num">${live.totalManMinutes}</td><td><button class="btn-ghost" data-del-lt="${lt.id}">Delete</button></td>`;
+      tr.innerHTML = `<td>${ordinal}</td><td>${esc(lt.category)}${esc(lt.reason)?(' — '+esc(lt.reason)):''}</td><td>${artLabel}</td><td class="num">${lt.startTime}–${lt.endTime}</td><td class="num">${live.lostMinutes}</td><td class="num">${live.avgMp}</td><td class="num">${live.totalManMinutes}</td><td><button class="btn-ghost" data-del-lt="${lt.id}">Delete</button></td>`;
       ltBody.appendChild(tr);
     });
     document.querySelectorAll('[data-del-lt]').forEach(b=>b.onclick=async()=>{
@@ -8730,7 +8867,7 @@ function attachPanelEvents(key){
     document.querySelectorAll('[data-close-article]').forEach(b=>b.onclick=async()=>{
       const art = findArticle(ln, Number(b.dataset.closeArticle));
       if(!art) return;
-      if(!art.smv && b.dataset.confirm!=='1'){
+      if(!shiftSmv(ln, dateStr, currentShift, art.layoutNo) && b.dataset.confirm!=='1'){
         b.textContent = '⚠ No SMV — close anyway? Click again';
         b.dataset.confirm='1';
         setTimeout(()=>{ if(b.dataset.confirm==='1'){ b.textContent='Close'; b.dataset.confirm='0'; } }, 4000);
@@ -8766,8 +8903,8 @@ function attachPanelEvents(key){
       const tb = document.getElementById('ieMonthBody');
       const list = (store.monthRanges||[]).slice().sort((a,b)=>(b.from||'').localeCompare(a.from||''));
       tb.innerHTML = list.length
-        ? list.map(mr=>`<tr><td>${mr.name}</td><td class="num">${mr.from}</td><td class="num">${mr.to}</td>`+
-            `<td class="num"><button class="link-danger" data-del-month="${mr.name}">Delete</button></td></tr>`).join('')
+        ? list.map(mr=>`<tr><td>${esc(mr.name)}</td><td class="num">${mr.from}</td><td class="num">${mr.to}</td>`+
+            `<td class="num"><button class="link-danger" data-del-month="${esc(mr.name)}">Delete</button></td></tr>`).join('')
         : '<tr><td colspan="4" class="empty">No months set yet</td></tr>';
       tb.querySelectorAll('[data-del-month]').forEach(b=>b.onclick=async()=>{
         store.monthRanges = (store.monthRanges||[]).filter(m=>m.name!==b.dataset.delMonth);
@@ -8948,7 +9085,7 @@ function attachPanelEvents(key){
     ieShift.value = currentShift;
     ieShift.onchange = ()=>{ currentShift = ieShift.value; buildPanel('ie'); };
     const sel = document.getElementById('ieLayoutSel');
-    sel.innerHTML = getArticles(selectedLine).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${l.articleNo}${l.status==='closed'?' — Closed':''}</option>`).join('') || '<option value="">No articles</option>';
+    sel.innerHTML = getArticles(selectedLine).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${esc(l.articleNo)}${l.status==='closed'?' — Closed':''}</option>`).join('') || '<option value="">No articles</option>';
     const catSel = document.getElementById('ieCategory');
     function refreshCatOptions(currentCategory){
       const catList = articleCategoriesForNewArticle(currentCategory);
@@ -8981,24 +9118,57 @@ function attachPanelEvents(key){
     };
     sel.onchange();
 
+    // Build 21h: IE follows the same lock as production, line by line — once THIS line's Shift End
+    // + 1 hour has passed for this date/shift, SMV/Target/Category are view-only until HR opens
+    // exactly this Line + Date + Shift.
+    function ieLockState(){
+      const dayRec = store.lines[selectedLine]?.days?.[currentDate]?.[currentShift] || {};
+      const lockedNormally = isEntryLocked(currentDate, dayRec); // no line/shift = ignores grants
+      const grant = activeUnlockFor(selectedLine, currentDate, currentShift);
+      return { lockedNormally, grant, locked: lockedNormally && !grant };
+    }
+    (function showIeLock(){
+      const st = ieLockState();
+      const el = document.getElementById('ieLockNote');
+      if(st.locked){
+        el.innerHTML = `<span style="color:var(--danger);">\ud83d\udd12 Locked \u2014 Shift End + 1 hour has passed for ${esc(lineLabel(selectedLine))} \u00b7 ${esc(currentDate)} \u00b7 ${esc(SHIFT_LABELS[currentShift]||currentShift)}. Ask HR to open this Line/Date/Shift.</span>`;
+      } else if(st.lockedNormally && st.grant){
+        el.innerHTML = `<span style="color:var(--accent-dark);">\ud83d\udd13 Opened by HR (${esc(st.grant.reason)}) \u2014 a save here applies to this date/shift only.</span>`;
+      } else { el.innerHTML = ''; }
+    })();
+
     document.getElementById('ieSaveBtn').onclick = async ()=>{
       const l = findArticle(selectedLine, Number(sel.value));
       if(!l){ alert('The Supervisor must add the Article first'); return; }
+      const st = ieLockState();
+      if(st.locked){ alert('Locked \u2014 Shift End + 1 hour has passed for this line/shift. Ask HR to open this Line/Date/Shift.'); return; }
       // Category is required on every save, regardless of SMV — this is a hard rule, not
       // just an SMV-linked nudge. Without this, saving with the dropdown blank (e.g. editing
       // only Target% with SMV left empty) would silently WIPE an already-saved category.
       const catVal = catSel.value;
       const smvVal = Number(document.getElementById('ieSmv').value)||0;
+      const tgtVal = Number(document.getElementById('ieTarget').value)||0;
       if(!catVal){ alert('Select a Category before saving'); return; }
       l.category = catVal;                          // category is a product label, same across shifts
-      // SMV and Target are stored per shift, so A shift 65% and B shift 60% no longer overwrite
-      // each other. The article's base value is kept in step with whichever shift last set it,
-      // so any old screen still reading the base sees a sensible number.
+      const prev = resolveIE(selectedLine, currentDate, currentShift, l.layoutNo);
+      const epoch = savedNowEpoch();
       const day = liveDay(selectedLine, currentDate, currentShift);
       if(!day.ieByLayout) day.ieByLayout = {};
-      day.ieByLayout[l.layoutNo] = { smv: smvVal, targetPercent: Number(document.getElementById('ieTarget').value)||0 };
-      l.smv = smvVal;
-      l.targetPercent = Number(document.getElementById('ieTarget').value)||0;
+      // This shift's own exact record (always) — what this date/shift actually ran with.
+      day.ieByLayout[l.layoutNo] = { smv: smvVal, targetPercent: tgtVal };
+      l.smvLog = smvLogOf(l).slice();
+      if(st.lockedNormally && st.grant){
+        // HR-opened back-dated fill: this one date/shift only, never carried forward.
+        l.smvLog.push({ kind:'backdated', smv: smvVal, targetPercent: tgtVal, fromDate: currentDate, fromShift: currentShift,
+                        epoch, prevSmv: prev.smv, prevTarget: prev.targetPercent, unlockId: st.grant.id });
+      } else {
+        // Normal save: carries forward from this date/shift until the next save, a reopen or close.
+        // Earlier dates (and same-date shifts already over) are untouched — see carryEntryReaches().
+        l.smvLog.push({ kind:'set', smv: smvVal, targetPercent: tgtVal, fromDate: currentDate, fromShift: currentShift,
+                        epoch, prevSmv: prev.smv, prevTarget: prev.targetPercent });
+        l.smv = smvVal;               // base mirrors the latest carry-forward value (display/Excel only)
+        l.targetPercent = tgtVal;
+      }
       // This is what actually earns IE write access to this ONE line for this save — see
       // the comment on ownedLineKeys(). Without it, this real edit wouldn't reliably survive
       // a save that raced the line's own supervisor (the exact bug that prompted the fix).
@@ -9010,7 +9180,7 @@ function attachPanelEvents(key){
     const tb = document.getElementById('ieTableBody');
     tb.innerHTML = getArticles(selectedLine).map(l=>{
       const iv = shiftIEValues(selectedLine, currentDate, currentShift, l.layoutNo);
-      return `<tr><td class="num">${l.layoutNo}</td><td>${l.articleNo}${l.status==='closed'?' <span class="note">(Closed)</span>':''}</td><td>${l.category||'\u2014'}</td><td class="num" style="${!iv.smv?'color:var(--danger);font-weight:700;':''}">${iv.smv||'\u26a0 0'}</td><td class="num">${iv.targetPercent}%</td><td class="num">${getEffectiveOrderQty(selectedLine, l)||'\u2014'}</td><td class="num">${(rq=>rq===null?'\u2014':rq)(getArticleReceivedQty(selectedLine, l))}</td></tr>`;
+      return `<tr><td class="num">${l.layoutNo}</td><td>${esc(l.articleNo)}${l.status==='closed'?' <span class="note">(Closed)</span>':''}</td><td>${esc(l.category)||'\u2014'}</td><td class="num" style="${!iv.smv?'color:var(--danger);font-weight:700;':''}">${iv.smv||'\u26a0 0'}</td><td class="num">${iv.targetPercent}%</td><td class="num">${getEffectiveOrderQty(selectedLine, l)||'\u2014'}</td><td class="num">${(rq=>rq===null?'\u2014':rq)(getArticleReceivedQty(selectedLine, l))}</td></tr>`;
     }).join('') || '<tr><td colspan="7" class="empty">No articles</td></tr>';
   }
 
@@ -9059,7 +9229,7 @@ function attachPanelEvents(key){
         ${pendingRecontrol.map(r=>`
           <div class="pending-item">
             <div class="row">
-              <div><b>${r.fromLine}</b>${r.fromShift?(' ('+SHIFT_LABELS[r.fromShift]+')'):''} sent <b>${r.mp}</b> M/P — Time: ${r.time} (${r.date})${r.note?(' — '+r.note):''}</div>
+              <div><b>${r.fromLine}</b>${r.fromShift?(' ('+SHIFT_LABELS[r.fromShift]+')'):''} sent <b>${r.mp}</b> M/P — Time: ${r.time} (${r.date})${esc(r.note)?(' — '+esc(r.note)):''}</div>
               <button class="btn-primary" style="width:auto;" data-accept-recontrol="${r.id}">✓ Accept</button>
             </div>
           </div>
@@ -9088,7 +9258,7 @@ function attachPanelEvents(key){
       const available = Number(r.mp) - returned;
       const shiftOver = r.status==='accepted' && hasShiftEnded(r.fromLine, r.date, r.fromShift);
       const availableLabel = (available>0 && shiftOver) ? '0 <span class="note">(Shift ended)</span>' : available;
-      return `<tr><td>${r.date}</td><td class="num">${r.time}</td><td>${r.fromLine}${r.fromShift?' ('+SHIFT_LABELS[r.fromShift]+')':''}</td><td class="num">${r.mp}</td><td class="num">${returned}</td><td class="num">${availableLabel}</td><td>${r.note||'—'}</td><td>${r.status==='accepted'?'<span class="status-accepted">Accepted</span>':'<span class="status-pending">Pending</span>'}</td></tr>`;
+      return `<tr><td>${r.date}</td><td class="num">${r.time}</td><td>${r.fromLine}${r.fromShift?' ('+SHIFT_LABELS[r.fromShift]+')':''}</td><td class="num">${r.mp}</td><td class="num">${returned}</td><td class="num">${availableLabel}</td><td>${esc(r.note)||'—'}</td><td>${r.status==='accepted'?'<span class="status-accepted">Accepted</span>':'<span class="status-pending">Pending</span>'}</td></tr>`;
     }).join('');
 
     // ---- Return / Send-Back History (date + destination shift, like the recontrol history) ----
@@ -9188,7 +9358,7 @@ function attachPanelEvents(key){
     qcHourSel.innerHTML = shiftHourLabels(day).map(h=>`<option value="${h}">${hourOptionLabel(day,h)}</option>`).join('');
 
     const qcSel = document.getElementById('qcLayout');
-    qcSel.innerHTML = getActiveArticles(selectedLine).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${l.articleNo}</option>`).join('') || '<option value="">No article added yet</option>';
+    qcSel.innerHTML = getActiveArticles(selectedLine).map(l=>`<option value="${l.layoutNo}">L-${l.layoutNo} : ${esc(l.articleNo)}</option>`).join('') || '<option value="">No article added yet</option>';
     if(lastQualityLayout && qcSel.querySelector(`option[value="${lastQualityLayout}"]`)){ qcSel.value = lastQualityLayout; }
     else { lastQualityLayout = qcSel.value; }
     qcSel.addEventListener('change', ()=>{ lastQualityLayout = qcSel.value; });
@@ -9346,7 +9516,7 @@ function attachPanelEvents(key){
     body.innerHTML='';
     myFlags.slice().reverse().forEach(f=>{
       const layout = findArticle(selectedLine, f.layoutNo);
-      const artLabel = layout ? layout.articleNo : '\u2014';
+      const artLabel = layout ? esc(layout.articleNo) : '\u2014';
       const codeMatch = DEFECT_CODES.find(([c,n])=>`${c} \u2014 ${n}`===f.reason);
       const codeChip = codeMatch ? codeMatch[0] : '\u2014';
       const defectName = codeMatch ? codeMatch[1] : (f.reason||'\u2014');
@@ -9407,7 +9577,7 @@ function attachPanelEvents(key){
         ${pending.map(r=>`
           <div class="pending-item">
             <div class="row">
-              <div><b>${lineLabel(r.fromLine)}</b>${r.fromShift?(' ('+SHIFT_LABELS[r.fromShift]+')'):''} \u2014 <b>${r.mp}</b> M/P on Short Leave \u2014 Time: ${r.time}${r.note?(' \u2014 '+r.note):''}</div>
+              <div><b>${lineLabel(r.fromLine)}</b>${r.fromShift?(' ('+SHIFT_LABELS[r.fromShift]+')'):''} \u2014 <b>${r.mp}</b> M/P on Short Leave \u2014 Time: ${r.time}${esc(r.note)?(' \u2014 '+esc(r.note)):''}</div>
               <button class="btn-primary" style="width:auto;" data-accept-shortleave="${r.id}">\u2713 Accept</button>
             </div>
           </div>
@@ -9418,7 +9588,7 @@ function attachPanelEvents(key){
       document.getElementById('hrShortLeaveBody').innerHTML = all.slice().sort((a,b)=>a.time.localeCompare(b.time)).map(r=>{
         const statusHtml = r.status==='accepted' ? '<span class="status-accepted">Accepted</span>' : '<span class="status-pending">Pending</span>';
         const actionHtml = r.status==='accepted' ? '<span class="note">\u2014</span>' : `<button class="btn-ghost" data-accept-shortleave="${r.id}">Accept</button>`;
-        return `<tr><td class="num">${r.time}</td><td>${lineLabel(r.fromLine)}${r.fromShift?' ('+SHIFT_LABELS[r.fromShift]+')':''}</td><td class="num">${r.mp}</td><td>${r.note||'\u2014'}</td><td>${statusHtml}</td><td>${actionHtml}</td></tr>`;
+        return `<tr><td class="num">${r.time}</td><td>${lineLabel(r.fromLine)}${r.fromShift?' ('+SHIFT_LABELS[r.fromShift]+')':''}</td><td class="num">${r.mp}</td><td>${esc(r.note)||'\u2014'}</td><td>${statusHtml}</td><td>${actionHtml}</td></tr>`;
       }).join('');
 
       document.querySelectorAll('[data-accept-shortleave]').forEach(b=>b.onclick=async()=>{
@@ -9433,28 +9603,57 @@ function attachPanelEvents(key){
         ? `Today: ${all.length} notice(s), ${totalMp} M/P total on Short Leave` : '';
     })();
 
-    // ---- Backdate Entry Open (global override, applies to every line/shift) ----
+    // ---- Backdate Entry Open (build 21h: one Line + Date + Shift per grant, reason required) ----
+    const unlockLineSel = document.getElementById('unlockLine');
+    unlockLineSel.innerHTML = '<option value="">Select&hellip;</option>' +
+      ALL_LINES.map(l=>`<option value="${esc(l)}">${esc(lineLabel(l))}</option>`).join('');
+    document.getElementById('unlockDate').value = todayStr();
     function renderUnlockStatus(){
-      const gu = store.globalUnlock;
-      const statusEl = document.getElementById('unlockStatus');
-      if(gu && gu.active && gu.expiresAt && Date.now() < gu.expiresAt){
-        const mins = Math.ceil((gu.expiresAt - Date.now())/60000);
-        const h = Math.floor(mins/60), m = mins%60;
-        statusEl.innerHTML = `<span style="color:var(--success);font-weight:700;">● OPEN</span> — closes in ${h}h ${m}m (for every line/shift)`;
-      } else {
-        statusEl.innerHTML = `<span style="color:var(--steel);font-weight:700;">● Closed</span> — normal locking rules apply`;
+      const now = Date.now();
+      const open = (store.unlocks||[]).filter(u=>!u.closedAt && u.expiresAt && now < u.expiresAt)
+        .sort((a,b)=>a.expiresAt-b.expiresAt);
+      const el = document.getElementById('unlockStatus');
+      if(!open.length){
+        el.innerHTML = `<div class="note"><span style="color:var(--steel);font-weight:700;">&#9679; None open</span> &mdash; normal locking rules apply everywhere</div>`;
+        return;
       }
+      el.innerHTML = open.map(u=>{
+        const mins = Math.ceil((u.expiresAt-now)/60000), h = Math.floor(mins/60), m = mins%60;
+        return `<div style="display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+          <div style="font-size:13px;"><span style="color:var(--success);font-weight:700;">&#9679; OPEN</span>
+            <b>${esc(lineLabel(u.line))}</b> &middot; ${esc(u.date)} &middot; ${esc(SHIFT_LABELS[u.shift]||u.shift)} &mdash; closes in ${h}h ${m}m
+            <div class="note">Reason: ${esc(u.reason)}</div></div>
+          <button class="btn-ghost" style="color:var(--danger);white-space:nowrap;" data-unlock-close="${esc(u.id)}">Close now</button>
+        </div>`;
+      }).join('');
+      el.querySelectorAll('[data-unlock-close]').forEach(b=>b.onclick = async ()=>{
+        const u = (store.unlocks||[]).find(x=>x.id===b.dataset.unlockClose);
+        if(!u) return;
+        u.closedAt = savedNowEpoch();
+        await saveStore(); renderUnlockStatus();
+      });
     }
     renderUnlockStatus();
 
     document.getElementById('unlockOpenBtn').onclick = async ()=>{
-      const hrs = Number(document.getElementById('unlockHours').value)||1;
-      store.globalUnlock = { active:true, expiresAt: Date.now() + hrs*3600*1000 };
+      const hrs = Number(document.getElementById('unlockHours').value)||0;
+      const line = unlockLineSel.value;
+      const date = document.getElementById('unlockDate').value;
+      const shift = document.getElementById('unlockShift').value;
+      const reason = (document.getElementById('unlockReason').value||'').trim();
+      if(!line){ toast('\u26a0 Select the Line'); return; }
+      if(!date){ toast('\u26a0 Select the Date'); return; }
+      if(!shift){ toast('\u26a0 Select the Shift'); return; }
+      if(reason.length < 10){ toast('\u26a0 Write the reason (at least 10 characters)'); return; }
+      if(hrs <= 0){ toast('\u26a0 Enter how many hours to keep it open'); return; }
+      if(activeUnlockFor(line, date, shift)){ toast('\u26a0 This Line/Date/Shift is already open'); return; }
+      const now = savedNowEpoch();
+      if(!Array.isArray(store.unlocks)) store.unlocks = [];
+      store.unlocks.push({ id: uid(), line, date, shift, reason, hours: hrs,
+        openedAt: now, expiresAt: now + hrs*3600*1000, closedAt: null });
+      document.getElementById('unlockReason').value = '';
       await saveStore(); renderUnlockStatus();
-    };
-    document.getElementById('unlockCloseBtn').onclick = async ()=>{
-      store.globalUnlock = { active:false, expiresAt:null };
-      await saveStore(); renderUnlockStatus();
+      toast('\u2713 Opened: ' + lineLabel(line) + ' \u00b7 ' + date + ' \u00b7 ' + (SHIFT_LABELS[shift]||shift));
     };
 
     // ---- Password Management (per-shift for lines) ----
@@ -9608,7 +9807,7 @@ function attachPanelEvents(key){
         ${pendingOthers.map(r=>`
           <div class="pending-item">
             <div class="row">
-              <div><b>${lineLabel(r.fromLine)}</b>${r.fromShift?(' ('+SHIFT_LABELS[r.fromShift]+')'):''} sent <b>${r.mp}</b> M/P \u2014 Time: ${r.time} (${r.date})${r.note?(' \u2014 '+r.note):''}</div>
+              <div><b>${lineLabel(r.fromLine)}</b>${r.fromShift?(' ('+SHIFT_LABELS[r.fromShift]+')'):''} sent <b>${r.mp}</b> M/P \u2014 Time: ${r.time} (${r.date})${esc(r.note)?(' \u2014 '+esc(r.note)):''}</div>
               <button class="btn-primary" style="width:auto;" data-accept-others="${r.id}">\u2713 Accept</button>
             </div>
           </div>
@@ -9633,7 +9832,7 @@ function attachPanelEvents(key){
       const available = Number(r.mp) - returned;
       const shiftOver = r.status==='accepted' && hasShiftEnded(r.fromLine, r.date, r.fromShift);
       const availableLabel = (available>0 && shiftOver) ? '0 <span class="note">(Shift ended)</span>' : available;
-      return `<tr><td>${r.date}</td><td class="num">${r.time}</td><td>${lineLabel(r.fromLine)}${r.fromShift?' ('+SHIFT_LABELS[r.fromShift]+')':''}</td><td class="num">${r.mp}</td><td class="num">${returned}</td><td class="num">${availableLabel}</td><td>${r.note||'\u2014'}</td><td>${r.status==='accepted'?'<span class="status-accepted">Accepted</span>':'<span class="status-pending">Pending</span>'}</td></tr>`;
+      return `<tr><td>${r.date}</td><td class="num">${r.time}</td><td>${lineLabel(r.fromLine)}${r.fromShift?' ('+SHIFT_LABELS[r.fromShift]+')':''}</td><td class="num">${r.mp}</td><td class="num">${returned}</td><td class="num">${availableLabel}</td><td>${esc(r.note)||'\u2014'}</td><td>${r.status==='accepted'?'<span class="status-accepted">Accepted</span>':'<span class="status-pending">Pending</span>'}</td></tr>`;
     }).join('');
 
     const pmReturnHist = store.handoverRequests
@@ -9758,13 +9957,13 @@ function attachPanelEvents(key){
       const body = document.getElementById('pmSideLineDetailBody');
       body.innerHTML = list.map(en=>{
         const art = findArticle(en.line, en.layoutNo);
-        const artLabel = art ? art.articleNo : en.layoutNo;
+        const artLabel = art ? esc(art.articleNo) : en.layoutNo;
         const sizesHtml = (en.sizesUsed && en.sizesUsed.length)
           ? en.sizesUsed.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')
           : '\u2014';
         return `<tr>
           <td>${en.date}</td><td>${en.shift}</td><td>${en.hour}</td><td>${artLabel}</td>
-          <td class="num"><b>${en.qty}</b></td><td>${en.reason||'\u2014'}</td>
+          <td class="num"><b>${en.qty}</b></td><td>${esc(en.reason)||'\u2014'}</td>
           <td><div class="size-chips">${sizesHtml}</div></td>
           <td>${en.savedAtEpoch ? formatElapsed(en.savedAtEpoch, null) : '\u2014'}</td>
           <td><button class="btn-secondary" data-pm-sideline-open="${en.id}" data-date="${en.date}" data-shift="${en.shift}">Review &amp; Clear</button></td>
@@ -9963,8 +10162,8 @@ function attachPanelEvents(key){
       let html = '';
       groupRowsByLine(rows).forEach(grp=>{
         html += grp.rows.map(r=>`
-          <tr><td>${lineLabel(r.line)}</td><td>${SHIFT_LABELS[r.shift]}</td><td>${r.article}</td>
-            <td>${r.shopOrder}</td><td class="note">${r.originDate||'—'}</td>
+          <tr><td>${lineLabel(r.line)}</td><td>${SHIFT_LABELS[r.shift]}</td><td>${esc(r.article)}</td>
+            <td>${esc(r.shopOrder)}</td><td class="note">${r.originDate||'—'}</td>
             <td class="num">${r.pass}</td><td class="num">${r.repair}</td><td class="num">${r.reject}</td>
             <td class="num">${r.dgrade}</td><td class="num"><b>${r.pass + r.repair}</b></td>
             <td class="note" style="white-space:nowrap;">${sizeText(r)||'—'}</td></tr>`).join('');
@@ -10187,7 +10386,7 @@ function attachPanelEvents(key){
 
       body.innerHTML = groupList.map(g=>{
         const art = findArticle(g.line, g.layoutNo);
-        const artLabel = art ? art.articleNo : '\u2014';
+        const artLabel = art ? esc(art.articleNo) : '\u2014';
         const shopOrderLabel = art && art.shopOrderNo ? art.shopOrderNo : '\u2014';
         const cols = qmGroupColumns(g.flags);
         let gridHtml = '<div class="tally-corner"></div>';
@@ -10326,7 +10525,7 @@ function attachPanelEvents(key){
       document.getElementById('qmHistoryEmpty').style.display = list.length ? 'none' : 'block';
       body.innerHTML = list.map(f=>{
         const art = findArticle(f.line, f.layoutNo);
-        const artLabel = art ? art.articleNo : '—';
+        const artLabel = art ? esc(art.articleNo) : '—';
         const shopOrderLabel = art && art.shopOrderNo ? art.shopOrderNo : '—';
         const d = f.decision || {reject:0,repair:0,dgrade:0};
         const codeMatch = DEFECT_CODES.find(([c,n])=>`${c} \u2014 ${n}`===f.reason);
@@ -10390,7 +10589,7 @@ function attachPanelEvents(key){
           qmMonthName = cur ? cur.name : months[0].name;
         }
         monthSel.innerHTML = months.map(m=>
-          `<option value="${m.name}"${m.name===qmMonthName?' selected':''}>${m.name} (${fmtShort(m.from)} \u2013 ${fmtShort(m.to)})</option>`).join('');
+          `<option value="${esc(m.name)}"${m.name===qmMonthName?' selected':''}>${esc(m.name)} (${fmtShort(m.from)} \u2013 ${fmtShort(m.to)})</option>`).join('');
       }
       monthSel.onchange = ()=>{ qmMonthName = monthSel.value; renderQmHistory(); renderNoticeHistory(); };
 
@@ -10521,6 +10720,7 @@ function attachPanelEvents(key){
 /* ---------------- RENDER LIVE BOARD & SUMMARY ---------------- */
 function renderAll(){
   if(!session) return;
+  refreshLineSmvFlags();
   // Re-read Preparation's per-size balances into any open size grid. This is what makes a
   // mid-shift receipt show up on the line without rebuilding the panel underneath someone.
   sizeGridRefreshers.forEach(h=>{ try{ h.run(); }catch(e){ /* panel already gone */ } });
@@ -10567,7 +10767,7 @@ function renderQuickSummary(ln, dateStr, shift){
 
   const hourlyTarget = Math.round(m.target70); // based on Today Target Efficiency (IE Target%), not the flat 100% target
 
-  const articleChips = rows.map(r=>`<span class="qs-chip">${r.articleNo}${r.smv?' <b>'+r.smv.toFixed(2)+'</b>':''}</span>`).join('');
+  const articleChips = rows.map(r=>`<span class="qs-chip">${esc(r.articleNo)}${r.smv?' <b>'+r.smv.toFixed(2)+'</b>':''}</span>`).join('');
 
   const qsGrid = document.getElementById('qsGrid');
 
@@ -10605,14 +10805,14 @@ function renderQuickSummary(ln, dateStr, shift){
     let hourEarnMinutes = 0;
     entries.forEach(e=>{
       const layout = findArticle(ln, e.layoutNo);
-      const smv = layout ? (Number(layout.smv)||0) : m.currentSmv;
+      const smv = layout ? shiftSmv(ln, dateStr, shift, e.layoutNo) : m.currentSmv;
       hourEarnMinutes += (Number(e.qty)||0)*smv;
     });
     day.quality.filter(q=>q.hour===hourLabel).forEach(q=>{
       const r = Number(q.repair)||0;
       if(r<=0) return;
       const layout = findArticle(ln, q.layoutNo);
-      const smv = layout ? (Number(layout.smv)||0) : m.currentSmv;
+      const smv = layout ? shiftSmv(ln, dateStr, shift, q.layoutNo) : m.currentSmv;
       hourEarnMinutes += r*smv;
     });
     return hourWorkMinutes>0 ? (hourEarnMinutes/hourWorkMinutes*100) : 0;
@@ -10684,7 +10884,7 @@ function renderSummaryTable(){
         <td class="num">${m.efficiency.toFixed(2)}%</td><td class="num">${m.rejectPct.toFixed(2)}%</td><td class="num">${m.repairPct.toFixed(2)}%</td></tr>`;
       const arts = computeArticleBreakdown(ln, dateStr, shift);
       arts.forEach(a=>{
-        html += `<tr class="subrow ${tint}"><td>↳ Layout ${a.layoutNo}</td><td></td><td>${a.articleNo}</td><td class="num">${a.smv.toFixed(2)}</td>
+        html += `<tr class="subrow ${tint}"><td>↳ Layout ${a.layoutNo}</td><td></td><td>${esc(a.articleNo)}</td><td class="num">${a.smv.toFixed(2)}</td>
           <td class="num">—</td><td class="num">${a.qty}</td><td class="num">—</td>
           <td class="num">${a.rejectPct.toFixed(2)}%</td><td class="num">${a.repairPct.toFixed(2)}%</td></tr>`;
       });
@@ -10865,7 +11065,8 @@ function doExport(){
             'Break Min':p.breakMin||0,
             'Sizes': (p.sizesUsed||[]).map(s=>s.size+':'+s.qty).join(', '),
             'From Side Line': p.fromSideLine ? 'Yes' : '',
-            'Saved At': fmtSavedAt(p.savedAtEpoch)});
+            'Saved At': fmtSavedAt(p.savedAtEpoch),
+            'Saved Under HR Unlock': unlockReasonAt(ln, dt, shift, p.savedAtEpoch)});
         });
         (day.handovers||[]).forEach(h=>{
           let status = '—';
@@ -10897,6 +11098,29 @@ function doExport(){
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(supRows), 'Supervisor Entries');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(layoutRows), 'Articles');
+  // Build 21h audit sheets: every SMV change (who-when-from-to) and every HR backdate opening.
+  const smvLogRows = [];
+  PRODUCTION_LINES.forEach(ln=>{
+    getArticles(ln).forEach(l=>{
+      (Array.isArray(l.smvLog)?l.smvLog:[]).forEach(e=>{
+        if(e.kind==='baseline') return;
+        const u = e.unlockId ? (store.unlocks||[]).find(x=>x.id===e.unlockId) : null;
+        smvLogRows.push({ Line:ln, Layout:l.layoutNo, Article:l.articleNo, 'Shop Order':l.shopOrderNo||'',
+          Type: e.kind==='set' ? 'SMV set (carries forward)' : e.kind==='reset' ? 'Reopened (SMV blanked)' : 'Back-dated (HR unlock)',
+          'From Date':e.fromDate, 'From Shift':SHIFT_LABELS[e.fromShift]||e.fromShift||'',
+          'Old SMV':e.prevSmv!=null?e.prevSmv:'', 'New SMV':e.smv,
+          'Old Target%':e.prevTarget!=null?e.prevTarget:'', 'New Target%':e.targetPercent,
+          'HR Unlock Reason': u ? u.reason : '', 'Saved At': fmtSavedAt(e.epoch) });
+      });
+    });
+  });
+  smvLogRows.sort((a,b)=> String(a['Saved At']).localeCompare(String(b['Saved At'])));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(smvLogRows.length?smvLogRows:[{Note:'No SMV changes recorded yet'}]), 'SMV Log');
+  const unlockRows = (store.unlocks||[]).slice().sort((a,b)=>(a.openedAt||0)-(b.openedAt||0)).map(u=>({
+    Line:u.line, Date:u.date, Shift:SHIFT_LABELS[u.shift]||u.shift, Reason:u.reason, 'Hours Granted':u.hours,
+    'Opened At': fmtSavedAt(u.openedAt), 'Expires At': fmtSavedAt(u.expiresAt),
+    'Closed Early At': u.closedAt ? fmtSavedAt(u.closedAt) : '' }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(unlockRows.length?unlockRows:[{Note:'No backdate openings yet'}]), 'Backdate Unlocks');
   const freezeRows = [];
   Object.keys(store.categoryFreezing||{}).forEach(catName=>{
     (store.categoryFreezing[catName]||[]).forEach(r=>{
