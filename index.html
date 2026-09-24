@@ -703,7 +703,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-25s-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-25t-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1022,7 +1022,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-25s-supabase';
+const APP_BUILD = '2026-09-25t-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -6791,8 +6791,10 @@ function supervisorPanelHTML(){
         </div>
       </div>
     </div>
-    <div class="row4">
-      <div class="field"><label>Hour</label><div style="display:flex;gap:6px;"><select id="prodHour" style="flex:1;min-width:0;"></select><button class="btn-secondary hidden" id="prodScanBtn" type="button" style="white-space:nowrap;padding:0 12px;width:auto;">&#128247; Scan</button></div></div>
+    <!-- Build 21t: two equal columns on every screen — Hour | Scan, Quantity | Layout, Break -->
+    <div class="row2 prod-entry-grid">
+      <div class="field"><label>Hour</label><select id="prodHour"></select></div>
+      <div class="field" id="prodScanField"><label>Scan</label><button class="btn-secondary" id="prodScanBtn" type="button" style="width:100%;margin:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:6px;">&#128247; Scan</button></div>
       <div class="field"><label>Quantity</label><input id="prodQty" type="number"></div>
       <div class="field"><label>Layout #</label><select id="prodLayout"></select></div>
       <div class="field"><label>Break (minutes)</label><input id="prodBreak" type="number" placeholder="0"></div>
@@ -9266,8 +9268,13 @@ function attachPanelEvents(key){
     (function wireScanBtn(){
       const btn = document.getElementById('prodScanBtn');
       if(!btn) return;
-      if(!PRODUCTION_LINES.slice(0,6).includes(ln)) return;
-      btn.classList.remove('hidden');
+      if(!PRODUCTION_LINES.slice(0,6).includes(ln)){
+        // Lines without box labels: no Scan cell — the rest keep the same two-column grid.
+        const f = document.getElementById('prodScanField'); if(f) f.remove();
+        return;
+      }
+      const matchH = ()=>{ const h = prodHourSel.getBoundingClientRect().height; if(h>0){ btn.style.height = h+'px'; btn.style.padding = '0 10px'; } };
+      requestAnimationFrame(matchH); window.addEventListener('resize', matchH);
       btn.onclick = ()=>{
         if(!prodHourSel.value){ toast('\u26a0 Select the Hour first'); return; }
         if(!shiftTimesSet(liveDay(ln, dateStr, currentShift))){ toast('\u26a0 Set Shift Start and End time first (Shift & Manpower card), then Save.'); return; }
