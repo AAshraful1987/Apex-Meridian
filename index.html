@@ -279,11 +279,17 @@
   .loli-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;position:relative;}
   .loli-target{position:absolute;left:-5px;right:-5px;border-top:2px dashed #0F4C81;z-index:1;pointer-events:none;}
   .loli-target-lbl{position:absolute;left:0;bottom:3px;font-size:9px;font-weight:700;color:#0F4C81;background:var(--panel,#F8FAFC);padding:0 4px 0 0;white-space:nowrap;}
-  .loli-qty{font-size:10px;font-weight:700;color:var(--ink);margin-bottom:4px;z-index:2;}
+  /* Build 21k fix: the stem, dot and target line now share ONE plot box, so a stem's % really is a %
+     of the same height the target line uses. Before, qty + dot + label sat in the same flex column
+     as the stem, and any stem taller than the leftover space got squeezed — so e.g. 69% and 74%
+     both hit the same ceiling and looked equal. */
+  .loli-plot{position:relative;flex:1 1 auto;width:100%;min-height:0;margin-top:46px;}
+  .loli-head{position:absolute;left:50%;transform:translate(-50%,15px);display:flex;flex-direction:column;align-items:center;z-index:2;}
+  .loli-qty{font-size:10px;font-weight:700;color:var(--ink);margin-bottom:4px;z-index:2;white-space:nowrap;}
   .loli-dot{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4FC3F7,#0F4C81);
     display:flex;align-items:center;justify-content:center;color:#fff;font-size:9.5px;font-weight:800;
-    box-shadow:0 3px 6px rgba(15,76,129,0.35);margin-bottom:-14px;z-index:2;flex-shrink:0;}
-  .loli-stem{width:3px;background:linear-gradient(180deg,#DCE2DF,#0F4C81);border-radius:2px;min-height:14px;}
+    box-shadow:0 3px 6px rgba(15,76,129,0.35);z-index:2;flex-shrink:0;}
+  .loli-stem{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:3px;background:linear-gradient(180deg,#DCE2DF,#0F4C81);border-radius:2px;}
   .loli-label{font-size:9px;color:var(--steel);margin-top:6px;white-space:nowrap;}
   .loli-dot.loli-best{background:radial-gradient(circle at 35% 30%,#4ADE80,#15803D);box-shadow:0 3px 6px rgba(21,128,61,0.4);}
   .loli-dot.loli-worst{background:radial-gradient(circle at 35% 30%,#F5A15C,#B45F04);box-shadow:0 3px 6px rgba(180,95,4,0.4);}
@@ -697,7 +703,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-24k-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-24l-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1013,7 +1019,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-24k-supabase';
+const APP_BUILD = '2026-09-24l-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -5451,10 +5457,14 @@ function renderMgmtOverviewCharts(){
           if(r.shiftCount>0) titleParts.push(`Based on ${r.shiftCount} shift${r.shiftCount>1?'s':''}`);
           if(r.minDuration < 55) titleParts.push(`Slot as short as ${Math.round(r.minDuration)} min`);
           return `<div class="loli-col" title="${titleParts.join(' \u2014 ')}">
+            <div class="loli-plot">
             ${tgtPct!==null ? `<div class="loli-target" style="bottom:${tgtPct}%;"></div>` : ''}
+            <div class="loli-stem${hasSpread && r.eff===maxEff ? ' loli-stem-best' : ''}${hasSpread && r.eff===minEff ? ' loli-stem-worst' : ''}" style="height:${stemPct}%;"></div>
+            <div class="loli-head" style="bottom:${stemPct}%;">
             <div class="loli-qty">${dashNum(Math.round(r.qty))}</div>
             <div class="loli-dot${hasSpread && r.eff===maxEff ? ' loli-best' : ''}${hasSpread && r.eff===minEff ? ' loli-worst' : ''}">${r.eff.toFixed(0)}%</div>
-            <div class="loli-stem${hasSpread && r.eff===maxEff ? ' loli-stem-best' : ''}${hasSpread && r.eff===minEff ? ' loli-stem-worst' : ''}" style="height:${stemPct}%;"></div>
+            </div>
+            </div>
             <div class="loli-label">${shortLabel}</div>
           </div>`;
         }).join('')}
