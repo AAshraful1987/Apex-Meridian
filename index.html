@@ -697,7 +697,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-24j-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-24k-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1010,6 +1010,49 @@
 </div>
 
 <script>
+/* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
+// Keep this in step with the footer's build label. The update check reads this exact line from
+// the copy of the page currently published, so a newer upload is spotted by every open phone.
+const APP_BUILD = '2026-09-24k-supabase';
+// Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
+// device now asks the server for the published page — a cheap "not modified" answer unless it
+// really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
+// own: someone may be halfway through typing an entry.
+let lastUpdateCheck = 0, updateBannerShown = false;
+async function checkForAppUpdate(force){
+  if(updateBannerShown) return;
+  if(!/^https?:$/.test(location.protocol)) return;          // local file / preview: nothing to compare
+  const now = Date.now();
+  if(!force && now - lastUpdateCheck < 60*1000) return;       // at most once a minute
+  lastUpdateCheck = now;
+  try{
+    const r = await fetch(location.origin + location.pathname, { cache:'no-cache' });
+    if(!r.ok) return;
+    const m = (await r.text()).match(/^const APP_BUILD = '([^']+)';$/m);
+    if(m && m[1] && m[1] !== APP_BUILD) showAppUpdateBanner(m[1]);
+  }catch(e){ /* offline or blocked — try again next time */ }
+}
+function showAppUpdateBanner(newBuild){
+  if(updateBannerShown) return;
+  updateBannerShown = true;
+  const b = document.createElement('div');
+  b.id = 'appUpdateBanner';
+  b.setAttribute('role','button');
+  b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#0f6b5c;color:#fff;'+
+    'padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 12px;font:600 15px/1.35 system-ui,sans-serif;'+
+    'text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.25);cursor:pointer;';
+  b.textContent = '\ud83d\udd04 নতুন ভার্সন এসেছে — এন্ট্রি সেভ করে এখানে চাপুন (New version available — tap to update)';
+  b.onclick = ()=>{
+    b.textContent = '\u23f3 Updating\u2026';
+    // A never-seen URL, so neither the browser nor an installed iPhone app can hand back the old copy.
+    location.replace(location.origin + location.pathname + '?v=' + Date.now());
+  };
+  document.body.appendChild(b);
+}
+window.addEventListener('load', ()=>setTimeout(()=>checkForAppUpdate(true), 5000));
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkForAppUpdate(false); });
+setInterval(()=>checkForAppUpdate(true), 15*60*1000);
+
 /* ---------------- CONFIG ---------------- */
 const PRODUCTION_LINES = ['Line 1','Line 2','Line 3','Line 4','Line 5','Line 6','Artisan','Socks','Insole','Mocassin','UV Primer','Roughing'];
 const LOGISTICS_LINES = ['Preparation'];
