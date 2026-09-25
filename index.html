@@ -703,7 +703,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-25t-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-25v-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1022,7 +1022,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-25t-supabase';
+const APP_BUILD = '2026-09-25v-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -3325,13 +3325,41 @@ const KV_ENDPOINT = SUPABASE_URL + '/rest/v1/kv_store';
 // the app calls readKey()/writeKey() (below), so swapping backends later (e.g. IT's own
 // Node.js + Postgres server) means changing only these three functions and the two
 // constants above \u2014 no other line in this file needs to know where data actually lives.
+// Build 21v: "download only when changed". Every key's row carries a server-set updated_at
+// (see the SQL in the handover notes). Before downloading a key, ask for just its updated_at —
+// a few bytes. If it matches the copy this device already has, reuse that copy instead of
+// downloading the whole line history again. The copy is kept as a JSON string and re-parsed
+// each time, so the app's own unsaved edits can never leak into it. If the database doesn't
+// have the updated_at column yet, this quietly falls back to the old full download.
+const _kvCache = {};           // k -> { at: updated_at, json: string }
+let _kvVersionsSupported = true;
 async function backendGet(k){
-  const res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&select=v', {
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
-  });
+  const hdrs = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY };
+  if(_kvVersionsSupported && _kvCache[k]){
+    try{
+      const vr = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&select=updated_at', { headers: hdrs });
+      if(vr.ok){
+        const vrows = await vr.json();
+        if(!vrows || !vrows.length){ delete _kvCache[k]; return null; }
+        if(vrows[0].updated_at && vrows[0].updated_at === _kvCache[k].at){
+          return { value: JSON.parse(_kvCache[k].json) };
+        }
+      } else if(vr.status===400){ _kvVersionsSupported = false; }
+    }catch(e){ /* network hiccup: fall through to a normal read */ }
+  }
+  const sel = _kvVersionsSupported ? 'v,updated_at' : 'v';
+  let res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&select=' + sel, { headers: hdrs });
+  if(!res.ok && res.status===400 && _kvVersionsSupported){
+    _kvVersionsSupported = false; // column not added yet: old behaviour
+    res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&select=v', { headers: hdrs });
+  }
   if(!res.ok){ const err = new Error('Supabase GET ' + res.status + ': ' + await res.text()); err.status = res.status; throw err; }
   const rows = await res.json();
-  return (rows && rows.length) ? { value: rows[0].v } : null;
+  if(!rows || !rows.length){ delete _kvCache[k]; return null; }
+  if(_kvVersionsSupported && rows[0].updated_at){
+    try{ _kvCache[k] = { at: rows[0].updated_at, json: JSON.stringify(rows[0].v) }; }catch(e){}
+  }
+  return { value: rows[0].v };
 }
 async function backendSet(k, body){
   const res = await fetch(KV_ENDPOINT, {
@@ -4745,6 +4773,47 @@ function computeCategoryWisePPP(dates, shiftFilter){
    running minutes, the same way subSectionRows already totals it). So this number reads
    lower than "All FG": it reflects the section's total manpower-hours, not just how
    efficient the FG work itself was. */
+// Latest clock minute (from `dt` 00:00; can exceed 1440 for an overnight B shift) at which any
+// production line or sub-section has reported output on date `dt` — the end of its latest
+// reported hour slot, break-adjusted. -1 when nothing is reported yet.
+function prepFloorReportedEnd(dt){
+  let latest = -1;
+  PRODUCTION_LINES.forEach(ln=>{
+    const days = store.lines[ln] && store.lines[ln].days && store.lines[ln].days[dt];
+    if(!days) return;
+    Object.keys(days).forEach(sh=>{
+      const d = days[sh];
+      if(!d || !Array.isArray(d.hourlyProd) || !d.hourlyProd.length || timeToMin(d.shiftStart)===null) return;
+      let maxIdx = -1;
+      d.hourlyProd.forEach(p=>{ const k = HOUR_LABELS.indexOf(String(p.hour).trim()); if(k>maxIdx) maxIdx = k; });
+      if(maxIdx<0) return;
+      const b = hourSlotBounds(d, maxIdx);
+      if(b.end>latest) latest = b.end;
+    });
+  });
+  return latest;
+}
+// Minutes of one Preparation date+shift that count toward full-section PPP (see above).
+function prepCountedMinutes(day, dt, floorEnd, nowEpoch){
+  const full = shiftRunMinutes(day);
+  if(full<=0) return 0;
+  const S = timeToMin(day.shiftStart), E0 = timeToMin(day.shiftEnd);
+  if(S===null || E0===null) return 0;
+  const E = E0<=S ? E0+1440 : E0;
+  const [y,mo,d] = String(dt).split('-').map(Number);
+  const endEpoch = new Date(y, (mo||1)-1, d||1, 0, 0, 0, 0).getTime() + E*60000;
+  if(nowEpoch >= endEpoch) return full;                 // shift over: count it all
+  const upTo = Math.min(E, floorEnd);
+  if(upTo<=S) return 0;
+  let brk = 0;                                           // own breaks already passed
+  (day.breaks||[]).forEach(bk=>{
+    let bs = timeToMin(bk.startTime), be = timeToMin(bk.endTime);
+    if(bs===null || be===null) return;
+    if(bs<S) bs += 1440; if(be<=bs) be += 1440;          // overnight B-shift breaks
+    brk += Math.max(0, Math.min(be, upTo) - Math.max(bs, S));
+  });
+  return Math.max(0, Math.min(full, (upTo - S) - brk));
+}
 function computeFullSectionManMinutes(dates, shiftFilter){
   const wanted = s => shiftFilter==='C' || s===shiftFilter;
   let directMM=0, indirectMM=0;
@@ -4760,25 +4829,21 @@ function computeFullSectionManMinutes(dates, shiftFilter){
       });
     });
   });
-  // Preparation has no hourly entries of its own to match against, so its contribution is
-  // capped, per date+shift, to however many hour-slots the production lines have actually
-  // reported that day \u2014 never more than Preparation's own full (break-adjusted) shift span.
-  // Keeps a mid-shift snapshot fair: if only 2 hours of production exist so far anywhere on
-  // the floor, only ~2 hours of Preparation's manpower counts too, not their whole day.
+  // Preparation has no hourly entries of its own, so its man-minutes are capped to how far the
+  // FLOOR has reported output — matched by CLOCK TIME, not by shift letter (build 21u):
+  //   counted = min( Preparation's own break-adjusted shift span,
+  //                  minutes from its own shift start to the end of the latest hour slot any
+  //                  production line/sub-section has reported that date, minus Preparation's
+  //                  own breaks already passed )
+  // So Preparation A/B (same clock as the lines) count exactly the lines' reported hours, and
+  // the G crew (08:00-17:00) counts the part of its day the floor has reported — before, G
+  // matched the lines' non-existent G shift and was dropped entirely. A Preparation shift that
+  // is already over counts in full, so a forgotten last line entry can't shrink it.
   dates.forEach(dt=>{
+    const floorEnd = prepFloorReportedEnd(dt);
     getExistingShifts('Preparation', dt).filter(wanted).forEach(sh=>{
       const day = ensureLineDay('Preparation', dt, sh);
-      const fullSpan = shiftRunMinutes(day);
-      if(fullSpan<=0) return;
-      let maxIdx = -1;
-      PRODUCTION_LINES.forEach(ln=>{
-        ensureLineDay(ln, dt, sh).hourlyProd.forEach(p=>{
-          const i = HOUR_LABELS.indexOf(String(p.hour).trim());
-          if(i>maxIdx) maxIdx = i;
-        });
-      });
-      const reportedMinutes = maxIdx>=0 ? (maxIdx+1)*60 : 0;
-      const span = Math.min(fullSpan, reportedMinutes);
+      const span = prepCountedMinutes(day, dt, floorEnd, Date.now());
       if(span<=0) return;
       directMM += (Number(day.baseDirectMP)||0) * span;
       indirectMM += (Number(day.indirectMP)||0) * span;
