@@ -703,7 +703,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-25v-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-26a-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1022,7 +1022,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-25v-supabase';
+const APP_BUILD = '2026-09-26a-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -1684,6 +1684,20 @@ function onStandardGapFace(overallEff, onStdEff, gapThresholdPts){
 }
 let currentDate = null; // will be set to today after helper is defined
 let lastProdLayout = null;
+// Build 26a: the Hour the supervisor last used on this line/date/shift, so the Hour dropdown stays
+// put after Add Production / Side Line / Scan instead of jumping back to 1st Hour every time.
+let lastProdHour = null; // { key:'<line>|<date>|<shift>', hour:'3rd Hour' }
+// Which Hour the Hourly Production form opens on: the hour last picked here (this session), else
+// the latest hour that already has an entry on this date+shift, else the first hour of the shift.
+function defaultProdHour(labels, day, rememberedHour){
+  if(!labels.length) return '';
+  if(rememberedHour && labels.includes(rememberedHour)) return rememberedHour;
+  let best = -1;
+  (day.hourlyProd||[]).concat(day.sideLine||[]).forEach(p=>{
+    const i = labels.indexOf(String(p.hour).trim()); if(i>best) best = i;
+  });
+  return best>=0 ? labels[best] : labels[0];
+}
 let prepActiveView = 'shiftlog'; // 'shiftlog' | 'upperreceive' — which Preparation sub-view is showing
 // Whether the Hourly Production card's log table is showing the Side Line list instead of
 // normal production. Module-level (not per-render) so it survives the panel rebuilds that
@@ -2088,9 +2102,24 @@ function carryEntryReaches(e, lineName, dateStr, shift){
   const endEp = shiftEndEpoch(lineName, dateStr, shift);
   return !(endEp!==null && endEp <= (e.epoch||0));
 }
+// Build 26a: IE's Reset appends an 'undo' entry naming the saves it cancels (by epoch). Cancelled
+// saves and the undo entry itself are skipped everywhere, so the value falls back to whatever was
+// in force before them. Nothing is deleted — the Excel SMV Log still shows both.
+function smvVoidedEpochs(art){
+  const v = new Set();
+  smvLogOf(art).forEach(e=>{ if(e.kind==='undo' && Array.isArray(e.undoEpochs)) e.undoEpochs.forEach(x=>v.add(x)); });
+  return v;
+}
+// Saves IE made for exactly this date+shift that a Reset would cancel (set or HR back-dated).
+function smvUndoTargets(art, dateStr, shift){
+  const voided = smvVoidedEpochs(art);
+  return smvLogOf(art).filter(e=>(e.kind==='set'||e.kind==='backdated') && e.fromDate===dateStr
+    && e.fromShift===shift && !voided.has(e.epoch));
+}
 function resolveCarryForward(art, dateStr, shift, lineName){
+  const voided = smvVoidedEpochs(art);
   const chain = smvLogOf(art)
-    .filter(e=>e.kind!=='backdated' && carryEntryReaches(e, lineName, dateStr, shift))
+    .filter(e=>e.kind!=='backdated' && e.kind!=='undo' && !voided.has(e.epoch) && carryEntryReaches(e, lineName, dateStr, shift))
     .sort((a,b)=> (a.fromDate===b.fromDate) ? (a.epoch||0)-(b.epoch||0) : (a.fromDate<b.fromDate?-1:1));
   let smv = 0, anyTarget = 0; const shiftTarget = {};
   chain.forEach(e=>{
@@ -4121,6 +4150,20 @@ function isEntryLocked(dateStr, day, lineName, shift){
   }
   const deadline = new Date(endDateTime.getTime() + 60*60*1000); // +1 hour grace
   return new Date() > deadline;
+}
+
+// Build 26a: IE's own deadline. Night shifts often run with no IE on the floor; IE arrives ~8:00
+// and meets at 10:00, so every shift dated D (A, B or G) stays open for SMV/Target until
+// 10:00 on D+1, then locks until HR opens that Line/Date/Shift. Production's lock is unchanged.
+const IE_LOCK_HOUR = 10;
+function ieDeadlineEpoch(dateStr){
+  const [y,mo,d] = String(dateStr||'').split('-').map(Number);
+  if(!y||!mo||!d) return null;
+  return new Date(y, mo-1, d+1, IE_LOCK_HOUR, 0, 0, 0).getTime();
+}
+function isIeEntryLocked(dateStr, nowEpoch){
+  const dl = ieDeadlineEpoch(dateStr);
+  return dl!==null && (nowEpoch!==undefined ? nowEpoch : Date.now()) > dl;
 }
 
 // weighted MP + earn/work minutes for a given line+date+shift, evaluated "now" (or full day if not today)
@@ -7027,7 +7070,7 @@ function iePanelHTML(){
     <div class="note" id="ieOrderQtyNote"></div>
     <div id="ieLockNote" class="note" style="margin:6px 0;font-weight:600;"></div>
     <button class="btn-primary" id="ieSaveBtn">Save</button>
-    <div class="table-scroll"><table><thead><tr><th>Layout</th><th>Article</th><th>Category</th><th>SMV</th><th>Target%</th><th>Order Qty</th><th>Rcv Qty</th></tr></thead><tbody id="ieTableBody"></tbody></table></div>
+    <div class="table-scroll"><table><thead><tr><th>Layout</th><th>Article</th><th>Category</th><th>SMV</th><th>Target%</th><th>Order Qty</th><th>Rcv Qty</th><th>Reset</th></tr></thead><tbody id="ieTableBody"></tbody></table></div>
   </div>
   `;
 }
@@ -9196,13 +9239,17 @@ function attachPanelEvents(key){
     wireDeleteArticleButtons();
 
     const prodHourSel = document.getElementById('prodHour');
-    prodHourSel.innerHTML = shiftHourLabels(day).map(h=>`<option value="${h}">${hourOptionLabel(day,h)}</option>`).join('');
+    const prodHourLabels = shiftHourLabels(day);
+    prodHourSel.innerHTML = prodHourLabels.map(h=>`<option value="${h}">${hourOptionLabel(day,h)}</option>`).join('');
+    const prodHourKey = ln+'|'+dateStr+'|'+currentShift;
+    const rememberProdHour = ()=>{ if(prodHourSel.value) lastProdHour = { key: prodHourKey, hour: prodHourSel.value }; };
+    prodHourSel.value = defaultProdHour(prodHourLabels, day, lastProdHour && lastProdHour.key===prodHourKey ? lastProdHour.hour : null);
     function suggestBreakForSelectedHour(){
       const idx = HOUR_LABELS.indexOf(prodHourSel.value);
       const suggested = idx>=0 ? breakMinutesForHourIdx(day, idx) : 0;
       document.getElementById('prodBreak').value = suggested>0 ? suggested : '';
     }
-    prodHourSel.onchange = suggestBreakForSelectedHour;
+    prodHourSel.onchange = ()=>{ rememberProdHour(); suggestBreakForSelectedHour(); };
     suggestBreakForSelectedHour();
 
     const prodSel = document.getElementById('prodLayout');
@@ -9321,6 +9368,7 @@ function attachPanelEvents(key){
       }
       const entry = {id:uid(), hour, qty, layoutNo, breakMin, savedAtEpoch: savedNowEpoch()};
       if(sizesUsed && sizesUsed.length) entry.sizesUsed = sizesUsed;
+      rememberProdHour();
       return entry;
     }
     function clearProdForm(){
@@ -9343,6 +9391,7 @@ function attachPanelEvents(key){
       btn.onclick = ()=>{
         if(!prodHourSel.value){ toast('\u26a0 Select the Hour first'); return; }
         if(!shiftTimesSet(liveDay(ln, dateStr, currentShift))){ toast('\u26a0 Set Shift Start and End time first (Shift & Manpower card), then Save.'); return; }
+        rememberProdHour();
         openBoxScanner({ ln, dateStr, shift: currentShift, hour: prodHourSel.value,
           breakMin: document.getElementById('prodBreak').value,
           onDone: ()=>{ buildPanel('entry'); renderAll(); } });
@@ -9813,12 +9862,11 @@ function attachPanelEvents(key){
     };
     sel.onchange();
 
-    // Build 21h: IE follows the same lock as production, line by line — once THIS line's Shift End
-    // + 1 hour has passed for this date/shift, SMV/Target/Category are view-only until HR opens
-    // exactly this Line + Date + Shift.
+    // Build 26a: IE locks at 10:00 the morning after the shift's date (see isIeEntryLocked), then
+    // SMV/Target/Category are view-only until HR opens exactly this Line + Date + Shift. A save made
+    // before that deadline is a normal carry-forward save (never back-dated into earlier shifts).
     function ieLockState(){
-      const dayRec = store.lines[selectedLine]?.days?.[currentDate]?.[currentShift] || {};
-      const lockedNormally = isEntryLocked(currentDate, dayRec); // no line/shift = ignores grants
+      const lockedNormally = isIeEntryLocked(currentDate);
       const grant = activeUnlockFor(selectedLine, currentDate, currentShift);
       return { lockedNormally, grant, locked: lockedNormally && !grant };
     }
@@ -9826,7 +9874,7 @@ function attachPanelEvents(key){
       const st = ieLockState();
       const el = document.getElementById('ieLockNote');
       if(st.locked){
-        el.innerHTML = `<span style="color:var(--danger);">\ud83d\udd12 Locked \u2014 Shift End + 1 hour has passed for ${esc(lineLabel(selectedLine))} \u00b7 ${esc(currentDate)} \u00b7 ${esc(SHIFT_LABELS[currentShift]||currentShift)}. Ask HR to open this Line/Date/Shift.</span>`;
+        el.innerHTML = `<span style="color:var(--danger);">\ud83d\udd12 Locked \u2014 10:00 AM of the next day has passed for ${esc(lineLabel(selectedLine))} \u00b7 ${esc(currentDate)} \u00b7 ${esc(SHIFT_LABELS[currentShift]||currentShift)}. Ask HR to open this Line/Date/Shift.</span>`;
       } else if(st.lockedNormally && st.grant){
         el.innerHTML = `<span style="color:var(--accent-dark);">\ud83d\udd13 Opened by HR (${esc(st.grant.reason)}) \u2014 a save here applies to this date/shift only.</span>`;
       } else { el.innerHTML = ''; }
@@ -9836,7 +9884,7 @@ function attachPanelEvents(key){
       const l = findArticle(selectedLine, Number(sel.value));
       if(!l){ alert('The Supervisor must add the Article first'); return; }
       const st = ieLockState();
-      if(st.locked){ alert('Locked \u2014 Shift End + 1 hour has passed for this line/shift. Ask HR to open this Line/Date/Shift.'); return; }
+      if(st.locked){ alert('Locked \u2014 10:00 AM of the next day has passed for this date/shift. Ask HR to open this Line/Date/Shift.'); return; }
       // Category is required on every save, regardless of SMV — this is a hard rule, not
       // just an SMV-linked nudge. Without this, saving with the dropdown blank (e.g. editing
       // only Target% with SMV left empty) would silently WIPE an already-saved category.
@@ -9875,8 +9923,50 @@ function attachPanelEvents(key){
     const tb = document.getElementById('ieTableBody');
     tb.innerHTML = ieVisibleArticles(selectedLine, currentDate).map(l=>{
       const iv = shiftIEValues(selectedLine, currentDate, currentShift, l.layoutNo);
-      return `<tr><td class="num">${l.layoutNo}</td><td>${esc(l.articleNo)}${l.status==='closed'?' <span class="note">(Closed)</span>':''}</td><td>${esc(l.category)||'\u2014'}</td><td class="num" style="${!iv.smv?'color:var(--danger);font-weight:700;':''}">${iv.smv||'\u26a0 0'}</td><td class="num">${iv.targetPercent}%</td><td class="num">${getEffectiveOrderQty(selectedLine, l)||'\u2014'}</td><td class="num">${(rq=>rq===null?'\u2014':rq)(getArticleReceivedQty(selectedLine, l))}</td></tr>`;
-    }).join('') || '<tr><td colspan="7" class="empty">No articles</td></tr>';
+      return `<tr><td class="num">${l.layoutNo}</td><td>${esc(l.articleNo)}${l.status==='closed'?' <span class="note">(Closed)</span>':''}</td><td>${esc(l.category)||'\u2014'}</td><td class="num" style="${!iv.smv?'color:var(--danger);font-weight:700;':''}">${iv.smv||'\u26a0 0'}</td><td class="num">${iv.targetPercent}%</td><td class="num">${getEffectiveOrderQty(selectedLine, l)||'\u2014'}</td><td class="num">${(rq=>rq===null?'\u2014':rq)(getArticleReceivedQty(selectedLine, l))}</td><td>${(()=>{
+        const dayRec = store.lines[selectedLine]?.days?.[currentDate]?.[currentShift];
+        const can = smvUndoTargets(l, currentDate, currentShift).length>0 || !!(dayRec && dayRec.ieByLayout && dayRec.ieByLayout[l.layoutNo]);
+        const locked = ieLockState().locked;
+        return `<button class="btn-ghost" data-ie-reset="${l.layoutNo}" ${(!can||locked)?'disabled style="opacity:.4;"':''} title="${!can?'Nothing saved for this date/shift':locked?'Locked':'Cancel this date/shift SMV save'}">Reset</button>`;
+      })()}</td></tr>`;
+    }).join('') || '<tr><td colspan="8" class="empty">No articles</td></tr>';
+
+    // Build 26a: Reset = cancel what IE saved for THIS article on THIS date+shift, so the SMV and
+    // Target% return to what was in force before (carry-forward). Same lock as Save. Append-only:
+    // an 'undo' entry records which saves it cancelled, who-when, and the before/after values.
+    tb.querySelectorAll('[data-ie-reset]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const l = findArticle(selectedLine, Number(btn.dataset.ieReset));
+        if(!l) return;
+        const st = ieLockState();
+        if(st.locked){ alert('Locked \u2014 10:00 AM of the next day has passed for this date/shift. Ask HR to open this Line/Date/Shift.'); return; }
+        const targets = smvUndoTargets(l, currentDate, currentShift);
+        const dayRec = liveDay(selectedLine, currentDate, currentShift);
+        const hadOverride = !!(dayRec.ieByLayout && dayRec.ieByLayout[l.layoutNo]);
+        if(!targets.length && !hadOverride){ toast('Nothing saved for this date/shift'); return; }
+        const prev = resolveIE(selectedLine, currentDate, currentShift, l.layoutNo);
+        // What it will fall back to: resolve as if these saves and this shift's override were gone.
+        const voidSet = new Set(targets.map(e=>e.epoch));
+        const probe = Object.assign({}, l, { smvLog: smvLogOf(l).concat([{ kind:'undo', undoEpochs:[...voidSet] }]) });
+        const back = resolveCarryForward(probe, currentDate, currentShift, selectedLine);
+        const msg = `L-${l.layoutNo} ${l.articleNo} \u2014 ${currentDate} ${SHIFT_LABELS[currentShift]||currentShift}\n`
+          + `SMV ${prev.smv} / ${prev.targetPercent}%  \u2192  ${back.smv} / ${back.targetPercent}%\n\n`
+          + `Cancel the SMV saved for this date/shift?`;
+        if(!confirm(msg)) return;
+        l.smvLog = smvLogOf(l).slice();
+        l.smvLog.push({ kind:'undo', undoEpochs:[...voidSet], fromDate: currentDate, fromShift: currentShift,
+                        epoch: savedNowEpoch(), prevSmv: prev.smv, prevTarget: prev.targetPercent,
+                        smv: back.smv, targetPercent: back.targetPercent,
+                        unlockId: (st.lockedNormally && st.grant) ? st.grant.id : undefined });
+        if(hadOverride) delete dayRec.ieByLayout[l.layoutNo];
+        // Base value mirrors the latest carry-forward value still in force (display/Excel only).
+        const latest = resolveCarryForward(l, '9999-12-31', currentShift, selectedLine);
+        l.smv = latest.smv; l.targetPercent = latest.targetPercent;
+        markDay(selectedLine, currentDate, currentShift);
+        await saveStore(); buildPanel('ie'); renderAll();
+        toast(`\u2714 L-${l.layoutNo} SMV reset to ${back.smv} / ${back.targetPercent}%`);
+      };
+    });
   }
 
   if(key==='quality'){
@@ -11837,7 +11927,8 @@ function doExport(){
         if(e.kind==='baseline') return;
         const u = e.unlockId ? (store.unlocks||[]).find(x=>x.id===e.unlockId) : null;
         smvLogRows.push({ Line:ln, Layout:l.layoutNo, Article:l.articleNo, 'Shop Order':l.shopOrderNo||'',
-          Type: e.kind==='set' ? 'SMV set (carries forward)' : e.kind==='reset' ? 'Reopened (SMV blanked)' : 'Back-dated (HR unlock)',
+          Type: e.kind==='set' ? 'SMV set (carries forward)' : e.kind==='reset' ? 'Reopened (SMV blanked)'
+              : e.kind==='undo' ? 'Reset by IE (cancelled this date/shift save)' : 'Back-dated (HR unlock)',
           'From Date':e.fromDate, 'From Shift':SHIFT_LABELS[e.fromShift]||e.fromShift||'',
           'Old SMV':e.prevSmv!=null?e.prevSmv:'', 'New SMV':e.smv,
           'Old Target%':e.prevTarget!=null?e.prevTarget:'', 'New Target%':e.targetPercent,
