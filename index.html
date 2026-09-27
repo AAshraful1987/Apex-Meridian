@@ -100,6 +100,11 @@
   .kpi-spark-row{ display:flex; align-items:flex-end; justify-content:space-between; gap:8px; margin-top:8px; }
   .kpi-spark-row svg{ display:block; width:100%; height:30px; }
   .kpi-spark-trend{ font-size:10px; font-weight:700; white-space:nowrap; padding-bottom:1px; }
+  /* Build 26d: the trend footer stacks (caption, then the change) and wraps inside the card —
+     on a phone the one-line version pushed "Sep" out past the card edge. */
+  .kpi-spark-foot{ margin-top:3px; line-height:1.35; min-width:0; }
+  .kpi-spark-foot .cap{ display:block; font-size:9.5px; color:var(--steel); }
+  .kpi-spark-foot .kpi-spark-trend{ display:block; white-space:normal; overflow-wrap:anywhere; }
   .dash-kpi .l{font-size:11px;color:var(--ink);margin-bottom:4px;font-weight:700;}
   .dash-kpi .v{font-size:26px;line-height:1.1;font-weight:700;}
   .dash-kpi .s{font-size:11px;color:var(--ink);margin-top:2px;line-height:1.45;}
@@ -703,7 +708,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-26c-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-27d-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1022,7 +1027,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-26c-supabase';
+const APP_BUILD = '2026-09-27d-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -5709,6 +5714,8 @@ function trailingDaySeries(anchorDate, shiftFilter, extractFn){
   const vals = dates.map(dt=> Number(extractFn(dt===anchorDate ? anchorDm
     : (sameHours ? dashMetricsCut(dt, shiftFilter, cut) : dashMetrics([dt], null, shiftFilter))))||0);
   vals.sameHours = sameHours;
+  // Output entered but not one minute earned = every article produced has no SMV yet.
+  vals.noSmv = !anchorEmpty && (Number(anchorDm.achieve)||0) > 0 && !((Number(anchorDm.earn)||0) > 0);
   vals.dates = dates;              // which day each point is — for the "vs <day>" label
   vals.anchorEmpty = anchorEmpty;
   vals.anchorDate = anchorDate;
@@ -5752,7 +5759,10 @@ function kpiInnerHTML(idForGrad, k, vals){
     const prev = hasPrev ? vals[vals.length-2] : null, lastV = vals[vals.length-1];
     const prevDay = (hasPrev && vals.dates) ? shortDayLabel(vals.dates[vals.length-2]) : 'prev day';
     let trendText, trendClass;
-    if(vals.anchorEmpty){
+    if(k.needsSmv && vals.noSmv){
+      trendClass = 'down';
+      trendText = 'SMV missing \u2014 output not earning';
+    } else if(vals.anchorEmpty){
       trendClass = 'flat';
       trendText = 'no entry yet on ' + shortDayLabel(vals.anchorDate);
     } else if(!hasPrev){
@@ -5766,7 +5776,7 @@ function kpiInnerHTML(idForGrad, k, vals){
       trendClass = Math.abs(pct)<0.5 ? 'flat' : (pct>0 ? 'up' : 'down');
       trendText = Math.abs(pct).toFixed(2) + '% vs ' + prevDay;
     }
-    const arrow = trendClass==='up' ? '\u25b2' : trendClass==='down' ? '\u25bc' : '\u2014';
+    const arrow = (k.needsSmv && vals.noSmv) ? '\u26a0' : trendClass==='up' ? '\u25b2' : trendClass==='down' ? '\u25bc' : '\u2014';
     // Arrow = which way it moved; colour = good or bad. For lower-is-better cards (lost time,
     // reject, repair) a fall is an improvement, so it shows green and a rise shows red.
     const good = k.lowerIsBetter ? 'down' : 'up', bad = k.lowerIsBetter ? 'up' : 'down';
@@ -5784,8 +5794,8 @@ function kpiInnerHTML(idForGrad, k, vals){
           <circle cx="${sp.lastX.toFixed(1)}" cy="${sp.lastY.toFixed(1)}" r="2.4" fill="${k.color}"/>
         </svg>
       </div>
-      <div class="kpi-spark-row" style="margin-top:2px;">
-        <span style="font-size:9.5px;color:var(--steel);">${vals.length>1 ? vals.length+' days' : 'trend'}${vals.sameHours ? ' \u00b7 same hours' : ''}</span>
+      <div class="kpi-spark-foot">
+        <span class="cap">${vals.length>1 ? vals.length+' days' : 'trend'}${vals.sameHours ? ' \u00b7 same hours' : ''}</span>
         <span class="kpi-spark-trend" style="color:${trendColor}">${arrow} ${trendText}</span>
       </div>`;
   }
@@ -6102,8 +6112,9 @@ function renderMgmtOverviewCharts(){
   // -- Target achievement --
   paintKpiWithSpark('dashKpiAch', {
     label:'Target achievement', value: m.achievement.toFixed(2)+'%',
-    sub: m.targetQty>m.achieve ? 'short ' + dashNum(m.targetQty-m.achieve) + ' pr' : 'on or above target',
-    color: m.achievement < 90 ? 'var(--danger)' : 'var(--success)'
+    sub: (m.targetQty<=0 && m.achieve>0) ? 'no target \u2014 SMV missing'
+       : m.targetQty>m.achieve ? 'short ' + dashNum(m.targetQty-m.achieve) + ' pr' : 'on or above target',
+    color: m.achievement < 90 ? 'var(--danger)' : 'var(--success)', needsSmv:true
   }, trailingDaySeries(summaryDate, mgmtShift, d=> d.targetQty>0 ? d.efficiency/d.wtdTarget*100 : 0));
 
   // -- Overall Efficiency \u21c4 On-Standard Efficiency (2-face flip) --
@@ -6111,9 +6122,9 @@ function renderMgmtOverviewCharts(){
     { label:'Overall Efficiency', value: m.efficiency.toFixed(2)+'%',
       sub: 'target ' + m.wtdTarget.toFixed(2) + '%' +
         (mtd && mtd.efficiency>0 ? '<br>month to date ' + mtd.efficiency.toFixed(2) + '%' : ''),
-      color: (m.wtdTarget - m.efficiency) >= 5 ? 'var(--danger)' : 'var(--success)',
+      color: (m.wtdTarget - m.efficiency) >= 5 ? 'var(--danger)' : 'var(--success)', needsSmv:true,
       vals: trailingDaySeries(summaryDate, mgmtShift, d=>d.efficiency) },
-    { ...onStandardGapFace(m.efficiency, m.onStandardEfficiency, 5),
+    { ...onStandardGapFace(m.efficiency, m.onStandardEfficiency, 5), needsSmv:true,
       vals: trailingDaySeries(summaryDate, mgmtShift, d=>d.onStandardEfficiency) }
   ];
 
