@@ -703,7 +703,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-26a-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-26c-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1022,7 +1022,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-26a-supabase';
+const APP_BUILD = '2026-09-26c-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -5472,6 +5472,23 @@ async function kickLateScopeLoad(){
   catch(e){ /* balances stay as they are until the next poll */ }
 }
 
+// Build 26c: IE's line buttons turn red when an active article has no SMV — but sign-in reads only
+// the selected line, so every OTHER line looked fine (not loaded = not flagged) until the first
+// background poll a minute later, or until IE tapped that line. That is why Line 4 was red one
+// moment and normal the next. Right after sign-in, read the rest of the production lines once
+// (the 1-minute poll already reads them all for IE, so this only brings that first read forward).
+async function kickIeFlagLoad(){
+  if(!session || session.role!=='ie') return;
+  const already = new Set(loginScope());
+  const rest = PRODUCTION_LINES.filter(l=>!already.has(l));
+  if(!rest.length) return;
+  try{ await loadStore(rest, { skipHr:true, skipMeta:true }); }
+  catch(e){ /* the 1-minute poll will pick them up */ }
+  ieFlagsReady = true;
+  renderAll();
+}
+let ieFlagsReady = false;
+
 // Lines that are currently running any of the same Article + Shop Order as this one, so the
 // background refresh keeps their consumption current without polling all 14 lines forever.
 function linesSharingArticlesWith(lineName){
@@ -5533,7 +5550,10 @@ async function initApp(){
   renderLineSelector();
   renderTabs();
   renderAll();
-  kickLateScopeLoad(); // deliberately not awaited — the screen is already usable
+  ieFlagsReady = false;
+  // Deliberately not awaited — the screen is already usable. Run one after the other so the two
+  // reads never burst the storage rate limit together.
+  (async ()=>{ try{ await kickLateScopeLoad(); }catch(e){} await kickIeFlagLoad(); })();
   if(refreshInterval){ clearInterval(refreshInterval); }
   // Background sync. Only the store is refreshed — panels are left alone so a half-typed
   // entry is never wiped out from under the supervisor. Skipped while a save is in flight.
@@ -5602,14 +5622,105 @@ function addDays(dateStr, n){
 // 7 trailing days (oldest\u2192newest) of a single-day dashMetrics figure, ending at anchorDate.
 // Used for the KPI sparklines \u2014 always the last real 7 calendar days, independent of
 // whatever Daily/Monthly/Custom period the main dashboard numbers are showing.
-function trailingDaySeries(anchorDate, shiftFilter, extractFn){
-  const vals = [];
-  for(let i=6; i>=0; i--){
+// Build 26b: the series now covers WORKING days only. Fridays, holidays and days before a line
+// started have no production; counting them as 0 made "vs prev day" compare against a closed
+// factory (Saturday always showed 0.00%) and dropped every sparkline to the floor. The anchor
+// (selected) date is always the last point, even with nothing entered yet.
+let _workDayCache = { key:'', at:0, list:null };
+function workingDaysBefore(anchorDate, shiftFilter, want){
+  const key = anchorDate+'|'+shiftFilter+'|'+want;
+  if(_workDayCache.key===key && Date.now()-_workDayCache.at < 3000) return _workDayCache.list;
+  const list = [];
+  for(let i=1; i<=45 && list.length<want; i++){
     const dt = addDays(anchorDate, -i);
     const dm = dashMetrics([dt], null, shiftFilter);
-    vals.push(Number(extractFn(dm))||0);
+    if((Number(dm.achieve)||0) > 0 || (Number(dm.work)||0) > 0) list.unshift(dt);
   }
+  _workDayCache = { key, at:Date.now(), list };
+  return list;
+}
+// Build 26b: "same hours" comparison. While the selected day is still running (today), each
+// earlier working day is measured only up to the hour today's same line+shift has reached —
+// Line 4 A at its 8th Hour is compared with Line 4 A's first 8 hours on the earlier day, and a
+// line+shift that hasn't started today is left out of the earlier day too. Output, reject,
+// repair, lost time, efficiency and target all use that same cut, so every card compares like
+// with like. A finished past day is compared whole, as before.
+function hourCutFor(dateStr){
+  const cut = {};
+  DASH_LINES.forEach(ln=>{
+    getExistingShifts(ln, dateStr).forEach(sh=>{
+      const day = store.lines[ln].days[dateStr][sh];
+      let mx = -1;
+      (day.hourlyProd||[]).concat(day.sideLine||[]).forEach(p=>{ const i = HOUR_LABELS.indexOf(String(p.hour).trim()); if(i>mx) mx = i; });
+      if(mx>=0) cut[ln+'|'+sh] = mx;
+    });
+  });
+  return cut;
+}
+function _truncatedDay(day, n){
+  const keep = p=>{ const i = HOUR_LABELS.indexOf(String(p.hour).trim()); return i>=0 && i<=n; };
+  const t = Object.assign({}, day, {
+    hourlyProd: (day.hourlyProd||[]).filter(keep),
+    sideLine:   (day.sideLine||[]).filter(keep),
+    quality:    (day.quality||[]).filter(keep),
+  });
+  // Lost time: only what happened before the end of hour n, clipped at that moment.
+  const start = timeToMin(day.shiftStart), endN = hourSlotBounds(day, n).end;
+  const toAbs = hm=>{ let m = timeToMin(hm); if(m===null) return null; if(start!==null && m<start) m += 1440; return m; };
+  const fmt = m=>{ m = ((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); };
+  t.lostTime = (day.lostTime||[]).filter(lt=>{ const a = toAbs(lt.startTime); return a===null || a < endN; }).map(lt=>{
+    const b = toAbs(lt.endTime);
+    return (b!==null && b > endN) ? Object.assign({}, lt, { endTime: fmt(endN) }) : lt;
+  });
+  return t;
+}
+// dashMetrics for one date with every line+shift cut at `cut` hours (see hourCutFor).
+function dashMetricsCut(dateStr, shiftFilter, cut){
+  // Repair/Side Line matching is computed across the whole line history and cached for 400ms;
+  // warm it from the FULL data and hold it, so the cut copies never rebuild it from partial days.
+  DASH_LINES.forEach(ln=>repairMatchesFor(ln));
+  const savedAt = _rmCacheAt; _rmCacheAt = Date.now() + 1e9;
+  const swapped = [];
+  try{
+    DASH_LINES.forEach(ln=>{
+      getExistingShifts(ln, dateStr).forEach(sh=>{
+        const days = store.lines[ln].days[dateStr];
+        const orig = days[sh];
+        const n = cut[ln+'|'+sh];
+        days[sh] = (n===undefined) ? Object.assign({}, orig, { hourlyProd:[], sideLine:[], quality:[], lostTime:[] })
+                                   : _truncatedDay(orig, n);
+        swapped.push([days, sh, orig]);
+      });
+    });
+    return dashMetrics([dateStr], null, shiftFilter);
+  } finally {
+    swapped.forEach(([days, sh, orig])=>{ days[sh] = orig; });
+    _rmCacheAt = savedAt;
+  }
+}
+function trailingDaySeries(anchorDate, shiftFilter, extractFn){
+  const anchorDm = dashMetrics([anchorDate], null, shiftFilter);
+  const anchorEmpty = !((Number(anchorDm.achieve)||0) > 0 || (Number(anchorDm.work)||0) > 0);
+  // Nothing entered yet on the selected day (early morning, or a holiday): keep it OFF the line —
+  // otherwise every card reads "down 100%" before the first hour is even logged.
+  const dates = workingDaysBefore(anchorDate, shiftFilter, anchorEmpty ? 7 : 6).concat(anchorEmpty ? [] : [anchorDate]);
+  const sameHours = !anchorEmpty && anchorDate===todayStr();
+  const cut = sameHours ? hourCutFor(anchorDate) : null;
+  const vals = dates.map(dt=> Number(extractFn(dt===anchorDate ? anchorDm
+    : (sameHours ? dashMetricsCut(dt, shiftFilter, cut) : dashMetrics([dt], null, shiftFilter))))||0);
+  vals.sameHours = sameHours;
+  vals.dates = dates;              // which day each point is — for the "vs <day>" label
+  vals.anchorEmpty = anchorEmpty;
+  vals.anchorDate = anchorDate;
   return vals;
+}
+// "Thu 24 Sep" — tells management WHICH day the change is measured against.
+function shortDayLabel(dateStr){
+  const [y,m,d] = String(dateStr).split('-').map(Number);
+  if(!y||!m||!d) return dateStr;
+  const dt = new Date(y, m-1, d);
+  return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()] + ' ' + d + ' ' +
+    ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1];
 }
 
 // Pure SVG path builder for a sparkline \u2014 no DOM, easy to unit-test.
@@ -5637,12 +5748,29 @@ function kpiInnerHTML(idForGrad, k, vals){
   if(vals && vals.length){
     const w=200, h=30;
     const sp = sparkPaths(vals, w, h, 3);
-    const prev = vals[vals.length-2], lastV = vals[vals.length-1];
-    const delta = lastV - (prev||0);
-    const pct = prev ? (delta/Math.abs(prev)*100) : 0;
-    const trendClass = Math.abs(pct)<0.5 ? 'flat' : (pct>0 ? 'up' : 'down');
+    const hasPrev = vals.length >= 2;
+    const prev = hasPrev ? vals[vals.length-2] : null, lastV = vals[vals.length-1];
+    const prevDay = (hasPrev && vals.dates) ? shortDayLabel(vals.dates[vals.length-2]) : 'prev day';
+    let trendText, trendClass;
+    if(vals.anchorEmpty){
+      trendClass = 'flat';
+      trendText = 'no entry yet on ' + shortDayLabel(vals.anchorDate);
+    } else if(!hasPrev){
+      trendClass = 'flat'; trendText = 'no earlier working day';
+    } else if(!prev){
+      // Previous working day was exactly 0 (e.g. no rejects): a % change is undefined, so say it plainly.
+      trendClass = lastV>0 ? 'up' : 'flat';
+      trendText = lastV>0 ? ('up from 0 vs ' + prevDay) : ('same as ' + prevDay);
+    } else {
+      const pct = (lastV - prev)/Math.abs(prev)*100;
+      trendClass = Math.abs(pct)<0.5 ? 'flat' : (pct>0 ? 'up' : 'down');
+      trendText = Math.abs(pct).toFixed(2) + '% vs ' + prevDay;
+    }
     const arrow = trendClass==='up' ? '\u25b2' : trendClass==='down' ? '\u25bc' : '\u2014';
-    const trendColor = trendClass==='up' ? 'var(--success)' : trendClass==='down' ? 'var(--danger)' : 'var(--steel)';
+    // Arrow = which way it moved; colour = good or bad. For lower-is-better cards (lost time,
+    // reject, repair) a fall is an improvement, so it shows green and a rise shows red.
+    const good = k.lowerIsBetter ? 'down' : 'up', bad = k.lowerIsBetter ? 'up' : 'down';
+    const trendColor = trendClass===good ? 'var(--success)' : trendClass===bad ? 'var(--danger)' : 'var(--steel)';
     const gid = 'grad-'+idForGrad;
     sparkHtml = `
       <div class="kpi-spark-row">
@@ -5657,8 +5785,8 @@ function kpiInnerHTML(idForGrad, k, vals){
         </svg>
       </div>
       <div class="kpi-spark-row" style="margin-top:2px;">
-        <span style="font-size:9.5px;color:var(--steel);">7-day trend</span>
-        <span class="kpi-spark-trend" style="color:${trendColor}">${arrow} ${Math.abs(pct).toFixed(2)}% vs prev day</span>
+        <span style="font-size:9.5px;color:var(--steel);">${vals.length>1 ? vals.length+' days' : 'trend'}${vals.sameHours ? ' \u00b7 same hours' : ''}</span>
+        <span class="kpi-spark-trend" style="color:${trendColor}">${arrow} ${trendText}</span>
       </div>`;
   }
   return `<div class="l">${k.label}</div>
@@ -5992,13 +6120,13 @@ function renderMgmtOverviewCharts(){
   // -- Lost to downtime \u21c4 Total Reject \u21c4 Total Repair (3-face flip) --
   const lostFaces = [
     { label:'Lost to downtime', value: dashNum(m.recoverPairs),
-      sub: 'pairs &middot; ' + dashNum(m.lostMin) + ' min', color:'var(--danger)',
+      sub: 'pairs &middot; ' + dashNum(m.lostMin) + ' min', color:'var(--danger)', lowerIsBetter:true,
       vals: trailingDaySeries(summaryDate, mgmtShift, d=>d.recoverPairs) },
     { label:'Total Reject', value: m.rejectPct.toFixed(2)+'%',
-      sub: dashNum(m.reject) + ' pairs', color:'#e34948',
+      sub: dashNum(m.reject) + ' pairs', color:'#e34948', lowerIsBetter:true,
       vals: trailingDaySeries(summaryDate, mgmtShift, d=>d.rejectPct) },
     { label:'Total Repair', value: m.repairPct.toFixed(2)+'%',
-      sub: dashNum(m.repair) + ' pairs', color:'#D97706',
+      sub: dashNum(m.repair) + ' pairs', color:'#D97706', lowerIsBetter:true,
       vals: trailingDaySeries(summaryDate, mgmtShift, d=>d.repairPct) }
   ];
 
@@ -6199,10 +6327,11 @@ function refreshLineSmvFlags(){
   document.querySelectorAll('#lineSelectWrap .btn-line[data-line]').forEach(b=>{
     const ln = b.dataset.line;
     const missing = lineMissingSmv(ln, currentDate, currentShift);
-    b.textContent = (missing ? '\u26a0 ' : '') + lineLabel(ln);
+    const checking = !ieFlagsReady && ln!==selectedLine;
+    b.textContent = (missing ? '\u26a0 ' : '') + lineLabel(ln) + (checking ? ' \u2026' : '');
     b.style.background = missing ? 'var(--danger)' : '';
     b.style.boxShadow = (missing && ln===selectedLine) ? '0 0 0 3px var(--ink)' : '';
-    b.title = missing ? 'An active article on this line has no SMV for this shift' : '';
+    b.title = missing ? 'An active article on this line has no SMV for this shift' : (checking ? 'Checking SMV\u2026' : '');
   });
 }
 function renderLineSelector(){
