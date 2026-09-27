@@ -715,7 +715,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-27e-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-27g-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1034,7 +1034,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-27e-supabase';
+const APP_BUILD = '2026-09-27g-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -2345,7 +2345,7 @@ document.addEventListener('input', (e)=>{
   card.querySelectorAll('button.btn-primary').forEach(b=>{
     if(b.style.background === 'var(--success)' || b.textContent.includes('Saved')){
       b.style.background = '';
-      b.textContent = 'Save';
+      b.textContent = b.dataset.label || 'Save';
     }
   });
 });
@@ -4162,6 +4162,51 @@ function isEntryLocked(dateStr, day, lineName, shift){
   }
   const deadline = new Date(endDateTime.getTime() + 60*60*1000); // +1 hour grace
   return new Date() > deadline;
+}
+
+// Build 27f: hard guard against AM/PM mix-ups in Shift Start/End and breaks. Every real shift on
+// this floor is 9-12.5 h; picking AM for PM (or the reverse) moves a time by exactly 12 h, which
+// always lands outside 4-14 h (06:00->06:30 AM = 0.5 h, 18:30->18:00 = 23.5 h). So a shift outside
+// that window, or breaks that eat the whole shift, cannot be saved.
+const SHIFT_MIN_HOURS = 4, SHIFT_MAX_HOURS = 14;
+function fmtHrsMin(min){ const h = Math.floor(min/60), m = Math.round(min%60); return h+'h '+String(m).padStart(2,'0')+'m'; }
+function shiftSpanMinutes(start, end){
+  const s = timeToMin(start), e0 = timeToMin(end);
+  if(s===null || e0===null) return null;
+  return (e0 <= s ? e0 + 1440 : e0) - s;
+}
+// '' when fine (or not both entered yet), otherwise the message to show and block on.
+function shiftTimeProblem(start, end, breaks){
+  if(!start || !end) return '';
+  const span = shiftSpanMinutes(start, end);
+  if(span===null) return '';
+  const where = fmtTime12(start) + ' \u2192 ' + fmtTime12(end);
+  if(span < SHIFT_MIN_HOURS*60 || span > SHIFT_MAX_HOURS*60){
+    return `\u26a0 Not saved: ${where} makes the shift ${fmtHrsMin(span)} long. A shift must be ${SHIFT_MIN_HOURS}\u2013${SHIFT_MAX_HOURS} hours \u2014 check AM / PM.`;
+  }
+  const brk = (breaks||[]).reduce((t,b)=>{ const a = timeToMin(b.startTime), z = timeToMin(b.endTime); return t + ((a!==null && z!==null && z>a) ? z-a : 0); }, 0);
+  if(brk >= span) return `\u26a0 Not saved: breaks (${brk} min) are as long as the whole shift (${fmtHrsMin(span)}).`;
+  return '';
+}
+// '' when the break sits inside the shift window, otherwise the message.
+function breakTimeProblem(shiftStart, shiftEnd, bStart, bEnd){
+  if(!shiftStart || !shiftEnd) return '';
+  const S = timeToMin(shiftStart), span = shiftSpanMinutes(shiftStart, shiftEnd);
+  let a = timeToMin(bStart), z = timeToMin(bEnd);
+  if(S===null || span===null || a===null || z===null) return '';
+  if(a < S) a += 1440; if(z <= a) z += 1440;
+  if(a < S || z > S + span){
+    return `\u26a0 Break ${fmtTime12(bStart)}\u2013${fmtTime12(bEnd)} is outside the shift (${fmtTime12(shiftStart)}\u2013${fmtTime12(shiftEnd)}) \u2014 check AM / PM.`;
+  }
+  if(z - a > 180) return `\u26a0 Break ${fmtTime12(bStart)}\u2013${fmtTime12(bEnd)} is ${fmtHrsMin(z-a)} long \u2014 check AM / PM.`;
+  return '';
+}
+// Live "Shift length" line under the Start/End fields, so a wrong AM/PM is visible while typing.
+function shiftLengthHint(start, end){
+  const span = shiftSpanMinutes(start, end);
+  if(span===null) return '';
+  const bad = span < SHIFT_MIN_HOURS*60 || span > SHIFT_MAX_HOURS*60;
+  return `<span style="color:${bad?'var(--danger)':'var(--steel)'};font-weight:${bad?700:500};">Shift length: ${fmtHrsMin(span)}${bad?' \u2014 check AM / PM':''}</span>`;
 }
 
 // Build 26a: IE's own deadline. Night shifts often run with no IE on the floor; IE arrives ~8:00
@@ -6588,24 +6633,23 @@ function preparationPanelHTML(){
   </div>
 
   <div class="card">
-    <h2><span class="dot"></span>Shift Time</h2>
-    <div class="row2">
+    <h2><span class="dot"></span>Shift Time &amp; M/P</h2>
+    <!-- Build 27g: Shift Start, Shift End and M/P share ONE Save, right under them. The Save used
+         to sit in a separate M/P card, so people thought it saved only the head count. -->
+    <div class="row3">
       <div class="field"><label>Shift Start</label><input id="prepStart" type="time"></div>
       <div class="field"><label>Shift End</label><input id="prepEnd" type="time"></div>
+      <div class="field"><label>M/P Present Today</label><input id="prepMP" type="number" step="1" placeholder="0"></div>
     </div>
-    <h3 style="margin-top:14px;">Break Time <span class="note" style="font-weight:400;">(subtracted from total shift time for man-hour calculation)</span></h3>
+    <div class="note" id="prepShiftNote" style="margin-top:4px;"></div>
+    <button class="btn-primary" id="savePrepBtn" data-label="Save Shift Time &amp; M/P" style="margin-top:6px;">Save Shift Time &amp; M/P</button>
+    <h3 style="margin-top:16px;">Break Time <span class="note" style="font-weight:400;">(subtracted from total shift time for man-hour calculation)</span></h3>
     <div class="row3">
       <div class="field"><label>Start Time</label><input id="prepBrkStart" type="time"></div>
       <div class="field"><label>End Time</label><input id="prepBrkEnd" type="time"></div>
       <div class="field" style="display:flex;align-items:flex-end;"><button class="btn-primary" id="prepAddBreakBtn" style="width:100%;">+ Add Break</button></div>
     </div>
     <div id="prepBreakListWrap"></div>
-  </div>
-
-  <div class="card">
-    <h2><span class="dot"></span>M/P Present</h2>
-    <div class="field" style="max-width:200px;"><label>M/P Present Today</label><input id="prepMP" type="number" step="1" placeholder="0"></div>
-    <button class="btn-primary" id="savePrepBtn">Save</button>
   </div>
 
   <div class="card">
@@ -8017,9 +8061,26 @@ function attachPanelEvents(key){
       document.getElementById('prepMP').value = day.baseDirectMP;
       document.getElementById('prepStart').value = day.shiftStart || '';
       document.getElementById('prepEnd').value = day.shiftEnd || '';
-      if(day.baseDirectMP){ flashSaved(document.getElementById('savePrepBtn')); }
+      if(day.baseDirectMP && day.shiftStart && day.shiftEnd){ flashSaved(document.getElementById('savePrepBtn')); }
+      (function wirePrepShiftHint(){
+        const box = document.getElementById('prepShiftNote');
+        const show = ()=>{
+          const a = document.getElementById('prepStart').value, b = document.getElementById('prepEnd').value;
+          const saved = shiftTimeProblem(day.shiftStart, day.shiftEnd, day.breaks);
+          box.innerHTML = (a===day.shiftStart && b===day.shiftEnd && saved)
+            ? `<span style="color:var(--danger);font-weight:700;">${esc(saved.replace('Not saved:','Saved shift is wrong:'))} Correct it and Save.</span>`
+            : shiftLengthHint(a, b);
+        };
+        document.getElementById('prepStart').addEventListener('input', show);
+        document.getElementById('prepEnd').addEventListener('input', show);
+        show();
+      })();
       document.getElementById('savePrepBtn').onclick = async (e)=>{
         const d = liveDay(ln, dateStr, currentShift);
+        {
+          const prob = shiftTimeProblem(document.getElementById('prepStart').value, document.getElementById('prepEnd').value, d.breaks);
+          if(prob){ toast(prob); const nb = document.getElementById('prepShiftNote'); if(nb) nb.innerHTML = `<span style="color:var(--danger);font-weight:700;">${esc(prob)}</span>`; return; }
+        }
         d.baseDirectMP = Math.round(Number(document.getElementById('prepMP').value)||0);
         d.shiftStart = document.getElementById('prepStart').value || '';
         d.shiftEnd = document.getElementById('prepEnd').value || '';
@@ -8051,8 +8112,9 @@ function attachPanelEvents(key){
         const sS = document.getElementById('prepStart').value;
         const sE = document.getElementById('prepEnd').value;
         const mp = document.getElementById('prepMP').value;
-        if(sS) d.shiftStart = sS;
-        if(sE) d.shiftEnd = sE;
+        const okTimes = !shiftTimeProblem(sS || d.shiftStart, sE || d.shiftEnd, []);
+        if(sS && okTimes) d.shiftStart = sS;
+        if(sE && okTimes) d.shiftEnd = sE;
         if(mp!=='') d.baseDirectMP = Math.round(Number(mp)||0);
       }
       document.getElementById('prepAddBreakBtn').onclick = async ()=>{
@@ -8061,6 +8123,13 @@ function attachPanelEvents(key){
         if(!s || !e){ toast('\u26a0 Enter both Start and End time for the break.'); return; }
         if(timeToMin(e) <= timeToMin(s)){ toast('\u26a0 Break End time must be after Start time.'); return; }
         const d2 = liveDay(ln, dateStr, currentShift);
+        {
+          const typedS = document.getElementById('prepStart').value || d2.shiftStart;
+          const typedE = document.getElementById('prepEnd').value || d2.shiftEnd;
+          const prob = shiftTimeProblem(typedS, typedE, []) || breakTimeProblem(typedS, typedE, s, e)
+            || shiftTimeProblem(typedS, typedE, (d2.breaks||[]).concat([{startTime:s, endTime:e}]));
+          if(prob){ toast(prob); const nb = document.getElementById('prepShiftNote'); if(nb) nb.innerHTML = `<span style="color:var(--danger);font-weight:700;">${esc(prob)}</span>`; return; }
+        }
         persistPrepBaseFromInputs(d2);
         d2.breaks = d2.breaks || [];
         d2.breaks.push({ id: uid(), startTime: s, endTime: e });
@@ -8967,8 +9036,10 @@ function attachPanelEvents(key){
       const sE = document.getElementById('shiftEnd').value;
       const bMP = document.getElementById('baseMP').value;
       const iMP = document.getElementById('indMP').value;
-      if(sS) d.shiftStart = sS;
-      if(sE) d.shiftEnd = sE;
+      // Build 27f: typed times are carried over only when they make a valid shift.
+      const okTimes = !shiftTimeProblem(sS || d.shiftStart, sE || d.shiftEnd, []);
+      if(sS && okTimes) d.shiftStart = sS;
+      if(sE && okTimes) d.shiftEnd = sE;
       if(bMP!=='') d.baseDirectMP = Math.round(Number(bMP)||0);
       if(iMP!=='') d.indirectMP = Math.round(Number(iMP)||0);
     }
@@ -9009,6 +9080,19 @@ function attachPanelEvents(key){
 
     if(day.supervisorName || day.lineLeaderName){ flashSaved(document.getElementById('saveSupInfoBtn')); }
     if(day.shiftStart && day.shiftEnd){ flashSaved(document.getElementById('saveShiftBtn')); }
+    (function wireShiftLengthHint(){
+      const box = document.getElementById('shiftSaveError');
+      const show = ()=>{
+        const a = document.getElementById('shiftStart').value, b = document.getElementById('shiftEnd').value;
+        const saved = shiftTimeProblem(day.shiftStart, day.shiftEnd, day.breaks);
+        box.innerHTML = (a===day.shiftStart && b===day.shiftEnd && saved)
+          ? `<span style="color:var(--danger);">${esc(saved.replace('Not saved:','Saved shift is wrong:'))} Correct it and Save.</span>`
+          : shiftLengthHint(a, b);
+      };
+      document.getElementById('shiftStart').addEventListener('input', show);
+      document.getElementById('shiftEnd').addEventListener('input', show);
+      show();
+    })();
 
     let btnClicked;
     async function saveAllShiftInfo(){
@@ -9016,14 +9100,9 @@ function attachPanelEvents(key){
       const sEnd = document.getElementById('shiftEnd').value;
       const errBox = document.getElementById('shiftSaveError');
       errBox.textContent = '';
-      if(sStart && sEnd){
-        let sM = timeToMin(sStart), eM = timeToMin(sEnd);
-        if(eM<=sM) eM += 1440; // treat as overnight shift (e.g. 8PM–4AM), not an error
-        const durationHrs = (eM-sM)/60;
-        if(durationHrs > 16){
-          errBox.style.color = 'var(--accent-dark)';
-          errBox.textContent = `⚠ Please check: Start ${sStart} to End ${sEnd} makes this shift ${durationHrs.toFixed(2)} hours long, which is unusually long. If AM/PM got mixed up, correct it and save again. If it is not a mistake, it has been saved as entered.`;
-        }
+      {
+        const prob = shiftTimeProblem(sStart, sEnd, liveDay(ln, dateStr, currentShift).breaks);
+        if(prob){ errBox.style.color = 'var(--danger)'; errBox.textContent = prob; toast(prob); return; }
       }
       const day = liveDay(ln, dateStr, currentShift);
       day.supervisorName = document.getElementById('supName').value.trim();
@@ -9062,6 +9141,13 @@ function attachPanelEvents(key){
       if(!s || !e){ toast('\u26a0 Enter both Start and End time for the break.'); return; }
       if(timeToMin(e) <= timeToMin(s)){ toast('\u26a0 Break End time must be after Start time.'); return; }
       const d2 = liveDay(ln, dateStr, currentShift);
+      {
+        const typedS = document.getElementById('shiftStart').value || d2.shiftStart;
+        const typedE = document.getElementById('shiftEnd').value || d2.shiftEnd;
+        const prob = shiftTimeProblem(typedS, typedE, []) || breakTimeProblem(typedS, typedE, s, e)
+          || shiftTimeProblem(typedS, typedE, (d2.breaks||[]).concat([{startTime:s, endTime:e}]));
+        if(prob){ toast(prob); const eb = document.getElementById('shiftSaveError'); if(eb){ eb.style.color='var(--danger)'; eb.textContent = prob; } return; }
+      }
       persistShiftBaseFromInputs(d2);
       d2.breaks = d2.breaks || [];
       d2.breaks.push({ id: uid(), startTime: s, endTime: e });
