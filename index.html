@@ -276,6 +276,13 @@
   .bar-target{position:absolute;left:0;right:0;border-top:2px dashed #0F4C81;z-index:3;pointer-events:none;}
   .bar-value{font-size:10px;font-weight:700;color:var(--ink);margin-bottom:3px;}
   .bar{width:100%;border-radius:4px 4px 0 0;min-height:16px;background:linear-gradient(180deg,#4FC3F7,#0F4C81);display:flex;align-items:flex-end;justify-content:center;position:relative;}
+  /* Build 27e: Quick Summary bars — heights are % of one shared plot box; the pair count floats
+     above each bar instead of sharing the flex column (which squeezed the tallest bars). */
+  .bar-stack.bar-stack-abs{display:block;}
+  .bar-stack.bar-stack-abs .bar{position:absolute;left:0;right:0;bottom:0;min-height:0;}
+  .bar.bar-ok{background:linear-gradient(180deg,#4ADE80,#15803D);}
+  .bar.bar-near{background:linear-gradient(180deg,#FCD34D,#B45309);}
+  .bar.bar-low{background:linear-gradient(180deg,#F87171,#B91C1C);}
   .bar-eff{color:#fff;font-size:9px;font-weight:700;padding-bottom:3px;text-shadow:0 1px 2px rgba(0,0,0,0.35);}
   .bar-label{font-size:9px;color:var(--steel);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
   /* Lollipop chart for Executive Summary's Hourly production (dashHour only \u2014 the Quick
@@ -708,7 +715,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-27d-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-27e-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1027,7 +1034,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-27d-supabase';
+const APP_BUILD = '2026-09-27e-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -11774,37 +11781,43 @@ function renderQuickSummary(ln, dateStr, shift){
   if(usedHours.length===0){
     chartWrap.innerHTML = '<div class="chart-empty">No production entries yet</div>';
   } else {
-    // Each hour gets its OWN target, worked out from the formula rather than scaled:
-    //   Hourly Target = (M/P x available minutes x Target%) / SMV
-    // where available minutes = that hour's actual slot duration (60 normally, more if
-    // Break Time extended it) minus that hour's break. So a plain 15-minute tea break is
-    // judged against 45 of 60 minutes; a Break Time window that grew the slot to 90 minutes
-    // for a 30-minute break is judged against the full 60 real working minutes, not 30.
-    function hourTargetFor(hourLabel){
-      const entries = day.hourlyProd.filter(p=>p.hour===hourLabel);
-      const brk = Math.max(0, ...entries.map(e=>Number(e.breakMin)||0), 0);
-      const tIdx = HOUR_LABELS.indexOf(hourLabel);
-      const slotDur = tIdx>=0 ? Math.max(0, hourSlotBounds(day, tIdx).end - hourSlotBounds(day, tIdx).start) : 60;
-      const availMin = Math.max(0, slotDur - brk);
-      return m.weightedSmv>0
-        ? (m.weightedMP * availMin * (m.weightedTargetPct/100)) / m.weightedSmv
-        : 0;
+    // Build 27e: same reading as the Executive Summary chart. Bar HEIGHT = that hour's efficiency
+    // (so a break hour isn't judged by its smaller pair count), ONE dashed line = today's target
+    // efficiency, pairs printed on top. Colour: green = reached target, amber = within 90% of it,
+    // red = below that — compared on the whole-number % the bar actually shows.
+    // Heights use the Executive Summary's range scaling (min/max of the hours and the target,
+    // +/-4 pts padding) so a real 5-point difference is visible, not flattened on a 0-100 scale.
+    const tgtEff = m.weightedTargetPct || 0;
+    const rows = usedHours.map(h=>({ h, qty: hourlyTotals[h], eff: hourEfficiency(h) }));
+    const byEff = rows.some(r=>r.eff>0);
+    let toPct, tgtPct = null;
+    if(byEff){
+      const effs = rows.map(r=>r.eff);
+      const anchor = tgtEff>0 ? tgtEff : Math.max(...effs);
+      const lo = Math.min(Math.min(...effs), anchor) - 4, hi = Math.max(Math.max(...effs), anchor) + 4;
+      const span = Math.max(1, hi - lo);
+      toPct = v => Math.max(6, Math.min(88, Math.round(8 + (v - lo)/span*80)));
+      if(tgtEff>0) tgtPct = toPct(tgtEff);
+    } else {
+      // No SMV yet, so no efficiency to plot: fall back to plain pair counts, no target line.
+      const mx = Math.max(...rows.map(r=>r.qty), 1);
+      toPct = v => Math.max(6, Math.round(v/mx*80));
     }
-    const scaleMax = Math.max(hourlyTarget||0, ...usedHours.map(h=>hourlyTotals[h]), 1) * 1.25;
+    const band = eff=>{
+      if(!byEff || tgtEff<=0) return '';
+      const e = Math.round(eff), t = Math.round(tgtEff);
+      return e>=t ? ' bar-ok' : (e >= t*0.9 ? ' bar-near' : ' bar-low');
+    };
     chartWrap.innerHTML = `
       <div class="bar-chart-inner">
-        ${usedHours.map(h=>{
-          const qty = hourlyTotals[h];
-          const heightPct = Math.max(10, Math.round(qty/scaleMax*100));
-          const shortLabel = h.replace(' Hour','');
-          const hEff = hourEfficiency(h);
-          const tgt = hourTargetFor(h);
-          const tgtPct = tgt>0 ? Math.min(97, Math.round(tgt/scaleMax*100)) : null;
-          return `<div class="bar-col">
-            <div class="bar-stack">
-              <div class="bar-value">${qty}</div>
-              <div class="bar" style="height:${heightPct}%;"><span class="bar-eff">${hEff.toFixed(0)}%</span></div>
-              ${tgtPct!==null ? `<div class="bar-target" style="bottom:${tgtPct}%;" title="Target ${Math.round(tgt)}"></div>` : ''}
+        ${rows.map(r=>{
+          const pct = toPct(byEff ? r.eff : r.qty);
+          const shortLabel = r.h.replace(' Hour','');
+          return `<div class="bar-col" title="${esc(r.h)}: ${r.qty} pairs \u00b7 ${r.eff.toFixed(1)}% efficiency">
+            <div class="bar-stack bar-stack-abs">
+              ${tgtPct!==null ? `<div class="bar-target" style="bottom:${tgtPct}%;"></div>` : ''}
+              <div class="bar${band(r.eff)}" style="height:${pct}%;"><span class="bar-eff">${byEff ? r.eff.toFixed(0)+'%' : ''}</span></div>
+              <div class="bar-value" style="position:absolute;left:0;right:0;text-align:center;bottom:calc(${pct}% + 3px);z-index:4;"><span style="background:rgba(255,255,255,.92);padding:0 3px;border-radius:3px;">${r.qty}</span></div>
             </div>
             <div class="bar-label">${shortLabel}</div>
           </div>`;
@@ -11812,7 +11825,8 @@ function renderQuickSummary(ln, dateStr, shift){
       </div>`;
   }
 
-  document.getElementById('qChartTargetLabel').textContent = hourlyTarget ? ('Target: '+hourlyTarget+'/hr') : '';
+  document.getElementById('qChartTargetLabel').textContent = hourlyTarget
+    ? ('Target: '+Math.round(m.weightedTargetPct)+'% \u00b7 '+hourlyTarget+'/hr') : '';
   document.getElementById('qTimeLeftBig').textContent = m.timeLeft;
 }
 
