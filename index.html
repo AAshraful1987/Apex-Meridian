@@ -470,6 +470,10 @@
     .tally-inc{font-size:20px;padding:11px 2px;}
     .tally-inc{font-size:18px;padding:11px 2px;}
   }
+  /* Build 28l: read-only controls (shift time not saved yet, or entry locked) must LOOK read-only. */
+  #restOfEntryCards button:disabled, #restOfEntryCards input:disabled, #restOfEntryCards select:disabled,
+  #restOfEntryCards textarea:disabled{ opacity:.45; cursor:not-allowed; filter:grayscale(.6); }
+  .shift-gate-msg{padding:12px 14px;border:1.5px dashed var(--danger);border-radius:10px;background:#FFF5F5;color:var(--danger);font-weight:700;font-size:13px;line-height:1.5;margin-bottom:10px;}
   #prodSizeWrap{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);}
 
   /* Custom suggestion dropdown (Project/Shop Order/Article) — always opens directly
@@ -715,7 +719,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-27g-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-28l-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1034,7 +1038,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-27g-supabase';
+const APP_BUILD = '2026-09-28l-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -1997,6 +2001,46 @@ function deleteQualityFlag(flagId){
   return { ok:true };
 }
 
+// Build 28l: Line QC may delete a flag AFTER Quality Management decided it (to clear test data or a
+// wrong flag), but only with a written reason (10+ characters). The decision is taken out of the
+// line's hourly record (so its repair/reject/D-grade stop counting); the flag itself is kept as
+// status 'deleted' with the reason, who and when, plus a copy of the removed decision, for audit.
+// A partly-decided flag has one resolved record per portion, all pointing at the same source flag,
+// so the matching decision is picked by its own numbers and decision time, never by id alone.
+function deleteDecidedQualityFlag(flagId, reason){
+  const flag = (store.qualityFlags||[]).find(f=>f.id===flagId);
+  if(!flag || flag.status!=='resolved') return { ok:false, error:'Only a decided flag can be deleted here' };
+  reason = String(reason||'').trim();
+  if(reason.length < 10) return { ok:false, error:'Write the reason (at least 10 characters)' };
+  const dec = flag.decision || { reject:0, repair:0, dgrade:0 };
+  const day = store.lines[flag.line]?.days?.[flag.date]?.[flag.shift];
+  let removed = null;
+  if(day && Array.isArray(day.quality)){
+    const same = q => q.fromDecision && q.hour===flag.hour && q.layoutNo===flag.layoutNo
+      && (Number(q.reject)||0)===(Number(dec.reject)||0) && (Number(q.repair)||0)===(Number(dec.repair)||0)
+      && (Number(q.dgrade)||0)===(Number(dec.dgrade)||0)
+      && (q.sourceFlagId===flag.id || (Number(q.flaggedAtEpoch)||0)===(Number(flag.flaggedAtEpoch)||0));
+    let best = null, bestGap = Infinity;
+    day.quality.forEach(q=>{
+      if(!same(q)) return;
+      const gap = Math.abs((Number(q.decidedAtEpoch)||0) - (Number(flag.decidedAtEpoch)||0));
+      if(gap < bestGap){ best = q; bestGap = gap; }
+    });
+    if(best && (best.sourceFlagId===flag.id || bestGap < 60000)){
+      removed = JSON.parse(JSON.stringify(best));
+      day.quality = day.quality.filter(q=>q!==best);
+      markDay(flag.line, flag.date, flag.shift);
+    }
+  }
+  flag.status = 'deleted';
+  flag.deleteReason = reason;
+  flag.deletedAtEpoch = savedNowEpoch();
+  flag.deletedBy = session ? (session.username || session.role) : '';
+  if(removed) flag.deletedDecision = removed;
+  invalidateRepairMatches();
+  return { ok:true, removedDecision: !!removed };
+}
+
 // Human-readable elapsed time between two epochs (or "so far" if the end hasn't happened
 // yet) — shared by Quality's flag-waiting display and Side Line's pending-release display,
 // since both are "how long has this been sitting here" indicators.
@@ -2940,7 +2984,7 @@ function pruneOldQualityFlags(){
   const flags = store.qualityFlags;
   if(!Array.isArray(flags) || !flags.length) return;
   const cutoff = addDays(todayStr(), -FLAG_RETENTION_DAYS);
-  const kept = flags.filter(f=> f.status !== 'resolved' || !f.date || f.date >= cutoff);
+  const kept = flags.filter(f=> (f.status !== 'resolved' && f.status !== 'deleted') || !f.date || f.date >= cutoff);
   if(kept.length !== flags.length) store.qualityFlags = kept;
 }
 
@@ -7090,6 +7134,8 @@ function supervisorPanelHTML(){
         </div>
       </div>
     </div>
+    <div class="note shift-gate-msg hidden" id="prodGateMsg"></div>
+    <div id="prodEntryForm">
     <!-- Build 21t: two equal columns on every screen — Hour | Scan, Quantity | Layout, Break -->
     <div class="row2 prod-entry-grid">
       <div class="field"><label>Hour</label><select id="prodHour"></select></div>
@@ -7125,12 +7171,15 @@ function supervisorPanelHTML(){
         <button class="btn-ghost" id="sideLineCancelBtn">Cancel</button>
       </div>
     </div>
+    </div>
     <div class="table-scroll"><table><thead><tr id="prodTableHead"><th>Hour</th><th>1st Time Pass</th><th>Repair</th><th>Reject</th><th>D/G</th><th>Total</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th></tr></thead><tbody id="prodBody"></tbody></table></div>
     <div class="empty" id="prodEmpty"></div>
   </div>
 
   <div class="card">
     <h2><span class="dot"></span>Lost Time Entry</h2>
+    <div class="note shift-gate-msg hidden" id="ltGateMsg"></div>
+    <div id="ltEntryForm">
     <div class="row2">
       <div class="field"><label>Category</label><select id="ltCategory"></select></div>
       <div class="field hidden" id="ltOtherWrap"><label>Specify</label><input id="ltOtherText" type="text" placeholder="Type the category"></div>
@@ -7145,6 +7194,7 @@ function supervisorPanelHTML(){
       <div class="field"><label>Man-power (affected)</label><input id="ltMp" type="number" placeholder="0"></div>
     </div>
     <button class="btn-secondary" id="addLtBtn">Add Lost Time</button>
+    </div>
     <div class="table-scroll"><table><thead><tr><th>#</th><th>Category</th><th>Article</th><th>Start–End</th><th>Lost Min</th><th>M/P</th><th>Man-Min</th><th></th></tr></thead><tbody id="ltBody"></tbody></table></div>
     <div class="empty" id="ltEmpty"></div>
   </div>
@@ -7952,7 +8002,9 @@ function attachPanelEvents(key){
         // Reject / D-grade): only TODAY's resolved portions, so yesterday's cleared items
         // don't linger here \u2014 that history lives in Quality Management's own screen instead.
         const todayStr2 = currentDate;
-        const linePendingFlags = (store.qualityFlags||[]).filter(f=>f.line===ln && f.status==='pending');
+        // Build 28k: only flags raised ON or BEFORE the date being viewed. A flag raised on the 20th
+        // must not appear when the supervisor looks back at the 19th (or the 1st).
+        const linePendingFlags = (store.qualityFlags||[]).filter(f=>f.line===ln && f.status==='pending' && (!f.date || f.date <= todayStr2));
         const lineDecidedToday = (store.qualityFlags||[]).filter(f=>f.line===ln && f.shift===currentShift && f.status==='resolved' && f.date===todayStr2);
         document.getElementById('qsSnapLineLabel').textContent = lineLabel(ln) + ', ' + SHIFT_LABELS[currentShift];
         document.getElementById('qsSnapPending').textContent = dashNum(linePendingFlags.reduce((s,f)=>s+f.qty,0));
@@ -9007,11 +9059,17 @@ function attachPanelEvents(key){
       lockWrap.innerHTML = '';
     }
     // Shift-time gate: until Shift Start & End are set, nothing else below will save.
-    if(!locked && !shiftTimesSet(day)){
-      restWrap2.insertAdjacentHTML('afterbegin',
-        `<div class="card" id="shiftGateNote" style="border:2px solid var(--danger);background:#FFF5F5;">
+    // Build 28l: every card after "Shift & Manpower (Base)" stays VISIBLE but read-only (inputs and
+    // buttons disabled at the end of this panel build), with the message right under that card.
+    const shiftGateOn = !locked && !shiftTimesSet(day);
+    const shiftGateCard = document.getElementById('saveShiftBtn') && document.getElementById('saveShiftBtn').closest('.card');
+    if(shiftGateOn){
+      const noteHtml = `<div class="card" id="shiftGateNote" style="border:2px solid var(--danger);background:#FFF5F5;">
            <h2><span class="dot"></span>&#9888; Set the time first</h2>
-         </div>`);
+           <div style="color:var(--danger);font-weight:700;font-size:13.5px;line-height:1.55;">Save this shift\u2019s <b>Shift Start</b> and <b>Shift End</b> in the card above. Everything below is read-only until then.</div>
+         </div>`;
+      if(shiftGateCard && shiftGateCard.parentElement===restWrap2) shiftGateCard.insertAdjacentHTML('afterend', noteHtml);
+      else restWrap2.insertAdjacentHTML('afterbegin', noteHtml);
     }
 
     document.getElementById('shiftStart').value = day.shiftStart;
@@ -9741,6 +9799,10 @@ function attachPanelEvents(key){
       document.getElementById('prodEmpty').style.display = day.hourlyProd.length?'none':'block';
       document.getElementById('prodEmpty').textContent = '';
       head.innerHTML = `<th>Hour</th><th>1st Time Pass</th><th>Repair</th><th>Reject</th><th>D/G</th><th>Total</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th>`;
+      // Build 28j: a released repair whose pairs have not been counted back yet (no entry/scan
+      // after the release) used to show nowhere on the line. Show it once, on its own hour's row,
+      // as a note only — never added to Repair or Total until the pairs are actually counted.
+      const waitNoteShown = new Set();
       day.hourlyProd.slice().reverse().forEach(p=>{
         const layout = findArticle(ln, p.layoutNo);
         const artLabel = layout ? (p.layoutNo+' ('+esc(layout.articleNo)+')') : p.layoutNo;
@@ -9766,12 +9828,21 @@ function attachPanelEvents(key){
           slNote = `<div style="color:var(--danger);font-size:10.5px;font-weight:600;white-space:nowrap;">Side Line ${p.qty}${r.cross?` \u00b7 +${r.cross} eff. only`:''}${waitQ>0?` \u00b7 ${waitQ} waiting`:''}</div>`;
         }
         const repNote = repairEffOnly>0 ? `<div style="color:var(--danger);font-size:10.5px;font-weight:600;white-space:nowrap;">+${repairEffOnly} eff. only</div>` : '';
+        let waitNote = '';
+        day.quality.forEach(q=>{
+          if(q.hour!==p.hour || q.layoutNo!==p.layoutNo || q.rmv!==2 || waitNoteShown.has(q.id)) return;
+          const waitQ = (Number(q.repair)||0) - rmRepEarn(ln, q);
+          if(waitQ>0){
+            waitNoteShown.add(q.id);
+            waitNote += `<div style="color:var(--steel);font-size:10.5px;font-weight:700;white-space:nowrap;" title="Released by Quality Management; the repaired pairs have not been counted in an entry or scan yet. Not added to Total.">\u23f3 ${waitQ} released \u00b7 waiting</div>`;
+          }
+        });
         const totalQ = outQ + repairQ; // reject/D-grade are recorded, never added to output
         const sizesHtml = (p.sizesUsed && p.sizesUsed.length)
           ? `<div class="size-chips">${p.sizesUsed.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>`
           : '—';
         const tr=document.createElement('tr');
-        tr.innerHTML = `<td>${p.hour}</td><td class="num">${outQ}${passNote}${slNote}</td><td class="num">${repairQ}${repNote}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-prod="${p.id}">Delete</button></td>`;
+        tr.innerHTML = `<td>${p.hour}</td><td class="num">${outQ}${passNote}${slNote}</td><td class="num">${repairQ}${repNote}${waitNote}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-prod="${p.id}">Delete</button></td>`;
         prodBody.appendChild(tr);
       });
     }
@@ -9871,6 +9942,14 @@ function attachPanelEvents(key){
 
     if(locked){
       restWrap2.querySelectorAll('input, select, button').forEach(el=>{ el.disabled = true; });
+    }
+    if(shiftGateOn && shiftGateCard && shiftGateCard.parentElement===restWrap2){
+      let el = shiftGateCard.nextElementSibling;
+      while(el){
+        el.querySelectorAll('input, select, button, textarea').forEach(x=>{ x.disabled = true; });
+        el.querySelectorAll('.ap-switch').forEach(x=>{ x.style.pointerEvents = 'none'; x.style.opacity = '.5'; });
+        el = el.nextElementSibling;
+      }
     }
   }
 
@@ -10529,7 +10608,7 @@ function attachPanelEvents(key){
     };
 
     const body = document.getElementById('qcBody');
-    const myFlags = (store.qualityFlags||[]).filter(f=>f.line===selectedLine && f.date===dateStr && f.shift===currentShift);
+    const myFlags = (store.qualityFlags||[]).filter(f=>f.line===selectedLine && f.date===dateStr && f.shift===currentShift && f.status!=='deleted');
     document.getElementById('qcEmpty').style.display = myFlags.length?'none':'block';
     body.innerHTML='';
     myFlags.slice().reverse().forEach(f=>{
@@ -10544,7 +10623,7 @@ function attachPanelEvents(key){
         : `<span class="status-accepted">Decided</span><div class="note" style="margin-top:2px;">Repair ${f.decision.repair} \u00b7 Reject ${f.decision.reject} \u00b7 D-grade ${f.decision.dgrade}</div>`;
       const actionsHtml = f.status==='pending'
         ? `<button class="btn-ghost" data-edit-q="${f.id}">Edit</button><button class="btn-ghost" data-del-q="${f.id}">Delete</button>`
-        : '';
+        : `<button class="btn-ghost" data-del-dq="${f.id}" title="Delete this decided flag (reason required)">Delete</button>`;
       const sizeChips = (f.sizes && f.sizes.length)
         ? `<div class="size-chips">${f.sizes.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>`
         : '—';
@@ -10570,6 +10649,38 @@ function attachPanelEvents(key){
       const r = deleteQualityFlag(b.dataset.delQ);
       if(!r.ok){ toast(r.error); return; }
       await saveStore(); buildPanel('quality'); renderAll();
+    });
+    // Build 28l: decided flag -> inline reason box right under its row (no browser prompt).
+    document.querySelectorAll('[data-del-dq]').forEach(b=>b.onclick=()=>{
+      const row = b.closest('tr');
+      const open = row.nextElementSibling;
+      if(open && open.classList.contains('dq-reason-row')){ open.remove(); return; }
+      document.querySelectorAll('.dq-reason-row').forEach(x=>x.remove());
+      const tr = document.createElement('tr');
+      tr.className = 'dq-reason-row';
+      tr.innerHTML = `<td colspan="9" style="background:#FFF5F5;">
+        <div style="font-weight:700;color:var(--danger);margin-bottom:6px;">Delete this decided flag? Its Repair / Reject / D-grade will be removed from the hourly production.</div>
+        <input type="text" class="dq-reason" placeholder="Reason (at least 10 characters)" style="width:100%;box-sizing:border-box;margin-bottom:6px;">
+        <div class="row2"><button class="btn-primary dq-ok" style="background:var(--danger);">Delete</button><button class="btn-ghost dq-cancel">Cancel</button></div>
+        <div class="note dq-count" style="margin-top:4px;">0 / 10 characters</div></td>`;
+      row.after(tr);
+      const inp = tr.querySelector('.dq-reason'), cnt = tr.querySelector('.dq-count');
+      inp.addEventListener('input', ()=>{ const n = inp.value.trim().length; cnt.textContent = n + ' / 10 characters'; cnt.style.color = n>=10 ? 'var(--success)' : ''; });
+      inp.focus();
+      tr.querySelector('.dq-cancel').onclick = ()=> tr.remove();
+      tr.querySelector('.dq-ok').onclick = async ()=>{
+        const reason = inp.value.trim();
+        if(reason.length < 10){ toast('\u26a0 Write the reason (at least 10 characters)'); inp.focus(); return; }
+        const fid = b.dataset.delDq;
+        const f0 = (store.qualityFlags||[]).find(f=>f.id===fid);
+        // Read this line's latest record first, so the supervisor's newest entries on that day are
+        // not overwritten by an older copy held on this device.
+        if(f0){ try{ await loadStore([f0.line], { skipHr:true, skipMeta:true }); }catch(e){} }
+        const r = deleteDecidedQualityFlag(fid, reason);
+        if(!r.ok){ toast(r.error); return; }
+        await saveStore(); buildPanel('quality'); renderAll();
+        toast(r.removedDecision ? '\u2714 Deleted \u2014 removed from hourly production' : '\u2714 Deleted (no matching decision was found in the hourly record)', 'ok');
+      };
     });
   }
 
