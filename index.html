@@ -719,7 +719,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-28l-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-28p-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1038,7 +1038,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-28l-supabase';
+const APP_BUILD = '2026-09-28p-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -1557,11 +1557,22 @@ function hourSlotBoundsNominal(day, idx){
 // How many Break Time minutes fall inside hour slot `idx`'s NOMINAL (pre-shift) window \u2014
 // the same matching hourSlotBounds uses internally, exposed here so the production-entry
 // form can auto-suggest the same number into the per-entry Break (min) field.
-function breakMinutesForHourIdx(day, idx){
-  const breaks = (day.breaks||[]).map(b=>{
-    const s = timeToMin(b.startTime), e = timeToMin(b.endTime);
-    return (s===null||e===null||e<=s) ? null : {start:s, end:e, dur:e-s};
+// Build 28p: Break Time on the shift's own clock. On an overnight shift (18:30–06:00) a break after
+// midnight (01:00–01:30) is the NEXT day's clock, so it is moved past 24:00 — before, 01:00 was read
+// as "before the shift started", matched no hour, and the hours never grew.
+function shiftBreaksOnClock(day){
+  const S = timeToMin(day.shiftStart), E0 = timeToMin(day.shiftEnd);
+  const overnight = S!==null && E0!==null && E0 <= S;
+  return (day.breaks||[]).map(b=>{
+    let s = timeToMin(b.startTime), e = timeToMin(b.endTime);
+    if(s===null || e===null) return null;
+    if(overnight && s < S){ s += 1440; e += 1440; }
+    if(e <= s) e += 1440;                  // a break that itself crosses midnight (23:45–00:15)
+    return { start:s, end:e, dur:e-s };
   }).filter(Boolean);
+}
+function breakMinutesForHourIdx(day, idx){
+  const breaks = shiftBreaksOnClock(day);
   if(!breaks.length) return 0;
   const nom = hourSlotBoundsNominal(day, idx);
   let total = 0;
@@ -1569,10 +1580,7 @@ function breakMinutesForHourIdx(day, idx){
   return total;
 }
 function hourSlotBounds(day, idx){
-  const breaks = (day.breaks||[]).map(b=>{
-    const s = timeToMin(b.startTime), e = timeToMin(b.endTime);
-    return (s===null||e===null||e<=s) ? null : {start:s, end:e, dur:e-s};
-  }).filter(Boolean).sort((a,b)=>a.start-b.start);
+  const breaks = shiftBreaksOnClock(day).sort((a,b)=>a.start-b.start);
   if(!breaks.length) return hourSlotBoundsNominal(day, idx);
 
   // Locate each break within its NOMINAL (pre-break) slot, then accumulate: every slot
@@ -1591,7 +1599,13 @@ function hourSlotBounds(day, idx){
     shiftSoFar += matchedHere;
   }
   const nom = hourSlotBoundsNominal(day, idx);
-  return { start: nom.start + shiftSoFar, end: nom.end + shiftSoFar + extraForThisSlot };
+  // Build 28o: a slot pushed back by a break must still stop at Shift End (06:00–18:30 with a
+  // 29-min break used to show a 13th hour of 18:29–18:59, half an hour past the shift).
+  const sMin = timeToMin(day.shiftStart), eMin0 = timeToMin(day.shiftEnd);
+  let endCap = Infinity;
+  if(sMin!==null && eMin0!==null) endCap = eMin0 <= sMin ? eMin0 + 1440 : eMin0;
+  const st = Math.min(nom.start + shiftSoFar, endCap);
+  return { start: st, end: Math.max(st, Math.min(nom.end + shiftSoFar + extraForThisSlot, endCap)) };
 }
 const DEFECT_CODES = [
   ['L1','Nail-Pin-Sharp edge-Excess toe lasting glue'],['L2','Shocks/Footbed wrinkles'],
@@ -4245,6 +4259,35 @@ function breakTimeProblem(shiftStart, shiftEnd, bStart, bEnd){
   if(z - a > 180) return `\u26a0 Break ${fmtTime12(bStart)}\u2013${fmtTime12(bEnd)} is ${fmtHrsMin(z-a)} long \u2014 check AM / PM.`;
   return '';
 }
+// Build 28o: a big, hard-to-miss confirmation (not the small browser box) for likely typing slips.
+// Resolves true = keep as entered, false = go back and fix it.
+function bigConfirm(title, bodyHtml, okText, fixText){
+  return new Promise(resolve=>{
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(20,20,20,.72);display:flex;align-items:center;justify-content:center;padding:18px;';
+    wrap.innerHTML = `<div style="max-width:420px;width:100%;background:#fff;border-radius:18px;border:4px solid #D97706;box-shadow:0 20px 50px rgba(0,0,0,.45);padding:22px 20px;font-family:system-ui,sans-serif;">
+      <div style="font-size:44px;line-height:1;text-align:center;">\u26a0\ufe0f</div>
+      <div style="font-size:21px;font-weight:800;color:#B45309;text-align:center;margin:8px 0 10px;">${title}</div>
+      <div style="font-size:17px;line-height:1.55;color:#1f2937;text-align:center;">${bodyHtml}</div>
+      <button type="button" data-bc="fix" style="margin-top:18px;width:100%;padding:15px;border:none;border-radius:12px;background:#D97706;color:#111;font-size:17px;font-weight:800;cursor:pointer;">${fixText}</button>
+      <button type="button" data-bc="ok" style="margin-top:10px;width:100%;padding:13px;border:2px solid #9CA3AF;border-radius:12px;background:#fff;color:#374151;font-size:15px;font-weight:700;cursor:pointer;">${okText}</button>
+    </div>`;
+    document.body.appendChild(wrap);
+    wrap.querySelector('[data-bc="fix"]').onclick = ()=>{ wrap.remove(); resolve(false); };
+    wrap.querySelector('[data-bc="ok"]').onclick = ()=>{ wrap.remove(); resolve(true); };
+  });
+}
+// Break Time that is not a whole 30 minutes is almost always a slip (2:15–2:44 = 29 min), and on a
+// line it moves every later hour, so ask loudly before saving it.
+async function confirmOddBreak(s, e){
+  const dur = timeToMin(e) - timeToMin(s);
+  if(!(dur > 0) || dur % 30 === 0) return true;
+  const near = Math.max(30, Math.round(dur/30)*30);
+  return bigConfirm(`Break is ${dur} minutes`,
+    `${fmtTime12(s)} \u2013 ${fmtTime12(e)} = <b style="font-size:22px;color:#B91C1C;">${dur} min</b><br>Breaks are usually <b>${near} min</b>.<br><span style="font-size:14.5px;color:#4b5563;">A wrong break moves every hour after it.</span>`,
+    `Yes, ${dur} min is correct`, `Fix the time`);
+}
+
 // Live "Shift length" line under the Start/End fields, so a wrong AM/PM is visible while typing.
 function shiftLengthHint(start, end){
   const span = shiftSpanMinutes(start, end);
@@ -5818,6 +5861,78 @@ function trailingDaySeries(anchorDate, shiftFilter, extractFn){
   return vals;
 }
 // "Thu 24 Sep" — tells management WHICH day the change is measured against.
+// Build 28n: how long something has been waiting in the LINE'S OWN WORKING TIME — every shift that
+// line actually ran (A and B both carry forward), from its saved Shift Start/End, minus breaks,
+// counted from `fromEpoch` up to now. Nights, Fridays and holidays count nothing because no shift ran.
+// Breaks per hour slot: the break typed on that hour's entries (as efficiency uses), else the Break
+// Time window that falls in the slot; a slot only partly inside the window loses a matching share.
+function epochDateStr(ep){
+  const d = new Date(ep);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function lineWorkingMinutesSince(lineName, fromEpoch, toEpoch){
+  toEpoch = toEpoch || Date.now();
+  fromEpoch = Number(fromEpoch)||0;
+  if(!fromEpoch || toEpoch <= fromEpoch) return 0;
+  const lo = store.lines[lineName];
+  if(!lo || !lo.days) return 0;
+  const firstDate = epochDateStr(fromEpoch - 86400000); // the day before, for an overnight B shift
+  const lastDate = epochDateStr(toEpoch);
+  let total = 0;
+  Object.keys(lo.days).forEach(dt=>{
+    if(dt < firstDate || dt > lastDate) return;
+    const [y,mo,d] = dt.split('-').map(Number);
+    if(!y||!mo||!d) return;
+    const base = new Date(y, mo-1, d, 0, 0, 0, 0).getTime();
+    Object.keys(lo.days[dt]).forEach(sh=>{
+      const day = lo.days[dt][sh];
+      if(!shiftTimesSet(day)) return;
+      const S = timeToMin(day.shiftStart), E0 = timeToMin(day.shiftEnd);
+      const Eabs = base + ((E0<=S ? E0+1440 : E0) * 60000);
+      const n = shiftHourCount(day);
+      const rows = (day.hourlyProd||[]).concat(day.sideLine||[]);
+      for(let i=0; i<n; i++){
+        const b = hourSlotBounds(day, i);
+        const s0 = base + b.start*60000, e0 = Math.min(base + b.end*60000, Eabs);
+        if(e0 <= s0) continue;
+        const ov = Math.min(e0, toEpoch) - Math.max(s0, fromEpoch);
+        if(ov <= 0) continue;
+        const lbl = HOUR_LABELS[i];
+        const lo2 = Math.max(s0, fromEpoch), hi2 = Math.min(e0, toEpoch);
+        // Break Time windows inside this slot: their exact minutes are known, so take off exactly
+        // the part that falls inside the waiting window.
+        let winTotal = 0, winInside = 0;
+        (day.breaks||[]).forEach(bk=>{
+          let bs = timeToMin(bk.startTime), be = timeToMin(bk.endTime);
+          if(bs===null || be===null) return;
+          if(bs < S) bs += 1440; if(be <= bs) be += 1440;
+          const ws = Math.max(base + bs*60000, s0), we = Math.min(base + be*60000, e0);
+          if(we <= ws) return;
+          winTotal += (we-ws)/60000;
+          winInside += Math.max(0, Math.min(we, hi2) - Math.max(ws, lo2))/60000;
+        });
+        // A break typed on the hour's entry beyond those windows (e.g. a 15-min tea break) has no
+        // clock time, so it is taken off in proportion to how much of the slot is inside the window.
+        const typed = rows.filter(p=>String(p.hour).trim()===lbl).map(p=>Number(p.breakMin)||0);
+        const extra = Math.max(0, (typed.length ? Math.max(...typed) : 0) - winTotal);
+        const slotMin = (e0-s0)/60000;
+        total += ov/60000 - winInside - Math.min(extra, slotMin) * (ov/(e0-s0));
+      }
+    });
+  });
+  return Math.max(0, total);
+}
+// "5h 20m · Sun 27 Sep" — working time waited, plus the date it started from.
+function workingAgeLabel(lineName, fromEpoch, dateStr){
+  const min = lineWorkingMinutesSince(lineName, fromEpoch);
+  return fmtHrsMin(min) + (dateStr ? ' \u00b7 ' + shortDayLabel(dateStr) : '');
+}
+
+// Build 28m: whole calendar days between two YYYY-MM-DD dates (never negative).
+function calendarDaysBetween(fromDate, toDate){
+  if(!fromDate || !toDate) return 0;
+  return Math.max(0, Math.round((Date.parse(toDate+'T00:00:00Z') - Date.parse(fromDate+'T00:00:00Z'))/86400000));
+}
 function shortDayLabel(dateStr){
   const [y,m,d] = String(dateStr).split('-').map(Number);
   if(!y||!m||!d) return dateStr;
@@ -8019,8 +8134,9 @@ function attachPanelEvents(key){
           const codeMatch = DEFECT_CODES.find(([c,n])=>`${c} \u2014 ${n}`===f.reason);
           const codeChip = codeMatch ? codeMatch[0] : '\u2014';
           const defectName = codeMatch ? codeMatch[1] : (f.reason||'\u2014');
-          const ageDays = Math.floor((Date.now()-f.flaggedAtEpoch)/86400000);
-          const ageLabel = ageDays<=0 ? 'flagged today' : (ageDays===1 ? 'flagged 1 day ago' : `flagged ${ageDays} days ago`);
+          // Build 28m: by CALENDAR date (the flag's own shift date vs today), not by 24-hour blocks —
+          // a flag raised yesterday at 11:00 read "flagged today" until 11:00 this morning.
+          const ageLabel = workingAgeLabel(f.line, f.flaggedAtEpoch, f.date);
           return `<tr><td>${f.hour}</td><td>${codeChip}</td><td>${defectName}</td><td>${artLabel}</td><td class="num">${f.qty}</td><td class="note">${ageLabel}</td></tr>`;
         }).join('');
       }
@@ -8174,6 +8290,7 @@ function attachPanelEvents(key){
         const e = document.getElementById('prepBrkEnd').value;
         if(!s || !e){ toast('\u26a0 Enter both Start and End time for the break.'); return; }
         if(timeToMin(e) <= timeToMin(s)){ toast('\u26a0 Break End time must be after Start time.'); return; }
+        if(!(await confirmOddBreak(s, e))){ document.getElementById('prepBrkEnd').focus(); return; }
         const d2 = liveDay(ln, dateStr, currentShift);
         {
           const typedS = document.getElementById('prepStart').value || d2.shiftStart;
@@ -9198,6 +9315,7 @@ function attachPanelEvents(key){
       const e = document.getElementById('brkEnd').value;
       if(!s || !e){ toast('\u26a0 Enter both Start and End time for the break.'); return; }
       if(timeToMin(e) <= timeToMin(s)){ toast('\u26a0 Break End time must be after Start time.'); return; }
+      if(!(await confirmOddBreak(s, e))){ document.getElementById('brkEnd').focus(); return; }
       const d2 = liveDay(ln, dateStr, currentShift);
       {
         const typedS = document.getElementById('shiftStart').value || d2.shiftStart;
@@ -10619,7 +10737,7 @@ function attachPanelEvents(key){
       const defectName = codeMatch ? codeMatch[1] : (f.reason||'\u2014');
       const tr = document.createElement('tr');
       const statusHtml = f.status==='pending'
-        ? '<span class="status-pending">Pending</span>'
+        ? `<span class="status-pending">Pending</span><div class="note" style="margin-top:2px;white-space:nowrap;">${workingAgeLabel(f.line, f.flaggedAtEpoch, f.date)}</div>`
         : `<span class="status-accepted">Decided</span><div class="note" style="margin-top:2px;">Repair ${f.decision.repair} \u00b7 Reject ${f.decision.reject} \u00b7 D-grade ${f.decision.dgrade}</div>`;
       const actionsHtml = f.status==='pending'
         ? `<button class="btn-ghost" data-edit-q="${f.id}">Edit</button><button class="btn-ghost" data-del-q="${f.id}">Delete</button>`
@@ -11094,7 +11212,7 @@ function attachPanelEvents(key){
           <td>${en.date}</td><td>${en.shift}</td><td>${en.hour}</td><td>${artLabel}</td>
           <td class="num"><b>${en.qty}</b></td><td>${esc(en.reason)||'\u2014'}</td>
           <td><div class="size-chips">${sizesHtml}</div></td>
-          <td>${en.savedAtEpoch ? formatElapsed(en.savedAtEpoch, null) : '\u2014'}</td>
+          <td style="white-space:nowrap;">${en.savedAtEpoch ? workingAgeLabel(en.line, en.savedAtEpoch, en.date) : '\u2014'}</td>
           <td><button class="btn-secondary" data-pm-sideline-open="${en.id}" data-date="${en.date}" data-shift="${en.shift}">Review &amp; Clear</button></td>
         </tr>`;
       }).join('');
@@ -11418,12 +11536,15 @@ function attachPanelEvents(key){
 
     // Fetches only the lines that actually appear in the pending queue right now — usually
     // one or two, not all 13 — so article names populate without a large login-time burst.
+    if(!window.qmLineLoadedAt) window.qmLineLoadedAt = {};
+    const qmLineLoadedAt = window.qmLineLoadedAt;
     async function loadLinesForPendingQueue(){
       const need = Array.from(new Set(
         (store.qualityFlags||[]).filter(f=>f.status==='pending').map(f=>f.line)
-      )).filter(ln=> !store.lines[ln] || !store.lines[ln].activeArticles || !store.lines[ln].activeArticles.length);
+      )).filter(ln=> !store.lines[ln] || !store.lines[ln].activeArticles || !store.lines[ln].activeArticles.length
+                   || (Date.now() - (qmLineLoadedAt[ln]||0)) > 10*60000); // shift times for the waiting clock
       if(!need.length) return false;
-      try{ await loadStore(need, { skipHr:true, skipMeta:true }); return true; }
+      try{ await loadStore(need, { skipHr:true, skipMeta:true }); need.forEach(ln=>{ qmLineLoadedAt[ln] = Date.now(); }); return true; }
       catch(e){ return false; }
     }
 
@@ -11553,7 +11674,7 @@ function attachPanelEvents(key){
         });
         return `<div class="qm-group" data-group-key="${[g.line,g.date,g.shift,g.hour,g.layoutNo].join('|')}">
           <div class="qm-group-meta">
-            <b>${lineLabel(g.line)}</b> &middot; ${SHIFT_LABELS[g.shift]} &middot; ${g.date} &middot; ${g.hour} &middot; L-${g.layoutNo} : ${artLabel} &middot; SO: ${shopOrderLabel} &middot; Waiting: <b>${formatElapsed(g.oldest)}</b>
+            <b>${lineLabel(g.line)}</b> &middot; ${SHIFT_LABELS[g.shift]} &middot; ${g.date} &middot; ${g.hour} &middot; L-${g.layoutNo} : ${artLabel} &middot; SO: ${shopOrderLabel} &middot; Waiting: <b>${workingAgeLabel(g.line, g.oldest, g.date)}</b>
           </div>
           <div class="tally-grid" style="grid-template-columns:74px repeat(${cols.length},minmax(64px,1fr));">${gridHtml}</div>
           <div class="tally-scroll-hint">${cols.length>4?'&larr; Swipe to see more sizes &rarr;':''}</div>
@@ -11859,16 +11980,16 @@ function renderRepairWaitingCards(){
     if(!store.lines[ln]) return;
     repairMatchesFor(ln).pending.forEach(w=>{
       const art = findArticle(ln, w.q.layoutNo);
-      rows.push({ ln, w, art, days: Math.floor((Date.now() - (w.relEpoch||Date.now()))/86400000) });
+      rows.push({ ln, w, art, mins: lineWorkingMinutesSince(ln, w.relEpoch) });
     });
   });
-  rows.sort((a,b)=>b.days-a.days);
-  const html = rows.length ? `<div class="table-scroll"><table><thead><tr><th>Type</th><th>Line</th><th>Article</th><th>Flagged</th><th>Released</th><th>Waiting</th><th>By Size</th><th>Days</th></tr></thead><tbody>${
+  rows.sort((a,b)=>b.mins-a.mins);
+  const html = rows.length ? `<div class="table-scroll"><table><thead><tr><th>Type</th><th>Line</th><th>Article</th><th>Flagged</th><th>Released</th><th>Waiting</th><th>By Size</th><th>Waiting (work time)</th></tr></thead><tbody>${
     rows.map(r=>`<tr><td>${r.w.kind==='sideline'?'Side Line':'Repair'}</td><td>${esc(lineLabel(r.ln))}</td><td>L-${r.w.q.layoutNo} ${esc(r.art?r.art.articleNo:'\u2014')}</td>
       <td>${esc(r.w.originDate)} ${esc(String(r.w.q.hour||''))}</td><td>${esc(fmtSavedAt(r.w.relEpoch))}</td>
       <td class="num"><b>${r.w.remaining}</b></td>
       <td>${esc(Object.keys(r.w.bySize).map(k=>(k==='*'?'':k+': ')+r.w.bySize[k]).join(', '))}</td>
-      <td class="num" style="${r.days>=2?'color:var(--danger);font-weight:700;':''}">${r.days}</td></tr>`).join('')
+      <td class="num" style="white-space:nowrap;${r.mins>=12*60?'color:var(--danger);font-weight:700;':''}">${fmtHrsMin(r.mins)} &middot; ${esc(shortDayLabel(r.w.relDate||epochDateStr(r.w.relEpoch)))}</td></tr>`).join('')
   }</tbody></table></div>` : '<div class="empty">Nothing waiting &mdash; every released repair has been found in the output.</div>';
   els.forEach(el=>{ el.innerHTML = html; });
 }
@@ -12312,7 +12433,8 @@ function doExport(){
         'Flag Date': w.originDate, 'Flag Shift': SHIFT_LABELS[w.originShift]||w.originShift, 'Flag Hour': w.q.hour,
         'Released At': fmtSavedAt(w.relEpoch), 'Waiting Qty': w.remaining,
         'Waiting by Size': Object.keys(w.bySize).map(k=>(k==='*'?'':k+':')+w.bySize[k]).join(', '),
-        'Days Waiting': Math.floor((Date.now() - (w.relEpoch||Date.now()))/86400000) });
+        'Days Waiting': w.relDate ? calendarDaysBetween(w.relDate, todayStr()) : Math.floor((Date.now() - (w.relEpoch||Date.now()))/86400000),
+        'Working Hours Waiting': Math.round(lineWorkingMinutesSince(ln, w.relEpoch)/60*100)/100 });
     });
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rwRows.length?rwRows:[{Note:'No released repair is waiting'}]), 'Repair Waiting');
