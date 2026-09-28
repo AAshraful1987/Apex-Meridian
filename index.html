@@ -719,7 +719,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-28p-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-28q-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1038,7 +1038,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-28p-supabase';
+const APP_BUILD = '2026-09-28q-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -8137,7 +8137,7 @@ function attachPanelEvents(key){
           // Build 28m: by CALENDAR date (the flag's own shift date vs today), not by 24-hour blocks —
           // a flag raised yesterday at 11:00 read "flagged today" until 11:00 this morning.
           const ageLabel = workingAgeLabel(f.line, f.flaggedAtEpoch, f.date);
-          return `<tr><td>${f.hour}</td><td>${codeChip}</td><td>${defectName}</td><td>${artLabel}</td><td class="num">${f.qty}</td><td class="note">${ageLabel}</td></tr>`;
+          return `<tr><td>${f.hour}</td><td>${codeChip}</td><td>${defectName}</td><td>${artLabel}</td><td class="num">${f.qty}</td><td class="note" style="white-space:nowrap;min-width:150px;">${ageLabel}</td></tr>`;
         }).join('');
       }
     }
