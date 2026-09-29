@@ -770,7 +770,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-29c-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-29d-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1089,7 +1089,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-29c-supabase';
+const APP_BUILD = '2026-09-29d-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -2350,6 +2350,8 @@ function personPhotoFrameHtml(dataUrl){
     ? `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;">`
     : `<span style="font-size:11.5px;color:var(--steel);text-align:center;line-height:1.3;">No<br>photo</span>`;
 }
+let photoFrameRefreshers = [];
+function refreshPhotoFrames(){ photoFrameRefreshers = photoFrameRefreshers.filter(f=>{ try{ return f()!==false; }catch(e){ return false; } }); }
 function wirePersonPhoto(idFieldId, btnId, inputId, frameId){
   const idField = document.getElementById(idFieldId);
   const frame = document.getElementById(frameId);
@@ -2363,6 +2365,9 @@ function wirePersonPhoto(idFieldId, btnId, inputId, frameId){
   }
   refreshFrame();
   idField.addEventListener('blur', refreshFrame);
+  // Build 29d: redraw after every background load too, so a photo that arrives late (or is
+  // restored on the server) shows without reopening the screen.
+  photoFrameRefreshers.push(()=>{ if(!document.body.contains(frame)) return false; refreshFrame(); return true; });
   btn.onclick = ()=> input.click();
   input.addEventListener('change', async ()=>{
     const file = input.files[0];
@@ -3884,6 +3889,33 @@ function showSaveError(msg){
 
 // One-time move from the old single-blob key. Runs only until the split keys exist.
 let migratePromise = null;
+// Build 29d: a read that can tell "the key is not there" apart from "the server did not answer".
+// readKey() returns its fallback in BOTH cases, and on 29 Sep 2026 09:14 that mix-up let one
+// phone's failed read look like an empty store: it re-created settings, QC flags, notices and
+// photos as empty and wiped the real ones. Every read that decides a WRITE now uses this.
+async function readKeyStrict(k){
+  for(let attempt=0; attempt<2; attempt++){
+    try{
+      const r = await backendGet(k);
+      logStorageActivity('GET', k, true);
+      return { ok:true, value: (r && r.value) ? JSON.parse(r.value) : null };
+    }catch(e){
+      if(attempt===0) await new Promise(res=>setTimeout(res, 400));
+      else { logStorageActivity('GET', k, false); console.warn('strict read failed:', k, e && e.message ? e.message : e); }
+    }
+  }
+  return { ok:false, value:null };
+}
+// true = at least one app key exists on the server, false = none at all, null = could not tell.
+async function anyAppKeyExists(){
+  try{
+    const res = await fetch(KV_ENDPOINT + '?k=like.' + encodeURIComponent(K_PREFIX + ':*') + '&select=k&limit=1',
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
+    if(!res.ok) return null;
+    const rows = await res.json();
+    return Array.isArray(rows) ? rows.length>0 : null;
+  }catch(e){ return null; }
+}
 async function migrateOldStore(){
   // Rapid double/triple-clicking Sign In used to fire this function multiple times at once
   // \u2014 each one independently reading K_META as "not there yet" and racing to write it,
@@ -3891,9 +3923,20 @@ async function migrateOldStore(){
   // means every concurrent call shares that one run instead of starting its own.
   if(migratePromise) return migratePromise;
   migratePromise = (async ()=>{
-    const already = await readKey(K_META, null);
-    if(already) return;
-    const old = await readKey('ie_tracker_v2', null);
+    // Build 29d: seed ONLY a store that is provably empty. A failed read, or a missing settings
+    // row while any other app key exists, writes NOTHING.
+    const metaR = await readKeyStrict(K_META);
+    if(!metaR.ok){ migratePromise = null; return; }        // server not answering: try again next time
+    if(metaR.value) return;                                // normal case: already set up
+    const anyKey = await anyAppKeyExists();
+    if(anyKey!==false){
+      migratePromise = null;
+      if(anyKey===true) console.error('Settings row missing but the store is NOT empty — not re-creating anything.');
+      return;
+    }
+    const oldR = await readKeyStrict('ie_tracker_v2');
+    if(!oldR.ok){ migratePromise = null; return; }
+    const old = oldR.value;
     let results;
     if(!old) {
       results = await writeKeysSequential([
@@ -4006,6 +4049,7 @@ async function loadStore(lines, opts){
   // Build 29c: minor repairs for the same lines (read-only here; they show as Repair Minor).
   try{ await ensureMinor(want.filter(ln=>PRODUCTION_LINES.includes(ln)), minorMonthsForView(), false); }catch(e){ /* shown on the next refresh */ }
   rebaseSigs();
+  try{ refreshPhotoFrames(); }catch(e){}
 }
 
 // Copy the server's copy INTO the objects already in memory instead of swapping them out.
@@ -4121,9 +4165,15 @@ async function doSaveStore(){
   {
     markCurrentDay();
     const pendingWrites = [];
+    // Build 29d: a key whose current copy could not be READ is not written this time (writing
+    // our copy over an unread one is what erased other people's data). It stays "dirty" and
+    // goes out with the next save.
+    let unreadKeys = 0;
     for(const ln of ownedLineKeys()){
       const mine = ensureLine(ln);
-      const fresh = await readKey(lineKey(ln), null);
+      const freshR = await readKeyStrict(lineKey(ln));
+      if(!freshR.ok){ unreadKeys++; continue; }
+      const fresh = freshR.value;
       if(!fresh){
         pendingWrites.push([lineKey(ln), mine]);
         // `mine` already excludes deleted articles (the delete handler filters the array
@@ -4175,32 +4225,40 @@ async function doSaveStore(){
 
     // Shared keys are only touched when this session actually changed them.
     if(reqSig()!==baseReqSig || deletedReqIds.size>0){
-      const freshReq = await readKey(K_REQ, []);
+      const freshReqR = await readKeyStrict(K_REQ);
+      const freshReq = freshReqR.ok ? (freshReqR.value||[]) : null;
+      if(freshReq===null) unreadKeys++; else {
       const byId = new Map((freshReq||[]).map(r=>[r.id, r]));
       store.handoverRequests.forEach(r=>byId.set(r.id, r));
       deletedReqIds.forEach(id=>byId.delete(id));
       const merged = Array.from(byId.values());
       store.handoverRequests = merged;
       pendingWrites.push([K_REQ, merged]);
-    }
+    } }
     if(qfSig()!==baseQfSig || deletedFlagIds.size>0){
-      const freshQf = await readKey(K_QF, []);
+      const freshQfR = await readKeyStrict(K_QF);
+      const freshQf = freshQfR.ok ? (freshQfR.value||[]) : null;
+      if(freshQf===null) unreadKeys++; else {
       const byId = new Map((freshQf||[]).map(f=>[f.id, f]));
       store.qualityFlags.forEach(f=>byId.set(f.id, f));
       deletedFlagIds.forEach(id=>byId.delete(id));
       store.qualityFlags = Array.from(byId.values());
       pruneOldQualityFlags(); // the server copy may still carry ones we already aged out
       pendingWrites.push([K_QF, store.qualityFlags]);
-    }
+    } }
     if(session && session.role==='hr' && unlockSig()!==baseUnlockSig){
-      const freshU = await readKey(K_UNLOCK, []);
+      const freshUR = await readKeyStrict(K_UNLOCK);
+      const freshU = freshUR.ok ? (freshUR.value||[]) : null;
+      if(freshU===null) unreadKeys++; else {
       const byId = new Map((Array.isArray(freshU)?freshU:[]).map(u=>[u.id, u]));
       (store.unlocks||[]).forEach(u=>byId.set(u.id, u)); // HR is the only writer — its copy wins
       store.unlocks = Array.from(byId.values());
       pendingWrites.push([K_UNLOCK, store.unlocks]);
-    }
+    } }
     if(noticeSig()!==baseNoticeSig){
-      const freshN = await readKey(K_NOTICE, []);
+      const freshNR = await readKeyStrict(K_NOTICE);
+      const freshN = freshNR.ok ? (freshNR.value||[]) : null;
+      if(freshN===null) unreadKeys++; else {
       const byId = new Map((freshN||[]).map(n=>[n.id, n]));
       store.notices.forEach(n=>{
         const freshNotice = byId.get(n.id);
@@ -4224,7 +4282,7 @@ async function doSaveStore(){
       const merged = Array.from(byId.values());
       store.notices = merged;
       pendingWrites.push([K_NOTICE, merged]);
-    }
+    } }
     if(session && (session.role==='hr' || session.role==='management' || session.role==='ie')){
       if(session.role!=='ie' && hrSig()!==baseHrSig) pendingWrites.push([K_HR, store.hr]);
       if(metaSig()!==baseMetaSig) pendingWrites.push([K_META, {globalUnlock:store.globalUnlock,
@@ -4234,16 +4292,22 @@ async function doSaveStore(){
     // by ID No. so two different people updating their own photo around the same moment
     // never clobber each other, the same shape as quality flags/notices above.
     if(photosDirty){
-      const freshPhotos = await readKey(K_PHOTOS, {});
+      const freshPhotosR = await readKeyStrict(K_PHOTOS);
+      const freshPhotos = freshPhotosR.ok ? (freshPhotosR.value||{}) : null;
+      if(freshPhotos===null) unreadKeys++; else {
       const merged = Object.assign({}, freshPhotos, store.personPhotos);
       store.personPhotos = merged;
       pendingWrites.push([K_PHOTOS, merged]);
-    }
+    } }
     // Written ONE AT A TIME with a small gap (writeKeysSequential), not Promise.all \u2014 a
     // save that touches several keys at once (line + qualityFlags + notice + meta, say)
     // used to fire them all concurrently and trip the storage's rate limit.
     const results = await writeKeysSequential(pendingWrites);
-    if(results.some(r=>r===false)){
+    if(unreadKeys>0){
+      // Some keys were written, but at least one was skipped because its current copy could not
+      // be read. Keep everything marked as changed so the next save sends the rest.
+      showSaveError('Part of this save is waiting \u2014 the server did not answer. Your entry is still on screen; press Save again in a moment.');
+    } else if(results.some(r=>r===false)){
       if(Date.now() < rateLimitedUntil){
         const secs = Math.max(1, Math.ceil((rateLimitedUntil - Date.now())/1000));
         showSaveError('The store is busy right now. Your entry is still on screen \u2014 press Save again in about '+secs+' seconds and it will go through. (Raw details in Console Messages, for diagnosis.)');
