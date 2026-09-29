@@ -465,6 +465,57 @@
   .tally-inc.active{background:var(--accent-dark);color:#fff;}
   .tally-dec{border:none;border-top:1.5px solid var(--border);background:#E4E8E6;font-size:15px;font-weight:800;padding:5px 0;color:var(--ink);width:100%;}
   .tally-dec:disabled{background:#F3F5F4;color:var(--border);}
+  /* Build 29b: QC Minor / Major */
+  .qc-seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .qc-seg button{text-align:left;border:2px solid var(--border);border-radius:14px;background:var(--panel);padding:10px 12px;cursor:pointer;font:inherit;}
+  .qc-seg .t{font-size:17px;font-weight:800;display:block;color:var(--ink);}
+  .qc-seg .s{font-size:12px;color:var(--steel);font-weight:600;display:block;margin-top:2px;}
+  #qcCard.mode-minor .qc-minor{border-color:var(--accent2);background:#E7F3F2;box-shadow:inset 0 -4px 0 var(--accent2);}
+  #qcCard.mode-minor .qc-minor .t{color:var(--accent2);}
+  #qcCard.mode-major .qc-major{border-color:var(--accent);background:#FFF4E5;box-shadow:inset 0 -4px 0 var(--accent);}
+  #qcCard.mode-major .qc-major .t{color:var(--accent-dark);}
+  #qcCard.mode-minor .qc-major-only{display:none !important;}
+  #qcCard.mode-major .qc-minor-only{display:none !important;}
+  .qc-hint{font-size:12.5px;color:var(--steel);margin:-2px 0 10px;}
+  .qc-warn10{border:2.5px solid #D97706;background:#FFF7E6;border-radius:12px;padding:10px 12px;font-weight:800;color:#92400E;font-size:14.5px;margin-bottom:12px;line-height:1.45;}
+  .qc-warn10 a{color:#92400E;text-decoration:underline;cursor:pointer;}
+  .qc-autobox{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#F1F4F3;color:var(--steel);font-size:14.5px;min-height:20px;}
+  .qc-blk{border:1.5px solid var(--border);border-radius:10px;margin:8px 0 12px;overflow:hidden;background:var(--panel);}
+  .qc-blk-head{display:flex;align-items:center;gap:8px;padding:7px 10px;}
+  #qcCard.mode-minor .qc-blk-head{background:#E8F5EE;border-bottom:1.5px solid var(--accent2);}
+  #qcCard.mode-major .qc-blk-head{background:#FFF1E6;border-bottom:1.5px solid var(--accent);}
+  .qc-blk-head input{flex:1;min-width:0;font-weight:800;font-size:15px;border:1.5px solid transparent;background:transparent;border-radius:8px;padding:6px 6px;color:var(--ink);}
+  #qcCard.mode-minor .qc-blk-head input{color:var(--accent2);}
+  #qcCard.mode-major .qc-blk-head input{color:var(--accent-dark);}
+  .qc-blk-head input:focus{outline:none;border-color:var(--accent2);background:#fff;}
+  .qc-blk-head input::placeholder{color:var(--steel);font-weight:600;}
+  .qc-blk-head .qc-reset{font-size:12px;font-weight:700;color:var(--steel);text-decoration:underline;background:none;border:none;cursor:pointer;white-space:nowrap;padding:4px;}
+  .qc-blk-grid{display:grid;gap:6px;padding:8px 10px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .qc-blk-grid .tally-size-label{padding:0;}
+  #qcCard.mode-minor .tally-inc.active{background:var(--accent2);}
+  #qcCard.mode-major .btn-tally-add{border-color:var(--accent);color:var(--accent-dark);}
+  .qc-bigbtn{width:100%;border:none;border-radius:12px;padding:15px;font-size:17px;font-weight:800;color:#fff;cursor:pointer;margin:4px 0 6px;}
+  #qcCard.mode-minor .qc-bigbtn{background:var(--success);}
+  #qcCard.mode-major .qc-bigbtn{background:var(--accent);color:#1b1b1b;}
+  .qc-bigbtn:disabled{opacity:.6;}
+  table.qc-log td{vertical-align:top;}
+  .qc-chip{display:inline-block;border-radius:8px;padding:2px 8px;font-size:11.5px;font-weight:800;margin:1px 0;}
+  .qc-c-ok{background:#DCFCE7;color:#166534;} .qc-c-wait{background:#FEF3C7;color:#92400E;}
+  .qc-c-dec{background:#E0E7FF;color:#3730A3;} .qc-c-rel{background:#E7F3F2;color:#0F6B66;}
+  .qc-majwait-head{margin-top:18px;border-top:2px solid var(--accent);padding-top:8px;font-weight:800;color:var(--accent-dark);font-size:14px;}
+  .qc-majwait-head span{font-weight:600;color:var(--steel);font-size:12px;}
+  .qc-sz-inline{display:none;}
+  @media (max-width:600px){
+    table.qc-log{font-size:12.5px;width:100%;table-layout:fixed;}
+    table.qc-log th, table.qc-log td{padding-left:4px;padding-right:4px;overflow-wrap:break-word;}
+    table.qc-log .qc-art, table.qc-log .qc-szcol{display:none;}
+    table.qc-log .qc-sz-inline{display:block;margin-top:3px;}
+    table.qc-log th:first-child{width:17%;} table.qc-log .qc-qtycol{width:12%;}
+    table.qc-log .qc-stcol{width:36%;} table.qc-log .qc-actcol{width:18%;}
+    table.qc-log:not(#qcMajorTable) th:first-child{width:14%;} table.qc-log:not(#qcMajorTable) .qc-stcol{width:27%;} table.qc-log:not(#qcMajorTable) .qc-actcol{width:16%;}
+    .qc-seg .t{font-size:15px;}
+    .qc-blk-grid{gap:4px;padding:8px 6px 10px;}
+  }
   .btn-tally-add{width:100%;padding:10px;border:1.5px dashed var(--accent2);background:transparent;color:var(--accent2);font-weight:700;border-radius:10px;margin:2px 0 12px;font-size:13.5px;}
   @media (min-width:820px){
     .tally-inc{font-size:20px;padding:11px 2px;}
@@ -719,7 +770,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-28q-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-29b-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1038,7 +1089,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-28q-supabase';
+const APP_BUILD = '2026-09-29b-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -1734,6 +1785,7 @@ let prepActiveView = 'shiftlog'; // 'shiftlog' | 'upperreceive' — which Prepar
 // every save triggers.
 let prodShowSideLine = false;
 let lastQualityLayout = null;
+let qcMode = 'minor';   // Build 29b: QC card tab (Minor / Major), kept across rebuilds
 // Whether Quality Management has drilled into the Lasting queue. The Shift dropdown and Line
 // buttons ABOVE the tabs (renderLineSelector) call buildPanel(activeTab.dataset.panel) on any
 // change, which rebuilds qualityMgmtPanelHTML() from scratch — and that template always starts
@@ -2197,9 +2249,12 @@ function resolveCarryForward(art, dateStr, shift, lineName){
     if(e.kind==='reset' || e.kind==='baseline'){
       anyTarget = Number(e.targetPercent)||0;
       Object.keys(shiftTarget).forEach(k=>delete shiftTarget[k]);
+    } else if(e.fromShift){
+      // Build 29a: a shift-stamped save sets the target for THAT shift only. SMV (above) still
+      // carries to every shift; the other shift keeps its own target, or none until IE sets it.
+      shiftTarget[e.fromShift] = Number(e.targetPercent)||0;
     } else {
-      anyTarget = Number(e.targetPercent)||0;
-      if(e.fromShift) shiftTarget[e.fromShift] = anyTarget;
+      anyTarget = Number(e.targetPercent)||0;   // legacy save with no shift: all shifts
     }
   });
   const tp = (shiftTarget[shift]!==undefined) ? shiftTarget[shift] : anyTarget;
@@ -2241,7 +2296,9 @@ function ieVisibleArticles(lineName, dateStr){
 function lineMissingSmv(lineName, dateStr, shift){
   const lo = store.lines[lineName];
   if(!lo || !Array.isArray(lo.activeArticles)) return false;
-  return lo.activeArticles.some(a=>a.status==='active' && !resolveIE(lineName, dateStr, shift, a.layoutNo).smv);
+  // Build 29a: a missing Target % flags the line too, since each shift's target is set by IE.
+  return lo.activeArticles.some(a=>{ if(a.status!=='active') return false;
+    const r = resolveIE(lineName, dateStr, shift, a.layoutNo); return !r.smv || !r.targetPercent; });
 }
 function shiftIEValues(lineName, dateStr, shift, layoutNo){
   return { smv: shiftSmv(lineName,dateStr,shift,layoutNo), targetPercent: shiftTarget(lineName,dateStr,shift,layoutNo) };
@@ -3493,6 +3550,49 @@ const K_NOTICE = K_PREFIX + ':notice'; // notices/interactions pushed to lines (
 const K_UNLOCK = K_PREFIX + ':unlock'; // HR backdate-entry grants, one per Line+Date+Shift (build 21h)
 const K_PHOTOS = K_PREFIX + ':photos'; // person photos, keyed by ID No. — shared by everyone, no role gate (any session can update its own)
 function lineKey(ln){ return K_PREFIX + ':line:' + slugify(ln); }
+
+// Build 29b: MINOR repairs — pairs the repair man fixed on the table himself. A RECORD ONLY:
+// never output, never efficiency, never Quality Management (the repaired pair reaches output
+// through the normal box count). Deliberately kept OUT of the line record: that record is
+// saved whole (last write wins), so a repair man saving every few minutes could wipe a
+// supervisor's newer hourly entry. One key per line per month; every save re-reads the key
+// and adds to it, so two devices never erase each other's records.
+function minorKey(ln, month){ return K_PREFIX + ':minor:' + slugify(ln) + ':' + month; }
+const minorCache = {};                 // key -> [record]
+let minorChain = Promise.resolve();
+async function loadMinor(ln, dateStr){
+  const k = minorKey(ln, String(dateStr).slice(0,7));
+  const v = await readKey(k, null);
+  if(Array.isArray(v)) minorCache[k] = v; else if(!minorCache[k]) minorCache[k] = [];
+  return minorCache[k];
+}
+function minorFor(ln, dateStr, shift){
+  return (minorCache[minorKey(ln, String(dateStr).slice(0,7))]||[])
+    .filter(r=>r && r.date===dateStr && (!shift || r.shift===shift) && !r.deleted);
+}
+// Read-modify-write, strictly: if the current copy can't be READ, nothing is written (writing
+// only our own record over an unread key would erase everyone else's for the month).
+function minorMutate(ln, dateStr, fn){
+  const run = minorChain.catch(()=>{}).then(async ()=>{
+    const k = minorKey(ln, String(dateStr).slice(0,7));
+    let fresh;
+    try{ const r = await backendGet(k); fresh = (r && r.value) ? JSON.parse(r.value) : []; }
+    catch(e){
+      await new Promise(res=>setTimeout(res, 400));
+      try{ const r2 = await backendGet(k); fresh = (r2 && r2.value) ? JSON.parse(r2.value) : []; }
+      catch(e2){ return { ok:false, error:'Could not reach the server — nothing saved. Try again.' }; }
+    }
+    if(!Array.isArray(fresh)) fresh = [];
+    const out = fn(fresh);
+    if(out && out.ok===false) return out;
+    const res = await writeKeysSequential([[k, fresh]]);
+    if(res.some(x=>x===false)) return { ok:false, error:'Save failed — press the button again.' };
+    minorCache[k] = fresh;
+    return { ok:true };
+  });
+  minorChain = run;
+  return run;
+}
 
 // Requests are the one list several roles write to at once, so deletions have to be
 // remembered \u2014 otherwise merging with the server copy would resurrect them.
@@ -6323,7 +6423,7 @@ function renderMgmtOverviewCharts(){
   // -- Target achievement --
   paintKpiWithSpark('dashKpiAch', {
     label:'Target achievement', value: m.achievement.toFixed(2)+'%',
-    sub: (m.targetQty<=0 && m.achieve>0) ? 'no target \u2014 SMV missing'
+    sub: (m.targetQty<=0 && m.achieve>0) ? 'no target \u2014 SMV / Target % missing'
        : m.targetQty>m.achieve ? 'short ' + dashNum(m.targetQty-m.achieve) + ' pr' : 'on or above target',
     color: m.achievement < 90 ? 'var(--danger)' : 'var(--success)', needsSmv:true
   }, trailingDaySeries(summaryDate, mgmtShift, d=> d.targetQty>0 ? d.efficiency/d.wtdTarget*100 : 0));
@@ -6553,7 +6653,7 @@ function refreshLineSmvFlags(){
     b.textContent = (missing ? '\u26a0 ' : '') + lineLabel(ln) + (checking ? ' \u2026' : '');
     b.style.background = missing ? 'var(--danger)' : '';
     b.style.boxShadow = (missing && ln===selectedLine) ? '0 0 0 3px var(--ink)' : '';
-    b.title = missing ? 'An active article on this line has no SMV for this shift' : (checking ? 'Checking SMV\u2026' : '');
+    b.title = missing ? 'An active article on this line has no SMV or no Target % for this shift' : (checking ? 'Checking SMV\u2026' : '');
   });
 }
 function renderLineSelector(){
@@ -7465,23 +7565,34 @@ function qualityPanelHTML(){
     <div class="empty" id="returnHistoryEmpty">No return records for this date &amp; shift.</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="qcCard">
     <h2><span class="dot"></span>Hour-wise Reject / Repair — <span id="qLineLabel"></span></h2>
+    <div class="qc-seg">
+      <button type="button" class="qc-minor" id="qcModeMinor"><span class="t">&#128295; Minor</span><span class="s" id="qcMinorSub">Repaired on the table</span></button>
+      <button type="button" class="qc-major" id="qcModeMajor"><span class="t">&#9888;&#65039; Major</span><span class="s" id="qcMajorSub">Needs QC Mgmt</span></button>
+    </div>
+    <div class="qc-warn10 hidden" id="qcShiftEndWarn"></div>
+    <div class="qc-hint" id="qcModeHint"></div>
     <div class="row3">
-      <div class="field"><label>Hour</label><select id="qcHour"></select></div>
+      <div class="field qc-major-only"><label>Hour</label><select id="qcHour"></select></div>
       <div class="field"><label>Layout/Article</label><select id="qcLayout"></select></div>
-      <div class="field"><label>Qty</label><input id="qcQty" type="number" readonly></div>
+      <div class="field qc-major-only"><label>Qty</label><input id="qcQty" type="number" readonly></div>
+      <div class="field qc-minor-only"><label>Shift / Hour</label><div class="qc-autobox" id="qcAutoShift"></div></div>
     </div>
     <datalist id="qcDefectCodeList"></datalist>
-    <div class="size-head"><h3>Tally Sheet &mdash; <span id="qcSizeArticleLabel"></span></h3></div>
-    <div id="qcTallyRows" class="tally-grid"></div>
-    <div class="tally-scroll-hint" id="qcTallyScrollHint"></div>
-    <button class="btn-tally-add" id="qcAddCategoryBtn">+ Add category</button>
-    <div class="size-total-bar inline"><span class="lbl">Flagged Qty:</span><b id="qcSizeTotal">0</b></div>
-    <button class="btn-secondary" id="qcAddBtn">Save Tally</button>
+    <div class="size-head"><h3><span id="qcTallyTitle">Tally</span> &mdash; <span id="qcSizeArticleLabel"></span></h3></div>
+    <div id="qcTallyRows"></div>
+    <button class="btn-tally-add" id="qcAddCategoryBtn">+ Add code</button>
+    <div class="size-total-bar inline"><span class="lbl" id="qcTotalLbl">Flagged:</span><b id="qcSizeTotal">0</b> <span class="lbl">pairs</span></div>
+    <button class="qc-bigbtn" id="qcAddBtn">Save</button>
     <button class="btn-ghost hidden" id="qcCancelEditBtn">Cancel edit</button>
-    <div class="table-scroll"><table><thead><tr><th>Hour</th><th>Article</th><th>Shop Order</th><th>Code</th><th>Defect</th><th>Qty</th><th>Sizes</th><th>Status</th><th></th></tr></thead><tbody id="qcBody"></tbody></table></div>
-    <div class="empty" id="qcEmpty">No entries yet.</div>
+    <div class="qc-minor-only">
+      <div class="table-scroll"><table class="qc-log"><thead><tr><th>Time</th><th class="qc-art">Article</th><th>Code</th><th class="qc-szcol">Sizes</th><th class="qc-qtycol">Qty</th><th class="qc-stcol">Status</th><th class="qc-actcol"></th></tr></thead><tbody id="qcMinorBody"></tbody></table></div>
+      <div class="empty" id="qcMinorEmpty">No minor repairs yet this shift.</div>
+      <div class="qc-majwait-head">&#9888;&#65039; Major &mdash; status from QC Mgmt <span>(this line &middot; this shift)</span></div>
+    </div>
+    <div class="table-scroll"><table class="qc-log" id="qcMajorTable"><thead><tr><th>Hour</th><th class="qc-art">Article</th><th>Code</th><th class="qc-qtycol">Qty</th><th class="qc-szcol">Sizes</th><th class="qc-stcol">Status</th><th class="qc-major-only qc-actcol"></th></tr></thead><tbody id="qcBody"></tbody></table></div>
+    <div class="empty" id="qcEmpty">No major entries this shift.</div>
   </div>
   `;
 }
@@ -10353,7 +10464,7 @@ function attachPanelEvents(key){
     const tb = document.getElementById('ieTableBody');
     tb.innerHTML = ieVisibleArticles(selectedLine, currentDate).map(l=>{
       const iv = shiftIEValues(selectedLine, currentDate, currentShift, l.layoutNo);
-      return `<tr><td class="num">${l.layoutNo}</td><td>${esc(l.articleNo)}${l.status==='closed'?' <span class="note">(Closed)</span>':''}</td><td>${esc(l.category)||'\u2014'}</td><td class="num" style="${!iv.smv?'color:var(--danger);font-weight:700;':''}">${iv.smv||'\u26a0 0'}</td><td class="num">${iv.targetPercent}%</td><td class="num">${getEffectiveOrderQty(selectedLine, l)||'\u2014'}</td><td class="num">${(rq=>rq===null?'\u2014':rq)(getArticleReceivedQty(selectedLine, l))}</td><td>${(()=>{
+      return `<tr><td class="num">${l.layoutNo}</td><td>${esc(l.articleNo)}${l.status==='closed'?' <span class="note">(Closed)</span>':''}</td><td>${esc(l.category)||'\u2014'}</td><td class="num" style="${!iv.smv?'color:var(--danger);font-weight:700;':''}">${iv.smv||'\u26a0 0'}</td><td class="num" style="${!iv.targetPercent?'color:var(--danger);font-weight:700;':''}">${iv.targetPercent?iv.targetPercent+'%':'\u26a0 not set'}</td><td class="num">${getEffectiveOrderQty(selectedLine, l)||'\u2014'}</td><td class="num">${(rq=>rq===null?'\u2014':rq)(getArticleReceivedQty(selectedLine, l))}</td><td>${(()=>{
         const dayRec = store.lines[selectedLine]?.days?.[currentDate]?.[currentShift];
         const can = smvUndoTargets(l, currentDate, currentShift).length>0 || !!(dayRec && dayRec.ieByLayout && dayRec.ieByLayout[l.layoutNo]);
         const locked = ieLockState().locked;
@@ -10583,12 +10694,14 @@ function attachPanelEvents(key){
     const qcQtyInput = document.getElementById('qcQty');
     const qcAddBtn = document.getElementById('qcAddBtn');
     const qcCancelEditBtn = document.getElementById('qcCancelEditBtn');
+    const qcCard = document.getElementById('qcCard');
     let editingFlagId = null;
 
-    // ---- Tally Sheet: several defect-category rows at once, each tallied by tapping ----
-    // Same size source as production entry: if this exact Article + Shop Order came
-    // through Preparation, every row gets size columns; otherwise each row is one plain
-    // tap-counter (no size breakdown) \u2014 same fallback the old plain-qty form used.
+    // ---- Build 29b: two forms on one card ----
+    // MINOR = the repair man fixed it on the table. A record only (see minorMutate): no hour
+    //         (the shift is automatic), never output, never efficiency, never Quality Management.
+    // MAJOR = needs Quality Management, exactly the flag flow used before.
+    // Same tally for both: each code is a full-width header, its sizes and tap cells below.
     const qcTallyRowsEl = document.getElementById('qcTallyRows');
     const qcAddCategoryBtn = document.getElementById('qcAddCategoryBtn');
     const qcSizeTotal = document.getElementById('qcSizeTotal');
@@ -10602,35 +10715,37 @@ function attachPanelEvents(key){
       if(isPrepFed(selectedLine) && art && art.shopOrderNo) balances = computePrepSizeBalance(art.articleNo, art.shopOrderNo);
       tallySizeModeActive = balances.length>0;
       currentTallySizes = balances.map(b=>b.size);
-      document.getElementById('qcSizeArticleLabel').textContent = art ? (art.articleNo + (art.shopOrderNo ? (' \u00b7 ' + art.shopOrderNo) : '')) : '';
+      document.getElementById('qcSizeArticleLabel').textContent = art ? (art.articleNo + (art.shopOrderNo ? (' · ' + art.shopOrderNo) : '')) : '';
     }
 
-    function updateQcTallyTotal(){
+    function tallyTotal(){
       let tot = 0;
       tallyRows.forEach(row=>{ Object.values(row.counts).forEach(v=>{ tot += Number(v)||0; }); });
+      return tot;
+    }
+    function updateQcTallyTotal(){
+      const tot = tallyTotal();
       qcSizeTotal.textContent = tot;
       qcQtyInput.value = tot || '';
-    }
-
-    function codeChipText(code){
-      return isValidDefectCode(code) ? code.split(' \u2014 ')[0] : (code||'');
+      if(editingFlagId) qcAddBtn.textContent = 'Update';
+      else qcAddBtn.textContent = qcMode==='minor'
+        ? '✓ Repaired' + (tot ? `  (${tot} pair${tot===1?'':'s'})` : '')
+        : '➤ Send to QC Mgmt' + (tot ? `  (${tot} pair${tot===1?'':'s'})` : '');
     }
 
     function renderTally(){
-      const prevScrollLeft = qcTallyRowsEl.scrollLeft;
       computeCurrentTallySizes();
       const cellKeys = tallySizeModeActive ? currentTallySizes : ['_'];
-      qcTallyRowsEl.style.gridTemplateColumns = '74px repeat(' + cellKeys.length + ',minmax(64px,1fr))';
-      document.getElementById('qcTallyScrollHint').textContent = cellKeys.length>4 ? '\u2190 Swipe to see more sizes \u2192' : '';
-
-      let html = '<div class="tally-corner"></div>';
-      cellKeys.forEach(k=>{ html += `<div class="tally-size-label">${tallySizeModeActive ? k : 'Qty'}</div>`; });
-
+      const cols = 'repeat(' + cellKeys.length + ',minmax(' + (window.innerWidth<600 ? 40 : 52) + 'px,1fr))';
+      let html = '';
       tallyRows.forEach((row, ri)=>{
-        html += `<div class="tally-code-cell">
-          <input type="text" class="tallyCodeInput" data-ri="${ri}" list="qcDefectCodeList" value="${codeChipText(row.code).replace(/"/g,'&quot;')}" placeholder="Code&hellip;">
-          <button type="button" class="btn-ghost tally-reset" data-reset-ri="${ri}">Reset</button>
-        </div>`;
+        html += `<div class="qc-blk">
+          <div class="qc-blk-head">
+            <input type="text" class="tallyCodeInput" data-ri="${ri}" list="qcDefectCodeList" value="${esc(row.code||'')}" placeholder="Tap to pick a code&hellip;">
+            <button type="button" class="qc-reset" data-reset-ri="${ri}">Reset</button>
+          </div>
+          <div class="qc-blk-grid" style="grid-template-columns:${cols};">`;
+        cellKeys.forEach(k=>{ html += `<div class="tally-size-label">${tallySizeModeActive ? k : 'Qty'}</div>`; });
         cellKeys.forEach(k=>{
           const c = row.counts[k]||0;
           html += `<div class="tally-cell">
@@ -10638,21 +10753,20 @@ function attachPanelEvents(key){
             <button type="button" class="tally-dec" data-dec="${ri}|${k}" ${c>0?'':'disabled'}>&minus;</button>
           </div>`;
         });
+        html += `</div></div>`;
       });
       qcTallyRowsEl.innerHTML = html;
-      qcTallyRowsEl.scrollLeft = prevScrollLeft;
 
       qcTallyRowsEl.querySelectorAll('.tallyCodeInput').forEach(inp=>{
         const ri = Number(inp.dataset.ri);
-        inp.addEventListener('focus', ()=>{ inp.value = tallyRows[ri].code; inp.select(); });
+        inp.addEventListener('focus', ()=>{ inp.select(); });
         inp.addEventListener('input', ()=>{ tallyRows[ri].code = inp.value; });
-        inp.addEventListener('blur', renderTally);
       });
       qcTallyRowsEl.querySelectorAll('[data-inc]').forEach(btn=>{
         btn.onclick = ()=>{
           const [ri,k] = btn.dataset.inc.split('|');
           tallyRows[Number(ri)].counts[k] = (tallyRows[Number(ri)].counts[k]||0) + 1;
-          renderTally(); updateQcTallyTotal();
+          renderTally();
         };
       });
       qcTallyRowsEl.querySelectorAll('[data-dec]').forEach(btn=>{
@@ -10660,11 +10774,11 @@ function attachPanelEvents(key){
           const [ri,k] = btn.dataset.dec.split('|');
           const row = tallyRows[Number(ri)];
           row.counts[k] = Math.max(0, (row.counts[k]||0) - 1);
-          renderTally(); updateQcTallyTotal();
+          renderTally();
         };
       });
       qcTallyRowsEl.querySelectorAll('[data-reset-ri]').forEach(btn=>{
-        btn.onclick = ()=>{ tallyRows[Number(btn.dataset.resetRi)].counts = {}; renderTally(); updateQcTallyTotal(); };
+        btn.onclick = ()=>{ tallyRows[Number(btn.dataset.resetRi)].counts = {}; renderTally(); };
       });
       updateQcTallyTotal();
     }
@@ -10682,17 +10796,144 @@ function attachPanelEvents(key){
       editingFlagId = null;
       tallyRows = [{ code:'', counts:{} }];
       qcAddCategoryBtn.classList.remove('hidden');
-      renderTally();
-      qcAddBtn.textContent = 'Save Tally';
       qcCancelEditBtn.classList.add('hidden');
+      renderTally();
     }
     qcCancelEditBtn.onclick = resetQcForm;
-    resetQcForm();
+
+    function refreshQcSubs(){
+      const mn = minorFor(selectedLine, dateStr, currentShift).reduce((t,r)=>t+(Number(r.qty)||0),0);
+      document.getElementById('qcMinorSub').textContent = 'Repaired on the table · this shift ' + mn + ' pr';
+      const wait = (store.qualityFlags||[]).filter(f=>f.line===selectedLine && f.status==='pending' && f.date<=todayStr())
+        .reduce((t,f)=>t+(Number(f.qty)||0),0);
+      document.getElementById('qcMajorSub').textContent = 'Needs QC Mgmt · waiting ' + wait + ' pr';
+    }
+
+    // 10 minutes before Shift End: pack the repaired pairs; anything not repaired goes to Major.
+    // A warning only — nothing is blocked.
+    function refreshShiftEndWarn(){
+      const el = document.getElementById('qcShiftEndWarn');
+      if(!el) return;
+      const end = shiftEndEpoch(selectedLine, dateStr, currentShift);
+      const left = end===null ? null : end - Date.now();
+      if(qcMode==='minor' && left!==null && left>0 && left<=10*60000){
+        const m = Math.max(1, Math.ceil(left/60000));
+        el.innerHTML = `⏰ Shift ends in ${m} min — pack the repaired pairs now. Anything not repaired: move it to <a data-go-major="1">Major</a>.`;
+        el.classList.remove('hidden');
+        const a = el.querySelector('[data-go-major]'); if(a) a.onclick = ()=> setQcMode('major');
+      } else el.classList.add('hidden');
+    }
+    if(window._qcWarnTimer) clearInterval(window._qcWarnTimer);
+    window._qcWarnTimer = setInterval(()=>{ if(document.getElementById('qcShiftEndWarn')) refreshShiftEndWarn(); else { clearInterval(window._qcWarnTimer); window._qcWarnTimer = null; } }, 30000);
+
+    function setQcMode(m){
+      qcMode = (m==='major') ? 'major' : 'minor';
+      qcCard.classList.toggle('mode-minor', qcMode==='minor');
+      qcCard.classList.toggle('mode-major', qcMode==='major');
+      document.getElementById('qcModeHint').innerHTML = qcMode==='minor'
+        ? 'Enter only pairs that are <b>already repaired</b>. They reach output through the normal box count — nothing to count twice.'
+        : 'Major goes to <b>QC Management</b> for Repair / Reject / D-grade. A released repair is matched automatically when the pairs are counted again.';
+      document.getElementById('qcTallyTitle').textContent = qcMode==='minor' ? 'Repaired' : 'Tally';
+      document.getElementById('qcTotalLbl').textContent = qcMode==='minor' ? 'Repaired now:' : 'Flagged:';
+      document.getElementById('qcAutoShift').textContent = (SHIFT_LABELS[currentShift]||currentShift) + ' · automatic';
+      resetQcForm();
+      refreshShiftEndWarn();
+      renderQcLogs();
+    }
+    document.getElementById('qcModeMinor').onclick = ()=> setQcMode('minor');
+    document.getElementById('qcModeMajor').onclick = ()=> setQcMode('major');
+
+    function codeParts(label){
+      const m = DEFECT_CODES.find(([c,n])=>`${c} — ${n}`===label);
+      return m ? { code:m[0], name:m[1] } : { code:'', name:label||'—' };
+    }
+    function sizeChipsHtml(sizes){
+      return (sizes && sizes.length)
+        ? `<div class="size-chips">${sizes.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>` : '—';
+    }
+    function hhmm(ep){ const d = new Date(ep); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+
+    // The hourly Quality record a decided flag produced (same hour/layout, decided in the same save).
+    function decisionRecordFor(f){
+      const d = store.lines[f.line]?.days?.[f.date]?.[f.shift];
+      if(!d || !f.decision) return null;
+      let best = null, bestGap = Infinity;
+      (d.quality||[]).forEach(q=>{
+        if(!q.fromDecision || String(q.hour)!==String(f.hour) || q.layoutNo!==f.layoutNo) return;
+        if((Number(q.repair)||0)!==(Number(f.decision.repair)||0) || (Number(q.reject)||0)!==(Number(f.decision.reject)||0)) return;
+        const gap = Math.abs((Number(q.decidedAtEpoch)||0) - (Number(f.decidedAtEpoch)||0));
+        if(gap < bestGap){ best = q; bestGap = gap; }
+      });
+      return bestGap <= 120000 ? best : null;
+    }
+    function majorStatusHtml(f){
+      if(f.status==='pending'){
+        return `<span class="qc-chip qc-c-wait">Waiting QC Mgmt</span><div class="note" style="white-space:nowrap;">${workingAgeLabel(f.line, f.flaggedAtEpoch, f.date)}</div>`;
+      }
+      const dec = f.decision || {};
+      const parts = [];
+      if(dec.repair) parts.push('Repair ' + dec.repair);
+      if(dec.reject) parts.push('Reject ' + dec.reject);
+      if(dec.dgrade) parts.push('D-grade ' + dec.dgrade);
+      let html = `<span class="qc-chip qc-c-dec">Decided: ${parts.join(' · ') || '—'}</span>`;
+      const rep = Number(dec.repair)||0;
+      const q = rep>0 ? decisionRecordFor(f) : null;
+      if(q && q.rmv===2){
+        const m = repairMatchesFor(f.line).q[q.id];
+        const counted = Math.min(rep, m ? m.same + m.cross : 0);
+        html += `<div><span class="qc-chip qc-c-rel">Repair ${rep} · ${counted===rep ? 'all counted ✓' : counted+' counted, '+(rep-counted)+' waiting'}</span></div>`;
+      }
+      return html;
+    }
+
+    function renderQcLogs(){
+      refreshQcSubs();
+      // Minor log (this line, date, shift)
+      const mBody = document.getElementById('qcMinorBody');
+      const mine = minorFor(selectedLine, dateStr, currentShift).slice().sort((a,b)=>(b.savedAtEpoch||0)-(a.savedAtEpoch||0));
+      document.getElementById('qcMinorEmpty').style.display = mine.length ? 'none' : 'block';
+      mBody.innerHTML = mine.map(r=>{
+        const art = findArticle(selectedLine, r.layoutNo);
+        const cp = codeParts(r.code);
+        return `<tr><td>${hhmm(r.savedAtEpoch)}</td><td class="qc-art">${art?esc(art.articleNo):'—'}</td><td>${esc(cp.code)} ${esc(cp.name)}<div class="qc-sz-inline">${sizeChipsHtml(r.sizes)}</div></td><td class="qc-szcol">${sizeChipsHtml(r.sizes)}</td><td class="num"><b>${r.qty}</b></td><td><span class="qc-chip qc-c-ok">Repaired ✓</span></td><td><button class="btn-ghost" data-del-minor="${esc(r.id)}">Delete</button></td></tr>`;
+      }).join('');
+      mBody.querySelectorAll('[data-del-minor]').forEach(b=>b.onclick = async ()=>{
+        const id = b.dataset.delMinor;
+        const ok = await bigConfirm('Delete this minor repair?', 'It is only a record — output and efficiency do not change.', 'Delete', 'Keep');
+        if(!ok) return;
+        b.disabled = true;
+        const res = await minorMutate(selectedLine, dateStr, arr=>{
+          const r = arr.find(x=>x && x.id===id);
+          if(!r) return { ok:false, error:'Already removed' };
+          r.deleted = true; r.deletedAtEpoch = Date.now();
+        });
+        if(!res.ok){ toast(res.error); b.disabled = false; return; }
+        renderQcLogs(); toast('✔ Deleted', 'ok');
+      });
+
+      // Major list (this line, date, shift) — shown on both tabs; actions only on the Major tab.
+      const body = document.getElementById('qcBody');
+      const myFlags = (store.qualityFlags||[]).filter(f=>f.line===selectedLine && f.date===dateStr && f.shift===currentShift && f.status!=='deleted');
+      document.getElementById('qcEmpty').style.display = myFlags.length?'none':'block';
+      body.innerHTML = '';
+      myFlags.slice().reverse().forEach(f=>{
+        const layout = findArticle(selectedLine, f.layoutNo);
+        const cp = codeParts(f.reason);
+        const actionsHtml = f.status==='pending'
+          ? `<button class="btn-ghost" data-edit-q="${f.id}">Edit</button><button class="btn-ghost" data-del-q="${f.id}">Delete</button>`
+          : `<button class="btn-ghost" data-del-dq="${f.id}" title="Delete this decided flag (reason required)">Delete</button>`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${esc(String(f.hour).replace(/ Hour$/,''))}</td><td class="qc-art">${layout?esc(layout.articleNo):'—'}</td><td>${esc(cp.code)} ${esc(cp.name)}<div class="qc-sz-inline">${sizeChipsHtml(f.sizes)}</div></td><td class="num"><b>${f.qty}</b></td><td class="qc-szcol">${sizeChipsHtml(f.sizes)}</td><td>${majorStatusHtml(f)}</td><td class="qc-major-only">${actionsHtml}</td>`;
+        body.appendChild(tr);
+      });
+      wireMajorActions(myFlags);
+    }
 
     qcAddBtn.onclick = async ()=>{
       const hour = qcHourSel.value;
-      const layoutNo = Number(qcSel.value)||1;
-      if(!hour){ toast('Please select an Hour'); return; }
+      const layoutNo = Number(qcSel.value)||0;
+      if(!layoutNo){ toast('Please select the Layout/Article'); return; }
+      if(qcMode==='major' && !hour){ toast('Please select an Hour'); return; }
 
       const cellKeys = tallySizeModeActive ? currentTallySizes : ['_'];
       const cleanRows = [];
@@ -10707,11 +10948,27 @@ function attachPanelEvents(key){
           qty = Number(row.counts['_'])||0;
         }
         if(qty<=0) continue;
-        if(!isValidDefectCode(code)){ toast(`Pick a defect code from the list for "${code||'(blank)'}" row \u2014 free text isn\u2019t allowed`); return; }
+        if(!isValidDefectCode(code)){ toast(`Pick a code from the list for "${code||'(blank)'}" — free text isn’t allowed`); return; }
         cleanRows.push({ code, qty, sizes });
       }
-      if(cleanRows.length===0){ toast('Tally at least one category'); return; }
+      if(cleanRows.length===0){ toast(qcMode==='minor' ? 'Tap the repaired pairs first' : 'Tally at least one code'); return; }
       lastQualityLayout = qcSel.value;
+
+      if(qcMode==='minor'){
+        const now = Date.now();
+        const recs = cleanRows.map(r=>({
+          id: uid(), line: selectedLine, date: dateStr, shift: currentShift, layoutNo, code: r.code,
+          qty: r.qty, sizes: (r.sizes||[]).map(s=>({ size:Number(s.size), qty:Number(s.qty) })), savedAtEpoch: now
+        }));
+        const total = recs.reduce((t,r)=>t+r.qty,0);
+        qcAddBtn.disabled = true; qcAddBtn.textContent = 'Saving…';
+        const res = await minorMutate(selectedLine, dateStr, arr=>{ recs.forEach(r=>arr.push(r)); });
+        qcAddBtn.disabled = false;
+        if(!res.ok){ toast(res.error); updateQcTallyTotal(); return; }
+        resetQcForm(); renderQcLogs();
+        toast(`✔ Repaired — ${total} pair${total===1?'':'s'} recorded`, 'ok');
+        return;
+      }
 
       if(editingFlagId){
         const r = editQualityFlag(editingFlagId, cleanRows[0].qty, cleanRows[0].code, cleanRows[0].sizes);
@@ -10722,32 +10979,10 @@ function attachPanelEvents(key){
       const wasEditing = !!editingFlagId;
       resetQcForm();
       await saveStore(); buildPanel('quality'); renderAll();
-      toast(wasEditing ? 'Updated' : `Sent to Quality Management (${cleanRows.length} categor${cleanRows.length===1?'y':'ies'})`, 'ok');
+      toast(wasEditing ? 'Updated' : `Sent to QC Mgmt (${cleanRows.length} code${cleanRows.length===1?'':'s'})`, 'ok');
     };
 
-    const body = document.getElementById('qcBody');
-    const myFlags = (store.qualityFlags||[]).filter(f=>f.line===selectedLine && f.date===dateStr && f.shift===currentShift && f.status!=='deleted');
-    document.getElementById('qcEmpty').style.display = myFlags.length?'none':'block';
-    body.innerHTML='';
-    myFlags.slice().reverse().forEach(f=>{
-      const layout = findArticle(selectedLine, f.layoutNo);
-      const artLabel = layout ? esc(layout.articleNo) : '\u2014';
-      const codeMatch = DEFECT_CODES.find(([c,n])=>`${c} \u2014 ${n}`===f.reason);
-      const codeChip = codeMatch ? codeMatch[0] : '\u2014';
-      const defectName = codeMatch ? codeMatch[1] : (f.reason||'\u2014');
-      const tr = document.createElement('tr');
-      const statusHtml = f.status==='pending'
-        ? `<span class="status-pending">Pending</span><div class="note" style="margin-top:2px;white-space:nowrap;">${workingAgeLabel(f.line, f.flaggedAtEpoch, f.date)}</div>`
-        : `<span class="status-accepted">Decided</span><div class="note" style="margin-top:2px;">Repair ${f.decision.repair} \u00b7 Reject ${f.decision.reject} \u00b7 D-grade ${f.decision.dgrade}</div>`;
-      const actionsHtml = f.status==='pending'
-        ? `<button class="btn-ghost" data-edit-q="${f.id}">Edit</button><button class="btn-ghost" data-del-q="${f.id}">Delete</button>`
-        : `<button class="btn-ghost" data-del-dq="${f.id}" title="Delete this decided flag (reason required)">Delete</button>`;
-      const sizeChips = (f.sizes && f.sizes.length)
-        ? `<div class="size-chips">${f.sizes.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>`
-        : '—';
-      tr.innerHTML = `<td>${f.hour}</td><td>${artLabel}</td><td>${layout&&layout.shopOrderNo?layout.shopOrderNo:'—'}</td><td>${codeChip}</td><td>${defectName}</td><td class="num">${f.qty}</td><td>${sizeChips}</td><td>${statusHtml}</td><td>${actionsHtml}</td>`;
-      body.appendChild(tr);
-    });
+    function wireMajorActions(myFlags){
     document.querySelectorAll('[data-edit-q]').forEach(b=>b.onclick=()=>{
       const f = myFlags.find(fl=>fl.id===b.dataset.editQ);
       if(!f) return;
@@ -10759,9 +10994,9 @@ function attachPanelEvents(key){
       else { counts['_'] = f.qty; }
       tallyRows = [{ code: f.reason||'', counts }];
       qcAddCategoryBtn.classList.add('hidden'); // editing is single-flag only
-      renderTally();
-      qcAddBtn.textContent = 'Update';
       qcCancelEditBtn.classList.remove('hidden');
+      renderTally();
+      qcCard.scrollIntoView({ behavior:'smooth', block:'start' });
     });
     document.querySelectorAll('[data-del-q]').forEach(b=>b.onclick=async()=>{
       const r = deleteQualityFlag(b.dataset.delQ);
@@ -10776,7 +11011,7 @@ function attachPanelEvents(key){
       document.querySelectorAll('.dq-reason-row').forEach(x=>x.remove());
       const tr = document.createElement('tr');
       tr.className = 'dq-reason-row';
-      tr.innerHTML = `<td colspan="9" style="background:#FFF5F5;">
+      tr.innerHTML = `<td colspan="7" style="background:#FFF5F5;">
         <div style="font-weight:700;color:var(--danger);margin-bottom:6px;">Delete this decided flag? Its Repair / Reject / D-grade will be removed from the hourly production.</div>
         <input type="text" class="dq-reason" placeholder="Reason (at least 10 characters)" style="width:100%;box-sizing:border-box;margin-bottom:6px;">
         <div class="row2"><button class="btn-primary dq-ok" style="background:var(--danger);">Delete</button><button class="btn-ghost dq-cancel">Cancel</button></div>
@@ -10800,6 +11035,14 @@ function attachPanelEvents(key){
         toast(r.removedDecision ? '\u2714 Deleted \u2014 removed from hourly production' : '\u2714 Deleted (no matching decision was found in the hourly record)', 'ok');
       };
     });
+    } // wireMajorActions
+
+    setQcMode(qcMode);
+    // Minor records live in their own key; fetch this month's for this line, then redraw.
+    const qcLoadFor = selectedLine+'|'+dateStr+'|'+currentShift;
+    loadMinor(selectedLine, dateStr).then(()=>{
+      if(document.getElementById('qcCard') && qcLoadFor===selectedLine+'|'+dateStr+'|'+currentShift) renderQcLogs();
+    }).catch(()=>{});
   }
 
   if(key==='hr'){
