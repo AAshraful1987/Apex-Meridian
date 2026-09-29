@@ -770,7 +770,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-29e-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-29i-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1089,7 +1089,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-29e-supabase';
+const APP_BUILD = '2026-09-29i-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -2720,7 +2720,7 @@ function repairMatchesFor(lineName){
   });
   releases.sort((a,b)=>a.relEpoch-b.relEpoch);
   releases.forEach(r=>{
-    const qm = res.q[r.q.id] = { same:0, cross:0 };
+    const qm = res.q[r.q.id] = { same:0, cross:0, sameBySize:{} };
     const consume = en=>{
       Object.keys(r.need).forEach(k=>{
         if(r.need[k]<=0) return;
@@ -2728,10 +2728,10 @@ function repairMatchesFor(lineName){
         if(got<=0) return;
         r.need[k] -= got;
         const same = en.date===r.originDate;
-        if(same) qm.same += got; else qm.cross += got;
+        if(same){ qm.same += got; qm.sameBySize[k] = (qm.sameBySize[k]||0) + got; } else qm.cross += got;
         const em = res.e[en.p.id] || (res.e[en.p.id] = { same:0, cross:0, to:[] });
         if(same) em.same += got; else em.cross += got;
-        em.to.push({ qty:got, date:r.originDate, hour:r.q.hour, same });
+        em.to.push({ qty:got, date:r.originDate, hour:r.q.hour, same, size:k });
       });
     };
     const left = ()=>Object.values(r.need).reduce((t,v)=>t+Math.max(0,v),0);
@@ -4754,7 +4754,9 @@ function computeMetrics(lineName, dateStr, shift){
     // SMV change would silently rewrite every earlier day's efficiency.
     const smv = layout ? shiftSmv(lineName, dateStr, shift, p.layoutNo) : currentSmv;
     const eq = rmEarnQty(lineName, p);
-    earnMinutes += eq * smv; earnQtyTotal += eq;
+    // Build 29h: pairs of an article with NO SMV earn nothing and must not dilute the Weighted
+    // SMV either — counting them made the SMV tiny and the target many times too big.
+    earnMinutes += eq * smv; if(smv>0) earnQtyTotal += eq;
     totalAchieve += rmOutQty(lineName, p);
   });
   // Hourly Production only ever holds QC-passed qty \u2014 a defect found afterward was never
@@ -4766,7 +4768,7 @@ function computeMetrics(lineName, dateStr, shift){
     if(repairEarn>0){
       const layout = findArticle(lineName, q.layoutNo);
       const smv = layout ? shiftSmv(lineName, dateStr, shift, q.layoutNo) : currentSmv;
-      earnMinutes += repairEarn * smv; earnQtyTotal += repairEarn;
+      earnMinutes += repairEarn * smv; if(smv>0) earnQtyTotal += repairEarn;
     }
     totalAchieve += rmRepOut(lineName, q);
   });
@@ -6419,6 +6421,51 @@ function glassyDonutHTML(rows, centerLabel, centerValueOverride){
   return `<div style="flex:0 0 108px;">${svg}</div><div style="flex:1 1 160px;min-width:160px;">${list}</div>`;
 }
 
+// Build 29h: articles that produced output in the period but have no SMV (or no Target %) for
+// that date+shift. Their pairs earn no efficiency and are left out of the target.
+function articlesMissingSmv(dates, shiftFilter){
+  const out = {};   // line -> { layoutNo -> {articleNo, pairs, noSmv, noTarget} }
+  (DASH_LINES||PRODUCTION_LINES).forEach(ln=>{
+    const days = store.lines[ln] && store.lines[ln].days; if(!days) return;
+    (dates||[]).forEach(dt=>{
+      const dd = days[dt]; if(!dd) return;
+      Object.keys(dd).forEach(sh=>{
+        if(!(shiftFilter==='C' || sh===shiftFilter)) return;
+        (dd[sh].hourlyProd||[]).forEach(p=>{
+          const iv = resolveIE(ln, dt, sh, p.layoutNo);
+          if(iv.smv>0 && iv.targetPercent>0) return;
+          const a = findArticle(ln, p.layoutNo);
+          const L = out[ln] = out[ln] || {};
+          const r = L[p.layoutNo] = L[p.layoutNo] || { articleNo: a ? a.articleNo : '?', pairs:0, noSmv:false, noTarget:false };
+          r.pairs += Number(p.qty)||0;
+          if(!(iv.smv>0)) r.noSmv = true; else if(!(iv.targetPercent>0)) r.noTarget = true;
+        });
+      });
+    });
+  });
+  return out;
+}
+function renderMissingSmvBanner(dates, shiftFilter){
+  let el = document.getElementById('dashSmvWarn');
+  const kp = document.getElementById('dashKpis');
+  if(!kp) return;
+  if(!el){ el = document.createElement('div'); el.id = 'dashSmvWarn'; kp.parentNode.insertBefore(el, kp); }
+  const miss = articlesMissingSmv(dates, shiftFilter);
+  const lines = Object.keys(miss);
+  if(!lines.length){ el.innerHTML = ''; el.style.display = 'none'; return; }
+  let nArt = 0, nPairs = 0;
+  const rows = lines.map(ln=>{
+    const arts = Object.keys(miss[ln]).map(Number).sort((a,b)=>a-b).map(lay=>{
+      const r = miss[ln][lay]; nArt++; nPairs += r.pairs;
+      return `L-${lay} ${esc(r.articleNo)} <span style="font-weight:600;">(${dashNum(r.pairs)} pr${r.noSmv?'':' · no Target %'})</span>`;
+    });
+    return `<div style="margin-top:4px;"><b>${esc(lineLabel(ln))}:</b> ${arts.join(', ')}</div>`;
+  }).join('');
+  el.style.display = 'block';
+  el.style.cssText = 'display:block;border:2px solid var(--danger);background:#FFF5F5;border-radius:12px;padding:10px 12px;margin:0 0 12px;color:#7F1D1D;font-size:13px;line-height:1.45;';
+  el.innerHTML = `<div style="font-weight:800;font-size:14.5px;color:var(--danger);">⚠ IE has not set SMV for ${nArt} article${nArt===1?'':'s'} (${dashNum(nPairs)} pairs)</div>
+    <div>These pairs count in Production but earn 0 SMV minutes, so Efficiency and Target achievement show lower than the real performance until IE sets them.</div>${rows}`;
+}
 function renderMgmtOverviewCharts(){
   wireMgmtDateControls();
   let monthly = mgmtPeriod==='M';
@@ -6427,6 +6474,18 @@ function renderMgmtOverviewCharts(){
   const m = dashMetrics(mgmtPeriod, key, mgmtShift);
   monthly = !!m.multiDay; // any multi-day window (Monthly or Custom) reads as an average day
   const pppDates = listPeriodDates(mgmtPeriod, key);
+  try{ renderMissingSmvBanner(pppDates, mgmtShift); }catch(e){ console.warn('SMV banner', e); }
+  // Build 29i: while any article that produced in this period has no SMV / Target %, the target
+  // cannot be worked out honestly — say so instead of showing a number.
+  let smvMissN = 0; const smvMissCats = new Set();
+  try{
+    const mm = articlesMissingSmv(pppDates, mgmtShift);
+    Object.keys(mm).forEach(ln=>Object.keys(mm[ln]).forEach(lay=>{
+      smvMissN++; const a = findArticle(ln, Number(lay));
+      smvMissCats.add(a && a.category ? a.category : 'Not set');
+    }));
+  }catch(e){}
+  const TARGET_PENDING = 'Target pending \u2014 SMV not set by IE';
   const cwp = computeCategoryWisePPP(pppDates, mgmtShift);
   const fullSectionMM = computeFullSectionManMinutes(pppDates, mgmtShift);
   const fullSectionPpp = fullSectionMM>0 ? cwp.full.qty/(fullSectionMM/60) : 0;
@@ -6484,7 +6543,7 @@ function renderMgmtOverviewCharts(){
       <div class="tube-cat-block">
         <div class="tube-cat-name">${esc(r.name)}</div>
         ${tubeRowHTML('Actual', dashNum(r.qty)+' pr', r.eff, 'eff')}
-        ${tubeRowHTML('Wtd Target', dashNum(r.targetQty)+' pr', r.target, 'wtgt')}
+        ${smvMissCats.has(r.name) ? tubeRowHTML('Wtd Target', 'SMV pending', 0, 'wtgt').replace('>0.00%</div>','>\u2014</div>') : tubeRowHTML('Wtd Target', dashNum(r.targetQty)+' pr', r.target, 'wtgt')}
         ${tubeRowHTML('IE Target', r.monthlyTargetPct>0 ? r.monthlyTargetPct.toFixed(2)+'% goal' : '\u2014', r.monthlyTargetPct, 'ietgt')}
       </div>`).join('');
     const worst = cr.slice().sort((a,b)=>(a.target>0?a.eff/a.target:9)-(b.target>0?b.eff/b.target:9))[0];
@@ -6570,15 +6629,16 @@ function renderMgmtOverviewCharts(){
   // -- Production --
   paintKpiWithSpark('dashKpiProd', {
     label:'Production', value: dashNum(m.achieve),
-    sub: 'pairs &middot; target ' + dashNum(m.targetQty), color:'var(--success)'
+    sub: smvMissN ? 'pairs &middot; ' + TARGET_PENDING : 'pairs &middot; target ' + dashNum(m.targetQty), color:'var(--success)'
   }, trailingDaySeries(summaryDate, mgmtShift, d=>d.achieve));
 
   // -- Target achievement --
   paintKpiWithSpark('dashKpiAch', {
-    label:'Target achievement', value: m.achievement.toFixed(2)+'%',
-    sub: (m.targetQty<=0 && m.achieve>0) ? 'no target \u2014 SMV / Target % missing'
+    label:'Target achievement', value: smvMissN ? '\u2014' : m.achievement.toFixed(2)+'%',
+    sub: smvMissN ? TARGET_PENDING + ' (' + smvMissN + ' article' + (smvMissN===1?'':'s') + ')'
+       : (m.targetQty<=0 && m.achieve>0) ? 'no target \u2014 SMV / Target % missing'
        : m.targetQty>m.achieve ? 'short ' + dashNum(m.targetQty-m.achieve) + ' pr' : 'on or above target',
-    color: m.achievement < 90 ? 'var(--danger)' : 'var(--success)', needsSmv:true
+    color: smvMissN ? 'var(--steel)' : m.achievement < 90 ? 'var(--danger)' : 'var(--success)', needsSmv:true
   }, trailingDaySeries(summaryDate, mgmtShift, d=> d.targetQty>0 ? d.efficiency/d.wtdTarget*100 : 0));
 
   // -- Overall Efficiency \u21c4 On-Standard Efficiency (2-face flip) --
@@ -10194,7 +10254,13 @@ function attachPanelEvents(key){
       // after the release) used to show nowhere on the line. Show it once, on its own hour's row,
       // as a note only — never added to Repair or Total until the pairs are actually counted.
       const waitNoteShown = new Set();
+      // Build 29g: an hour+layout can have several entries (rows). Its QC decisions (Repair /
+      // Reject / D-grade) belong to the hour, not to each row, so they show on ONE row only —
+      // otherwise adding the rows counted the same repair once per row.
+      const qShown = new Set();
       day.hourlyProd.slice().reverse().forEach(p=>{
+        const qKey = p.hour + '|' + p.layoutNo;
+        const qFirst = !qShown.has(qKey); qShown.add(qKey);
         const layout = findArticle(ln, p.layoutNo);
         const artLabel = layout ? (p.layoutNo+' ('+esc(layout.articleNo)+')') : p.layoutNo;
         // Repair/Reject/D-grade for this exact hour+layout come from Quality Management's
@@ -10202,7 +10268,7 @@ function attachPanelEvents(key){
         // decision is still pending, these simply show 0 until Quality Management resolves it.
         let repairQ=0, rejectQ=0, dgradeQ=0, repairEffOnly=0;
         day.quality.forEach(q=>{
-          if(q.hour===p.hour && q.layoutNo===p.layoutNo){
+          if(qFirst && q.hour===p.hour && q.layoutNo===p.layoutNo){
             const ro = rmRepOut(ln, q);
             repairQ += ro; repairEffOnly += rmRepEarn(ln, q) - ro;
             rejectQ += Number(q.reject)||0; dgradeQ += Number(q.dgrade)||0;
@@ -10232,9 +10298,28 @@ function attachPanelEvents(key){
         // Build 29c: Minor repair is already inside the counted pairs — shown in its own column
         // by taking it out of 1st Time Pass. Pass + Minor + Major = the same Total as before.
         const mnQ = minorOfEntry(ln, dateStr, currentShift, p);
-        const sizesHtml = (p.sizesUsed && p.sizesUsed.length)
-          ? `<div class="size-chips">${p.sizesUsed.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>`
-          : '—';
+        // Build 29f: size chips follow the same-day repair move, so each row's sizes add up to its
+        // Total. The repaired pairs leave the row whose box counted them and join the flag's hour.
+        const szMap = {}; const szOrder = [];
+        const szAdd = (k, n)=>{ if(!(k in szMap)){ szMap[k]=0; szOrder.push(k); } szMap[k] += n; };
+        (p.sizesUsed||[]).forEach(z=>szAdd(String(z.size), Number(z.qty)||0));
+        const szOut = {}, szIn = {};
+        if(rmE) rmE.to.forEach(t=>{ if(t.same){ const k = String(t.size||'*'); szOut[k] = (szOut[k]||0) + t.qty; } });
+        day.quality.forEach(q=>{
+          if(!qFirst || q.hour!==p.hour || q.layoutNo!==p.layoutNo || q.rmv!==2) return;
+          const qm = repairMatchesFor(ln).q[q.id];
+          if(qm && qm.sameBySize) Object.keys(qm.sameBySize).forEach(k=>{ szIn[k] = (szIn[k]||0) + qm.sameBySize[k]; });
+        });
+        Object.keys(szOut).forEach(k=>{ if(k!=='*' && k in szMap) szMap[k] = Math.max(0, szMap[k]-szOut[k]); });
+        Object.keys(szIn).forEach(k=>{ if(k!=='*') szAdd(k, szIn[k]); });
+        szOrder.sort((a,b)=>Number(a)-Number(b));
+        const inTxt = Object.keys(szIn).map(k=>(k==='*'?'+':'+'+k+':')+szIn[k]).join(', ');
+        const outTxt = Object.keys(szOut).map(k=>(k==='*'?'\u2212':'\u2212'+k+':')+szOut[k]).join(', ');
+        const sizesHtml = szOrder.length
+          ? `<div class="size-chips">${szOrder.filter(k=>szMap[k]>0).map(k=>`<span class="size-chip">${k}<b>${szMap[k]}</b></span>`).join('')}</div>`
+            + (inTxt ? `<div style="color:var(--danger);font-size:10.5px;font-weight:600;white-space:nowrap;">${inTxt} repair</div>` : '')
+            + (outTxt ? `<div style="color:var(--danger);font-size:10.5px;font-weight:600;white-space:nowrap;">${outTxt} repair moved</div>` : '')
+          : (inTxt ? `<div style="color:var(--danger);font-size:10.5px;font-weight:600;white-space:nowrap;">${inTxt} repair</div>` : '—');
         const tr=document.createElement('tr');
         tr.innerHTML = `<td>${p.hour}</td><td class="num">${outQ - mnQ}${passNote}${slNote}</td><td class="num">${mnQ}</td><td class="num">${repairQ}${repNote}${waitNote}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-prod="${p.id}">Delete</button></td>`;
         prodBody.appendChild(tr);
