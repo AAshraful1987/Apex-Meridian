@@ -770,7 +770,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-29b-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-29c-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1089,7 +1089,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-29b-supabase';
+const APP_BUILD = '2026-09-29c-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -2767,6 +2767,61 @@ function rmRepEarn(lineName, q){
   const m = repairMatchesFor(lineName).q[q.id]; return m ? m.same + m.cross : 0;
 }
 
+// ---- Build 29c: MINOR repair on the line's own screens ----
+// A minor pair was fixed on the table and then counted in a box like any other pair, so it is
+// ALREADY inside the counted output. It is shown as its own "Repair Minor" column by moving it
+// OUT of 1st Time Pass: Pass + Minor + Major stays exactly the old Total. Output and efficiency
+// never change. Minor never crosses a day — it belongs to the shift it was saved in.
+// Placement: the hour its save-time falls in (Break Time grows that hour, like everywhere else),
+// same layout. If that hour's pass for the layout is smaller, the rest comes from the next hours,
+// then the earlier ones, so no cell ever goes below zero.
+function minorHourIdx(day, dateStr, epoch){
+  const labels = shiftHourLabels(day);
+  if(!labels.length) return 0;
+  const [y,mo,d] = String(dateStr).split('-').map(Number);
+  const mid = new Date(y, mo-1, d, 0, 0, 0, 0).getTime();
+  const mm = ((Number(epoch)||0) - mid) / 60000;
+  for(let i=0;i<labels.length;i++){ if(mm < hourSlotBounds(day, i).end) return i; }
+  return labels.length-1;
+}
+let _mnCache = {}, _mnCacheAt = 0;
+function invalidateMinorAlloc(){ _mnCache = {}; _mnCacheAt = 0; }
+function minorAllocFor(lineName, dateStr, shift){
+  const now = Date.now();
+  if(now - _mnCacheAt > 400){ _mnCache = {}; _mnCacheAt = now; }
+  const key = lineName+'|'+dateStr+'|'+shift;
+  if(_mnCache[key]) return _mnCache[key];
+  const res = { byEntry:{}, total:0, placed:0, byLayout:{} };
+  _mnCache[key] = res;
+  const recs = (typeof minorFor==='function') ? minorFor(lineName, dateStr, shift) : [];
+  if(!recs.length) return res;
+  const day = store.lines[lineName]?.days?.[dateStr]?.[shift];
+  const entries = day ? (day.hourlyProd||[]).filter(p=>p && p.id && !p.fromSideLine).map(p=>({
+    p, hIdx: HOUR_LABELS.indexOf(String(p.hour).trim()), saved:Number(p.savedAtEpoch)||0, left: Math.max(0, rmOutQty(lineName, p))
+  })) : [];
+  recs.slice().sort((a,b)=>(a.savedAtEpoch||0)-(b.savedAtEpoch||0)).forEach(r=>{
+    const q = Number(r.qty)||0; if(q<=0) return;
+    res.total += q; res.byLayout[r.layoutNo] = (res.byLayout[r.layoutNo]||0) + q;
+    let need = q;
+    const h = day ? minorHourIdx(day, dateStr, r.savedAtEpoch) : 0;
+    const mine = entries.filter(e=>e.p.layoutNo===r.layoutNo);
+    const order = mine.filter(e=>e.hIdx===h).sort((a,b)=>a.saved-b.saved)
+      .concat(mine.filter(e=>e.hIdx>h).sort((a,b)=>a.hIdx-b.hIdx || a.saved-b.saved))
+      .concat(mine.filter(e=>e.hIdx<h).sort((a,b)=>b.hIdx-a.hIdx || b.saved-a.saved));
+    order.forEach(e=>{
+      if(need<=0 || e.left<=0) return;
+      const t = Math.min(e.left, need);
+      e.left -= t; need -= t; res.placed += t;
+      res.byEntry[e.p.id] = (res.byEntry[e.p.id]||0) + t;
+    });
+  });
+  return res;
+}
+// Minor pairs taken out of one hourly entry's 1st Time Pass.
+function minorOfEntry(lineName, dateStr, shift, p){
+  return (p && p.id) ? (minorAllocFor(lineName, dateStr, shift).byEntry[p.id]||0) : 0;
+}
+
 // Total pieces achieved for one article, summed across every date/shift it has ever run
 function getArticleTotalAchieved(lineName, layoutNo){
   let total = 0;
@@ -3330,6 +3385,7 @@ function computeArticleBreakdown(lineName, dateStr, shift){
     day.quality.forEach(q=>{ if(q.layoutNo===layoutNo){
       reject += Number(q.reject)||0; repair += Number(q.repair)||0; dgrade += Number(q.dgrade)||0;
       qty += rmRepOut(lineName, q); earnQty += rmRepEarn(lineName, q); } });
+    repair += minorAllocFor(lineName, dateStr, shift).byLayout[layoutNo]||0; // Build 29c: + Minor (rate only)
     const iv = shiftIEValues(lineName, dateStr, shift, layoutNo);
     const smv = iv.smv, targetPercent = iv.targetPercent;
     return {
@@ -3564,8 +3620,35 @@ async function loadMinor(ln, dateStr){
   const k = minorKey(ln, String(dateStr).slice(0,7));
   const v = await readKey(k, null);
   if(Array.isArray(v)) minorCache[k] = v; else if(!minorCache[k]) minorCache[k] = [];
+  minorLoadedAt[k] = Date.now(); invalidateMinorAlloc();
   return minorCache[k];
 }
+const MINOR_FIRST_MONTH = '2026-09';     // nothing was recorded before build 29b
+const minorLoadedAt = {};                // key -> epoch of the last successful read
+function monthAdd(ym, n){ let [y,m] = ym.split('-').map(Number); m += n; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+'-'+String(m).padStart(2,'0'); }
+function minorMonthsSinceStart(){ const out = []; let m = MINOR_FIRST_MONTH; const last = String(todayStr()).slice(0,7); while(m<=last && out.length<60){ out.push(m); m = monthAdd(m,1); } return out; }
+// Months the everyday screens need: this month, the viewed dates' months, and last month
+// early in a month (so the trailing day comparison can reach back across the month line).
+function minorMonthsForView(){
+  const t = String(todayStr()); const set = new Set([t.slice(0,7)]);
+  if(Number(t.slice(8,10))<=10) set.add(monthAdd(t.slice(0,7), -1));
+  try{ if(currentDate) set.add(String(currentDate).slice(0,7)); }catch(e){}
+  try{ if(typeof summaryDate!=='undefined' && summaryDate) set.add(String(summaryDate).slice(0,7)); }catch(e){}
+  return Array.from(set).filter(m=>m>=MINOR_FIRST_MONTH);
+}
+// Reads the minor keys for these lines+months. `onlyMissing` skips keys already read once.
+async function ensureMinor(lines, months, onlyMissing){
+  const keys = [];
+  (lines||[]).forEach(ln=>(months||[]).forEach(m=>{ if(m>=MINOR_FIRST_MONTH){ const k = minorKey(ln, m); if(!(onlyMissing && minorLoadedAt[k])) keys.push(k); } }));
+  for(let i=0;i<keys.length;i+=4){
+    const slice = keys.slice(i, i+4);
+    const got = await Promise.all(slice.map(k=>readKey(k, null)));
+    got.forEach((v,j)=>{ const k = slice[j]; if(Array.isArray(v)){ minorCache[k] = v; } else if(!minorCache[k]) minorCache[k] = []; minorLoadedAt[k] = Date.now(); });
+    if(i+4 < keys.length) await new Promise(r=>setTimeout(r, 250));
+  }
+  if(keys.length && typeof invalidateMinorAlloc==='function') invalidateMinorAlloc();
+}
+function minorMissing(lines, months){ return (lines||[]).some(ln=>(months||[]).some(m=>m>=MINOR_FIRST_MONTH && !minorLoadedAt[minorKey(ln, m)])); }
 function minorFor(ln, dateStr, shift){
   return (minorCache[minorKey(ln, String(dateStr).slice(0,7))]||[])
     .filter(r=>r && r.date===dateStr && (!shift || r.shift===shift) && !r.deleted);
@@ -3587,7 +3670,7 @@ function minorMutate(ln, dateStr, fn){
     if(out && out.ok===false) return out;
     const res = await writeKeysSequential([[k, fresh]]);
     if(res.some(x=>x===false)) return { ok:false, error:'Save failed — press the button again.' };
-    minorCache[k] = fresh;
+    minorCache[k] = fresh; minorLoadedAt[k] = Date.now(); invalidateMinorAlloc();
     return { ok:true };
   });
   minorChain = run;
@@ -3920,6 +4003,8 @@ async function loadStore(lines, opts){
     if(i+BATCH < want.length) await new Promise(r=>setTimeout(r, GAP_MS));
   }
   want.forEach((ln,i)=>{ if(got[i]) absorbLine(ln, got[i]); else ensureLine(ln); });
+  // Build 29c: minor repairs for the same lines (read-only here; they show as Repair Minor).
+  try{ await ensureMinor(want.filter(ln=>PRODUCTION_LINES.includes(ln)), minorMonthsForView(), false); }catch(e){ /* shown on the next refresh */ }
   rebaseSigs();
 }
 
@@ -4682,6 +4767,8 @@ function computeMetrics(lineName, dateStr, shift){
 
   let totalReject=0, totalRepair=0, totalDGrade=0;
   day.quality.forEach(q=>{ totalReject += Number(q.reject)||0; totalRepair += Number(q.repair)||0; totalDGrade += Number(q.dgrade)||0; });
+  // Build 29c: Repair counts Major (QC Mgmt) + Minor (fixed on the table). A rate only — output unchanged.
+  totalRepair += minorAllocFor(lineName, dateStr, shift).total;
   const rejectPct = totalAchieve>0 ? (totalReject/totalAchieve*100) : 0;
   const repairPct = totalAchieve>0 ? (totalRepair/totalAchieve*100) : 0;
   const dGradePct = totalAchieve>0 ? (totalDGrade/totalAchieve*100) : 0;
@@ -4806,6 +4893,8 @@ function dashMetrics(period, key, shiftFilter){
           const b = bucket(art && art.category ? art.category : 'Not set');
           b.rej += Number(q.reject)||0; b.rep += Number(q.repair)||0; b.dg += Number(q.dgrade)||0;
         });
+        { const mnA = minorAllocFor(ln, dt, sh).byLayout; Object.keys(mnA).forEach(lay=>{
+            const art = findArticle(ln, Number(lay)); bucket(art && art.category ? art.category : 'Not set').rep += mnA[lay]; }); }
         (day.lostTime||[]).forEach(lt=>{
           const mm = computeLostTimeManMinutes(ln, dt, sh, lt.startTime, lt.endTime).totalManMinutes;
           const ltCat = normalizeCategoryText(lt.category) || lt.category;
@@ -6786,10 +6875,12 @@ function renderTabs(){
       (day.hourlyProd||[]).forEach(p=>{ firstTimePass += rmOutQty(lnHere, p); });
       (day.quality||[]).forEach(q=>{ totalRepair += rmRepOut(lnHere, q); });
       const qcQty = firstTimePass + totalRepair;
+      const minorQ = minorAllocFor(lnHere, dateStr, currentShift).placed; // Build 29c: already inside the pass
+      firstTimePass -= minorQ;
       let msg = `Line: ${lineLabel(lnHere)}\nSupervisor: ${supName} (${supMobile})\n\nLost Time:\n`;
       const catKeys = Object.keys(lostByCategory);
       msg += catKeys.length ? catKeys.map(cat=>`- ${cat}: ${lostByCategory[cat]} min`).join('\n') : '- None';
-      msg += `\n\n1st Time Pass: ${firstTimePass}\nTotal Repair: ${totalRepair}\nSent to QC Qty: ${qcQty}`;
+      msg += `\n\n1st Time Pass: ${firstTimePass}\nRepair Minor: ${minorQ}\nRepair Major: ${totalRepair}\nSent to QC Qty: ${qcQty}`;
       window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
     };
     tabsEl.appendChild(waBtn);
@@ -7387,7 +7478,7 @@ function supervisorPanelHTML(){
       </div>
     </div>
     </div>
-    <div class="table-scroll"><table><thead><tr id="prodTableHead"><th>Hour</th><th>1st Time Pass</th><th>Repair</th><th>Reject</th><th>D/G</th><th>Total</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th></tr></thead><tbody id="prodBody"></tbody></table></div>
+    <div class="table-scroll"><table><thead><tr id="prodTableHead"><th>Hour</th><th>1st Time Pass</th><th>Repair Minor</th><th>Repair Major</th><th>Reject</th><th>D/G</th><th>Total</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th></tr></thead><tbody id="prodBody"></tbody></table></div>
     <div class="empty" id="prodEmpty"></div>
   </div>
 
@@ -7777,13 +7868,19 @@ function buildDailyProductionReport(dateStr){
         byLayout[k].pass += rmOutQty(ln, p);
         (p.sizesUsed||[]).forEach(s=>{ byLayout[k].sizes[s.size] = (byLayout[k].sizes[s.size]||0) + (Number(s.qty)||0); });
       });
+      // Build 29c: Minor repair is already inside the counted pairs — moved out of 1st Pass
+      // into its own column, so Pass + Minor + Repair is the same Total as before.
+      const mnAlloc = minorAllocFor(ln, dateStr, sh);
+      const mnByLayout = {};
+      (day.hourlyProd||[]).forEach(p=>{ const t = mnAlloc.byEntry[p.id]||0; if(t) mnByLayout[p.layoutNo] = (mnByLayout[p.layoutNo]||0) + t; });
       Object.keys(byLayout).forEach(layoutNo=>{
         const art = findArticle(ln, Number(layoutNo));
         const b = byLayout[layoutNo];
+        const mn = mnByLayout[layoutNo]||0;
         rows.push({ line:ln, shift:sh, layoutNo:Number(layoutNo),
           article: art ? art.articleNo : '—', shopOrder: art && art.shopOrderNo ? art.shopOrderNo : '—',
           project: prepProjectFor(art), originDate:'',
-          pass:b.pass, repair:0, reject:0, dgrade:0, sizes:b.sizes, decisionSizes:{} });
+          pass:b.pass - mn, minor:mn, repair:0, reject:0, dgrade:0, sizes:b.sizes, decisionSizes:{} });
       });
     });
 
@@ -7831,7 +7928,7 @@ function buildDailyProductionReport(dateStr){
     const k = [r.line, r.shift, r.layoutNo, r.originDate].join('\u23d0');
     if(!merged[k]){ merged[k] = r; return; }
     const m = merged[k];
-    m.pass += r.pass; m.repair += r.repair; m.reject += r.reject; m.dgrade += r.dgrade;
+    m.pass += r.pass; m.minor = (m.minor||0) + (r.minor||0); m.repair += r.repair; m.reject += r.reject; m.dgrade += r.dgrade;
     Object.keys(r.sizes).forEach(sz=>{ m.sizes[sz] = (m.sizes[sz]||0) + r.sizes[sz]; });
     Object.keys(r.decisionSizes).forEach(sz=>{
       if(!m.decisionSizes[sz]) m.decisionSizes[sz] = { reject:0, repair:0, dgrade:0 };
@@ -7842,7 +7939,7 @@ function buildDailyProductionReport(dateStr){
   });
 
   return Object.values(merged)
-    .filter(r=> r.pass || r.repair || r.reject || r.dgrade)
+    .filter(r=> r.pass || r.minor || r.repair || r.reject || r.dgrade)
     .sort((a,b)=> ALL_LINES.indexOf(a.line)-ALL_LINES.indexOf(b.line) ||
                   SHIFTS.indexOf(a.shift)-SHIFTS.indexOf(b.shift) ||
                   a.layoutNo-b.layoutNo);
@@ -7885,7 +7982,7 @@ function productionMgmtPanelHTML(){
     <div class="table-scroll">
     <table>
       <thead><tr><th>Line</th><th>Shift</th><th>Article</th><th>Shop Order</th><th>From</th>
-        <th>1st Pass</th><th>Repair</th><th>Reject</th><th>D/G</th><th>Total</th><th style="min-width:210px;white-space:nowrap;">Sizes</th></tr></thead>
+        <th>1st Pass</th><th>Repair Minor</th><th>Repair Major</th><th>Reject</th><th>D/G</th><th>Total</th><th style="min-width:210px;white-space:nowrap;">Sizes</th></tr></thead>
       <tbody id="pmBody"></tbody>
     </table>
     </div>
@@ -9998,7 +10095,7 @@ function attachPanelEvents(key){
         // either before it comes down or afterwards, so the numbers have to be visible on
         // both lists. Input still only ever happens on the normal production entry above —
         // this list just holds what was moved aside.
-        head.innerHTML = `<th>Hour</th><th>1st Time Pass</th><th>Repair</th><th>Reject</th><th>D/G</th><th>Total</th><th>Reason</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th>`;
+        head.innerHTML = `<th>Hour</th><th>1st Time Pass</th><th>Repair Minor</th><th>Repair Major</th><th>Reject</th><th>D/G</th><th>Total</th><th>Reason</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th>`;
         list.slice().reverse().forEach(p=>{
           const layout = findArticle(ln, p.layoutNo);
           const artLabel = layout ? (p.layoutNo+' ('+esc(layout.articleNo)+')') : p.layoutNo;
@@ -10013,7 +10110,7 @@ function attachPanelEvents(key){
             ? `<div class="size-chips">${p.sizesUsed.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>`
             : '—';
           const tr=document.createElement('tr');
-          tr.innerHTML = `<td>${p.hour}</td><td class="num">${p.qty}</td><td class="num">${repairQ}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td>${esc(p.reason)||'—'}</td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-sideline="${p.id}">Delete</button></td>`;
+          tr.innerHTML = `<td>${p.hour}</td><td class="num">${p.qty}</td><td class="num">0</td><td class="num">${repairQ}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td>${esc(p.reason)||'—'}</td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-sideline="${p.id}">Delete</button></td>`;
           prodBody.appendChild(tr);
         });
         prodBody.querySelectorAll('[data-del-sideline]').forEach(b=>{
@@ -10027,7 +10124,7 @@ function attachPanelEvents(key){
       }
       document.getElementById('prodEmpty').style.display = day.hourlyProd.length?'none':'block';
       document.getElementById('prodEmpty').textContent = '';
-      head.innerHTML = `<th>Hour</th><th>1st Time Pass</th><th>Repair</th><th>Reject</th><th>D/G</th><th>Total</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th>`;
+      head.innerHTML = `<th>Hour</th><th>1st Time Pass</th><th>Repair Minor</th><th>Repair Major</th><th>Reject</th><th>D/G</th><th>Total</th><th>Layout</th><th>Break</th><th>Sizes</th><th></th>`;
       // Build 28j: a released repair whose pairs have not been counted back yet (no entry/scan
       // after the release) used to show nowhere on the line. Show it once, on its own hour's row,
       // as a note only — never added to Repair or Total until the pairs are actually counted.
@@ -10067,11 +10164,14 @@ function attachPanelEvents(key){
           }
         });
         const totalQ = outQ + repairQ; // reject/D-grade are recorded, never added to output
+        // Build 29c: Minor repair is already inside the counted pairs — shown in its own column
+        // by taking it out of 1st Time Pass. Pass + Minor + Major = the same Total as before.
+        const mnQ = minorOfEntry(ln, dateStr, currentShift, p);
         const sizesHtml = (p.sizesUsed && p.sizesUsed.length)
           ? `<div class="size-chips">${p.sizesUsed.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>`
           : '—';
         const tr=document.createElement('tr');
-        tr.innerHTML = `<td>${p.hour}</td><td class="num">${outQ}${passNote}${slNote}</td><td class="num">${repairQ}${repNote}${waitNote}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-prod="${p.id}">Delete</button></td>`;
+        tr.innerHTML = `<td>${p.hour}</td><td class="num">${outQ - mnQ}${passNote}${slNote}</td><td class="num">${mnQ}</td><td class="num">${repairQ}${repNote}${waitNote}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-prod="${p.id}">Delete</button></td>`;
         prodBody.appendChild(tr);
       });
     }
@@ -11641,14 +11741,18 @@ function attachPanelEvents(key){
       rows.forEach(r=>{ if(!byLine[r.line]){ byLine[r.line]=[]; lineOrder.push(r.line); } byLine[r.line].push(r); });
       return lineOrder.map(ln=>{
         const lineRows = byLine[ln];
-        const t = lineRows.reduce((s,r)=>({ pass:s.pass+r.pass, repair:s.repair+r.repair,
-          reject:s.reject+r.reject, dgrade:s.dgrade+r.dgrade }), {pass:0,repair:0,reject:0,dgrade:0});
+        const t = lineRows.reduce((s,r)=>({ pass:s.pass+r.pass, minor:s.minor+(r.minor||0), repair:s.repair+r.repair,
+          reject:s.reject+r.reject, dgrade:s.dgrade+r.dgrade }), {pass:0,minor:0,repair:0,reject:0,dgrade:0});
         return { line:ln, rows:lineRows, totals:t };
       });
     }
 
     function renderPm(){
       const d = dateInput.value || currentDate;
+      // Build 29c: that month's minor repairs for every line, once (then redraw).
+      if(minorMissing(PRODUCTION_LINES, [String(d).slice(0,7)])){
+        ensureMinor(PRODUCTION_LINES, [String(d).slice(0,7)], true).then(()=>{ if(document.getElementById('pmBody')) renderPm(); }).catch(()=>{});
+      }
       document.getElementById('pmPreviewDate').textContent = d;
       const rows = buildDailyProductionReport(d);
       document.getElementById('pmEmpty').style.display = rows.length ? 'none' : 'block';
@@ -11657,17 +11761,17 @@ function attachPanelEvents(key){
         html += grp.rows.map(r=>`
           <tr><td>${lineLabel(r.line)}</td><td>${SHIFT_LABELS[r.shift]}</td><td>${esc(r.article)}</td>
             <td>${esc(r.shopOrder)}</td><td class="note">${r.originDate||'—'}</td>
-            <td class="num">${r.pass}</td><td class="num">${r.repair}</td><td class="num">${r.reject}</td>
-            <td class="num">${r.dgrade}</td><td class="num"><b>${r.pass + r.repair}</b></td>
+            <td class="num">${r.pass}</td><td class="num">${r.minor||0}</td><td class="num">${r.repair}</td><td class="num">${r.reject}</td>
+            <td class="num">${r.dgrade}</td><td class="num"><b>${r.pass + (r.minor||0) + r.repair}</b></td>
             <td class="note" style="white-space:nowrap;">${sizeText(r)||'—'}</td></tr>`).join('');
         // A line total only earns its own row once it actually has more than one row to
         // sum \u2014 a single-shift, single-article line repeats itself for no reason otherwise.
         if(grp.rows.length>1){
           const t = grp.totals;
           html += `<tr class="pm-line-total"><td colspan="5"><b>${lineLabel(grp.line)} \u2014 Total</b></td>
-            <td class="num"><b>${t.pass}</b></td><td class="num"><b>${t.repair}</b></td>
+            <td class="num"><b>${t.pass}</b></td><td class="num"><b>${t.minor}</b></td><td class="num"><b>${t.repair}</b></td>
             <td class="num"><b>${t.reject}</b></td><td class="num"><b>${t.dgrade}</b></td>
-            <td class="num"><b>${t.pass + t.repair}</b></td><td></td></tr>`;
+            <td class="num"><b>${t.pass + t.minor + t.repair}</b></td><td></td></tr>`;
         }
       });
       document.getElementById('pmBody').innerHTML = html;
@@ -11691,24 +11795,25 @@ function attachPanelEvents(key){
             Date: d, Line: lineLabel(r.line), Shift: SHIFT_LABELS[r.shift],
             Project: r.project||'', 'Shop Order': r.shopOrder, Article: r.article,
             'Produced On': r.originDate || d,
-            '1st Time Pass': r.pass, Repair: r.repair, Reject: r.reject, 'D-Grade': r.dgrade,
-            Total: r.pass + r.repair,
+            '1st Time Pass': r.pass, 'Repair Minor': r.minor||0, 'Repair Major': r.repair, Reject: r.reject, 'D-Grade': r.dgrade,
+            Total: r.pass + (r.minor||0) + r.repair,
             'Size-wise': sizeText(r)
           }));
           if(grp.rows.length>1){
             const t = grp.totals;
             sheet.push({ Date:'', Line: lineLabel(grp.line)+' — Total', Shift:'', Project:'', 'Shop Order':'', Article:'', 'Produced On':'',
-              '1st Time Pass': t.pass, Repair: t.repair, Reject: t.reject, 'D-Grade': t.dgrade,
-              Total: t.pass + t.repair, 'Size-wise':'' });
+              '1st Time Pass': t.pass, 'Repair Minor': t.minor, 'Repair Major': t.repair, Reject: t.reject, 'D-Grade': t.dgrade,
+              Total: t.pass + t.minor + t.repair, 'Size-wise':'' });
           }
         });
         // A whole-floor totals row, because this is what MIS keys into IFS and a control figure helps.
         sheet.push({ Date:'', Line:'GRAND TOTAL', Shift:'', Project:'', 'Shop Order':'', Article:'', 'Produced On':'',
           '1st Time Pass': rows.reduce((t,r)=>t+r.pass,0),
-          Repair: rows.reduce((t,r)=>t+r.repair,0),
+          'Repair Minor': rows.reduce((t,r)=>t+(r.minor||0),0),
+          'Repair Major': rows.reduce((t,r)=>t+r.repair,0),
           Reject: rows.reduce((t,r)=>t+r.reject,0),
           'D-Grade': rows.reduce((t,r)=>t+r.dgrade,0),
-          Total: rows.reduce((t,r)=>t+r.pass+r.repair,0), 'Size-wise':'' });
+          Total: rows.reduce((t,r)=>t+r.pass+(r.minor||0)+r.repair,0), 'Size-wise':'' });
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet), 'Daily Production');
         XLSX.writeFile(wb, 'Daily_Production_Report_'+d+'.xlsx');
         document.getElementById('pmNote').textContent = 'Exported '+rows.length+' row(s) for '+d+'.';
@@ -12204,7 +12309,14 @@ function attachPanelEvents(key){
   if(key==='export'){
     document.getElementById('excelExportBtn').onclick = ()=>{
       // An exception in here used to abort silently — the button just appeared to do nothing.
-      try{ if(!xlsxReady()) return; doExport(); }
+      try{ if(!xlsxReady()) return;
+        // Build 29c: minor repairs for every month since they started, if not read yet.
+        if(minorMissing(PRODUCTION_LINES, minorMonthsSinceStart())){
+          toast('Loading minor repairs\u2026 press Export again in a moment');
+          ensureMinor(PRODUCTION_LINES, minorMonthsSinceStart(), true).catch(()=>{});
+          return;
+        }
+        doExport(); }
       catch(err){
         console.error('Excel export failed', err);
         toast('Excel export failed: ' + (err && err.message ? err.message : 'unknown error'));
@@ -12595,6 +12707,7 @@ function doExport(){
             'Saved At': fmtSavedAt(p.savedAtEpoch),
             'Saved Under HR Unlock': unlockReasonAt(ln, dt, shift, p.savedAtEpoch),
             'Repair Moved Out': (rmEntry(ln, p) ? rmEntry(ln, p).same + rmEntry(ln, p).cross : ''),
+            'Repair Minor (inside Qty)': minorOfEntry(ln, dt, shift, p) || '',
             'Entry Method': p.entryMethod==='scan' ? 'Scan' : 'Manual',
             'Scan Batches': (p.scanBatches||[]).join(', '),
             'Fast Scan Flag': p.scanFast ? ('Yes (' + p.scanFast + ' in 10 s)') : '',
@@ -12668,6 +12781,25 @@ function doExport(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prodRows), 'Hourly Production');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hoRows), 'Handover');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(qRows), 'Quality');
+  // Build 29c: every Minor repair (fixed on the table). Already inside the counted Qty —
+  // listed for the Repair column and the defect-code analysis, never added to output.
+  const minorRows = [];
+  Object.keys(minorCache).forEach(k=>{
+    (minorCache[k]||[]).forEach(r=>{
+      if(!r || r.deleted) return;
+      const art = findArticle(r.line, r.layoutNo);
+      const day = store.lines[r.line]?.days?.[r.date]?.[r.shift];
+      const hIdx = day ? minorHourIdx(day, r.date, r.savedAtEpoch) : -1;
+      const cp = DEFECT_CODES.find(([c,n])=>`${c} — ${n}`===r.code);
+      minorRows.push({ Line:r.line, Shift:SHIFT_LABELS[r.shift]||r.shift, Date:r.date,
+        Hour: hIdx>=0 ? HOUR_LABELS[hIdx] : '', 'Saved At': fmtSavedAt(r.savedAtEpoch),
+        Layout:r.layoutNo, Article: art ? art.articleNo : '', 'Shop Order': art && art.shopOrderNo ? art.shopOrderNo : '',
+        Code: cp ? cp[0] : '', Defect: cp ? cp[1] : (r.code||''), Qty:r.qty,
+        Sizes: (r.sizes||[]).map(z=>z.size+':'+z.qty).join(', ') });
+    });
+  });
+  minorRows.sort((a,b)=> a.Date<b.Date?-1 : a.Date>b.Date?1 : String(a.Line).localeCompare(String(b.Line)) || String(a['Saved At']).localeCompare(String(b['Saved At'])));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(minorRows.length ? minorRows : [{ Note:'No minor repairs recorded' }]), 'Minor Repairs');
   const rwRows = [];
   PRODUCTION_LINES.forEach(ln=>{
     repairMatchesFor(ln).pending.forEach(w=>{
