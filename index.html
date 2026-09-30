@@ -770,7 +770,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-30b-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-30d-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1089,7 +1089,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-30b-supabase';
+const APP_BUILD = '2026-09-30d-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -2916,7 +2916,8 @@ function getAllUpperReceipts(){
     SHIFTS.forEach(s=>{
       const day = lineObj.days[dt][s];
       if(day && day.upperReceipts && day.upperReceipts.length){
-        day.upperReceipts.forEach(en=> out.push(Object.assign({}, en, { date: dt, shift: s })));
+        // Build 30c: a deleted receive is kept on record (who/why) but never counts anywhere.
+        day.upperReceipts.forEach(en=>{ if(!en.deleted) out.push(Object.assign({}, en, { date: dt, shift: s })); });
       }
     });
   });
@@ -3190,6 +3191,53 @@ function formatDurationHM(ms){
 // Groups all Upper Receive entries by Project+Shop Order+Article, in chronological order,
 // and works out cumulative received / balance-remaining after each entry, plus how long it
 // took (or is taking) to reach the ordered Article Qty — full elapsed hours, not clock time.
+// Build 30c: delete a Preparation receive (e.g. the same receive entered twice). Reason
+// required; the entry stays in the day record marked deleted, so the audit trail survives.
+async function deleteUpperReceipt(id, reason){
+  const L = store.lines['Preparation']; if(!L || !L.days) return { ok:false, error:'Preparation not loaded' };
+  for(const dt of Object.keys(L.days)){
+    for(const sh of Object.keys(L.days[dt]||{})){
+      const d = L.days[dt][sh]; const en = d && (d.upperReceipts||[]).find(x=>x.id===id);
+      if(!en) continue;
+      if(en.deleted) return { ok:false, error:'Already deleted' };
+      en.deleted = true; en.deleteReason = reason; en.deletedAtEpoch = savedNowEpoch();
+      en.deletedBy = (session && (session.username||session.role)) || '';
+      markDay('Preparation', dt, sh);
+      await saveStore();
+      return { ok:true, date:dt, shift:sh, qty:Number(en.totalQty)||0 };
+    }
+  }
+  return { ok:false, error:'Receive not found' };
+}
+// Reason box + confirm, shared by the Receiving Log and the Article Progress history.
+async function askDeleteUpperReceipt(en){
+  const reason = await new Promise(resolve=>{
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(20,20,20,.6);display:flex;align-items:center;justify-content:center;padding:18px;';
+    wrap.innerHTML = `<div style="max-width:420px;width:100%;background:#fff;border-radius:16px;border:3px solid var(--danger);padding:18px;font-family:system-ui,sans-serif;">
+      <div style="font-size:18px;font-weight:800;color:var(--danger);margin-bottom:6px;">Delete this receive?</div>
+      <div style="font-size:13.5px;line-height:1.5;margin-bottom:10px;"><b>${esc(en.article)}</b> \u00b7 ${esc(en.shopOrder)}<br>${esc(en.date||'')} ${esc(en.time||'')} \u00b7 <b>${Number(en.totalQty)||0} pairs</b><br>
+        <span style="color:var(--steel);">Received and size balance go down by this amount. The entry is kept on record as deleted.</span></div>
+      <input type="text" class="udr-reason" placeholder="Reason (at least 10 characters) \u2014 e.g. same receive entered twice" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;">
+      <div class="udr-count" style="font-size:12px;color:var(--steel);margin-bottom:10px;">0 / 10 characters</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><button class="udr-ok" style="padding:12px;border:none;border-radius:10px;background:var(--danger);color:#fff;font-weight:800;">Delete</button><button class="udr-no" style="padding:12px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font-weight:700;">Cancel</button></div></div>`;
+    document.body.appendChild(wrap);
+    const inp = wrap.querySelector('.udr-reason'), cnt = wrap.querySelector('.udr-count');
+    inp.addEventListener('input', ()=>{ const n = inp.value.trim().length; cnt.textContent = n + ' / 10 characters'; cnt.style.color = n>=10 ? 'var(--success)' : ''; });
+    wrap.querySelector('.udr-no').onclick = ()=>{ wrap.remove(); resolve(null); };
+    wrap.querySelector('.udr-ok').onclick = ()=>{
+      const r = inp.value.trim();
+      if(r.length < 10){ cnt.style.color = 'var(--danger)'; inp.focus(); return; }
+      wrap.remove(); resolve(r);
+    };
+    inp.focus();
+  });
+  if(!reason) return false;
+  const res = await deleteUpperReceipt(en.id, reason);
+  if(!res.ok){ toast(res.error); return false; }
+  toast('\u2714 Receive deleted \u2014 ' + res.qty + ' pairs removed from received', 'ok');
+  return true;
+}
 function computeUpperReceiptProgress(){
   const all = getAllUpperReceipts();
   const groups = {};
@@ -3285,6 +3333,7 @@ function prodEditSummary(e){
   ((e.after&&e.after.sizes)||[]).forEach(z=>{ a[z.size] = z.qty; });
   const keys = Array.from(new Set(Object.keys(b).concat(Object.keys(a)))).sort((x,y)=>Number(x)-Number(y));
   const parts = keys.filter(k=>(b[k]||0)!==(a[k]||0)).map(k=>k+':'+(b[k]||0)+'→'+(a[k]||0));
+  if(e.before && e.after && e.before.breakMin!==undefined && e.before.breakMin!==e.after.breakMin) parts.push('break '+e.before.breakMin+'→'+e.after.breakMin+' min');
   return parts.length ? parts.join(', ') : ('qty '+((e.before&&e.before.qty)||0)+'→'+((e.after&&e.after.qty)||0));
 }
 function computePrepSizeBalance(articleNo, shopOrderNo){
@@ -8991,6 +9040,18 @@ function attachPanelEvents(key){
         });
         if(totalQty<=0){ urToast('⚠ Enter Qty for at least one size'); return; }
 
+        // Build 30c: receiving more than the Order Qty asks once \u2014 it can be legitimate, so it
+        // never blocks, but a double entry is caught here before it lands.
+        {
+          const g = computeUpperReceiptProgress().groups[project+'\u23d0'+shopOrder+'\u23d0'+article];
+          const prior = g ? g.totalReceived : 0;
+          if(articleQty>0 && prior + totalQty > articleQty){
+            const ok = await bigConfirm('More than the Order Qty',
+              `<b>${esc(article)}</b> \u00b7 ${esc(shopOrder)}<br>Order Qty: <b>${articleQty}</b><br>Already received: <b>${prior}</b><br>This receive: <b>${totalQty}</b><br>Total would be <b>${prior+totalQty}</b> \u2014 <b style="color:var(--danger);">${prior+totalQty-articleQty} over</b>.<br><br>Is this receive correct (not entered twice)?`,
+              'Save anyway', 'Go back');
+            if(!ok) return;
+          }
+        }
         const liveD = liveDay(ln, dateStr, currentShift);
         liveD.upperReceipts.push({ id: uid(), date: dateStr, project, shopOrder, article, articleQty, time, sizes, totalQty, freezingMonth, savedAtEpoch: savedNowEpoch() });
         markDay(ln, dateStr, currentShift);
@@ -9008,7 +9069,7 @@ function attachPanelEvents(key){
         urLogShiftSel.onchange = ()=>{ currentShift = urLogShiftSel.value; buildPanel('entry'); };
         const body = document.getElementById('urLogBody');
         const empty = document.getElementById('urLogEmpty');
-        const list = dLive.upperReceipts || [];
+        const list = (dLive.upperReceipts || []).filter(en=>!en.deleted);
         empty.style.display = list.length ? 'none' : 'block';
         body.innerHTML = '';
         const { byId } = computeUpperReceiptProgress();
@@ -9024,9 +9085,9 @@ function attachPanelEvents(key){
         });
         document.querySelectorAll('[data-del-ur]').forEach(b=>{
           b.onclick = async ()=>{
-            dLive.upperReceipts = dLive.upperReceipts.filter(en=>en.id!==b.dataset.delUr);
-            markDay(ln, dateStr, currentShift);
-            await saveStore(); buildPanel('entry'); renderAll();
+            const en = (dLive.upperReceipts||[]).find(x=>x.id===b.dataset.delUr);
+            if(!en) return;
+            if(await askDeleteUpperReceipt(Object.assign({ date: dateStr }, en))){ buildPanel('entry'); renderAll(); }
           };
         });
       }
@@ -9060,6 +9121,7 @@ function attachPanelEvents(key){
               <span>${en.date}, ${en.time}</span>
               <span style="color:var(--steel);">+${en.totalQty}</span>
               <span style="color:var(--steel);min-width:70px;text-align:right;">\u2192 ${en.cumulativeReceived}${en.balanceAfter===0?' \u2713':''}</span>
+              <button class="btn-ghost" data-ap-del="${esc(en.id)}" style="padding:0 0 0 10px;color:var(--danger);font-size:12px;" title="Delete this receive">Delete</button>
             </div>`).join('');
           return `<div class="ap-row" data-key="${keyAttr}" style="background:#FBFCFB;border:1px solid ${isOpen?'#BFDBF3':'var(--border)'};border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">            <div style="display:flex;justify-content:space-between;align-items:center;">
               <div>
@@ -9072,6 +9134,14 @@ function attachPanelEvents(key){
           </div>`;
         }).join('');
 
+        list.querySelectorAll('[data-ap-del]').forEach(btn=>{
+          btn.onclick = async (ev)=>{
+            ev.stopPropagation();
+            const en = getAllUpperReceipts().find(x=>x.id===btn.dataset.apDel);
+            if(!en) return;
+            if(await askDeleteUpperReceipt(en)){ buildPanel('entry'); renderAll(); }
+          };
+        });
         list.querySelectorAll('.ap-row').forEach(row=>{
           row.onclick = ()=>{
             const k = row.dataset.key;
@@ -9601,13 +9671,89 @@ function attachPanelEvents(key){
       document.getElementById('breakListWrap').innerHTML = brks.map(b=>{
         const s = timeToMin(b.startTime), e = timeToMin(b.endTime);
         const durTxt = (s!==null && e!==null && e>s) ? ` (${e-s} min)` : '';
-        return `<div class="break-chip"><span>${fmtTime12(b.startTime)} \u2013 ${fmtTime12(b.endTime)}${durTxt}</span>${brkEditable(b) ? `<span class="x" data-brk-id="${b.id}">\u2715</span>` : ''}</div>`;
+        const edN = (day.breakEdits||[]).filter(x=>x.breakId===b.id).length;
+        return `<div class="break-chip" data-chip-id="${b.id}"><span>${fmtTime12(b.startTime)} \u2013 ${fmtTime12(b.endTime)}${durTxt}${edN ? ` <span style="color:#92400E;font-size:11px;font-weight:700;">\u270e edited${edN>1?' '+edN+'\u00d7':''}</span>` : ''}</span>${brkEditable(b) ? `<span class="x" data-brk-id="${b.id}">\u2715</span>` : `<span class="x" data-brk-edit="${b.id}" style="color:#92400E;" title="Edit this break (reason required)">\u270e Edit</span>`}</div>`;
       }).join('') || '';
       document.getElementById('breakLockNote').textContent = brkSafeFrom!==null
         ? 'Hours up to ' + fmtTime12(clockMinToTime(brkSafeFrom)) + ' already have entries \u2014 a break can be added or removed only from ' + fmtTime12(clockMinToTime(brkSafeFrom)) + ' onward.'
         : '';
       document.getElementById('addBreakBtn').disabled = false;
-      document.querySelectorAll('#breakListWrap .x').forEach(el=>{
+      // Build 30d: a break inside hours that already have entries can be corrected, with a reason.
+      // The entries keep their hour (1st, 2nd ...); only the clock window of the hour the break
+      // falls in, and every hour after it, moves to the new break time.
+      document.querySelectorAll('#breakListWrap [data-brk-edit]').forEach(el=>{
+        el.onclick = ()=>{
+          const chip = el.closest('.break-chip');
+          const nx = chip.nextElementSibling;
+          if(nx && nx.classList.contains('brk-edit-box')){ nx.remove(); return; }
+          document.querySelectorAll('.brk-edit-box').forEach(x=>x.remove());
+          const b0 = (day.breaks||[]).find(x=>x.id===el.dataset.brkEdit); if(!b0) return;
+          const box = document.createElement('div');
+          box.className = 'brk-edit-box';
+          box.style.cssText = 'border:1.5px solid #F5D9A8;background:#FFFBEB;border-radius:10px;padding:10px;margin-top:6px;';
+          box.innerHTML = `<div style="font-weight:800;color:#92400E;margin-bottom:6px;">\u270e Edit break ${fmtTime12(b0.startTime)} \u2013 ${fmtTime12(b0.endTime)}</div>
+            <div class="row2"><div class="field"><label>Start Time</label><input type="time" class="be-s" value="${b0.startTime}"></div><div class="field"><label>End Time</label><input type="time" class="be-e" value="${b0.endTime}"></div></div>
+            <input type="text" class="be-reason" placeholder="Reason (at least 10 characters) \u2014 e.g. break was 30 min, not 15" style="width:100%;box-sizing:border-box;margin:6px 0;">
+            <div class="row2"><button class="btn-primary be-ok" type="button">Save break</button><button class="btn-ghost be-no" type="button">Cancel</button></div>
+            <div class="note be-count" style="margin-top:4px;">0 / 10 characters</div>`;
+          chip.after(box);
+          const rin = box.querySelector('.be-reason'), cnt = box.querySelector('.be-count');
+          rin.addEventListener('input', ()=>{ const n = rin.value.trim().length; cnt.textContent = n + ' / 10 characters'; cnt.style.color = n>=10 ? 'var(--success)' : ''; });
+          box.querySelector('.be-no').onclick = ()=> box.remove();
+          box.querySelector('.be-ok').onclick = async ()=>{
+            const ns = box.querySelector('.be-s').value, ne = box.querySelector('.be-e').value;
+            const reason = rin.value.trim();
+            if(!ns || !ne){ toast('\u26a0 Enter both Start and End time for the break.'); return; }
+            if(timeToMin(ne) <= timeToMin(ns)){ toast('\u26a0 Break End time must be after Start time.'); return; }
+            if(ns===b0.startTime && ne===b0.endTime){ toast('Nothing changed'); return; }
+            if(reason.length < 10){ toast('\u26a0 Write the reason (at least 10 characters)'); rin.focus(); return; }
+            const d2 = liveDay(ln, dateStr, currentShift);
+            const others = (d2.breaks||[]).filter(x=>x.id!==b0.id);
+            const prob = breakTimeProblem(d2.shiftStart, d2.shiftEnd, ns, ne) || shiftTimeProblem(d2.shiftStart, d2.shiftEnd, others.concat([{startTime:ns, endTime:ne}]));
+            if(prob){ toast(prob); return; }
+            if(!(await confirmOddBreak(ns, ne))) return;
+            // Which hour does the change start from? The earlier of the old and new break.
+            const firstClock = Math.min(breakStartOnClock(d2, b0.startTime), breakStartOnClock(d2, ns));
+            let fromIdx = 0; const labels = shiftHourLabels(d2);
+            for(let i=0;i<labels.length;i++){ if(firstClock < hourSlotBounds(d2, i).end){ fromIdx = i; break; } }
+            const ok = await bigConfirm('Change a break inside entered hours?',
+              `${fmtTime12(b0.startTime)} \u2013 ${fmtTime12(b0.endTime)} \u2192 <b>${fmtTime12(ns)} \u2013 ${fmtTime12(ne)}</b><br>The clock time of <b>${esc(HOUR_LABELS[fromIdx])}</b> and every hour after it moves to the new break. Entries stay in their own hour; working time and efficiency are recalculated.`,
+              'Save break', 'Go back');
+            if(!ok) return;
+            const bx = (d2.breaks||[]).find(x=>x.id===b0.id);
+            if(!bx){ toast('Break not found \u2014 refresh and try again'); return; }
+            // The minutes actually deducted come from each entry's Break (min). Entries of the break's
+            // own hour that carried the OLD break length follow the new length (logged on the entry).
+            const hourOf = (st)=>{ const c = breakStartOnClock(d2, st); for(let i=0;i<labels.length;i++){ if(c < hourSlotBounds(d2, i).end) return i; } return labels.length-1; };
+            const oldIdx = hourOf(b0.startTime);
+            const oldDur = timeToMin(b0.endTime) - timeToMin(b0.startTime);
+            const newDur = timeToMin(ne) - timeToMin(ns);
+            d2.breakEdits = Array.isArray(d2.breakEdits) ? d2.breakEdits : [];
+            d2.breakEdits.push({ breakId: bx.id, atEpoch: savedNowEpoch(), by: (session && (session.username||session.role)) || '', reason,
+              before: { startTime: bx.startTime, endTime: bx.endTime }, after: { startTime: ns, endTime: ne } });
+            bx.startTime = ns; bx.endTime = ne;
+            let bmFixed = 0;
+            if(hourOf(ns)===oldIdx && oldDur!==newDur){
+              (d2.hourlyProd||[]).concat(d2.sideLine||[]).forEach(pp=>{
+                if(String(pp.hour).trim()===HOUR_LABELS[oldIdx] && (Number(pp.breakMin)||0)===oldDur){
+                  pp.edits = Array.isArray(pp.edits) ? pp.edits : [];
+                  pp.edits.push({ atEpoch: savedNowEpoch(), by: (session && (session.username||session.role)) || '', reason: 'Break time edited: ' + reason,
+                    before: { qty: Number(pp.qty)||0, sizes: (pp.sizesUsed||[]).map(z=>({size:z.size, qty:z.qty})), breakMin: oldDur },
+                    after:  { qty: Number(pp.qty)||0, sizes: (pp.sizesUsed||[]).map(z=>({size:z.size, qty:z.qty})), breakMin: newDur } });
+                  pp.breakMin = newDur; bmFixed++;
+                }
+              });
+            }
+            persistShiftBaseFromInputs(d2);
+            markDay(ln, dateStr, currentShift);
+            await saveStore();
+            buildPanel('entry'); renderAll();
+            toast('\u2714 Break changed \u2014 hours from ' + HOUR_LABELS[fromIdx] + ' updated' + (bmFixed ? ' \u00b7 Break (min) of ' + bmFixed + ' entr' + (bmFixed===1?'y':'ies') + ' set to ' + newDur : ''), 'ok');
+          };
+          rin.focus();
+        };
+      });
+      document.querySelectorAll('#breakListWrap .x[data-brk-id]').forEach(el=>{
         el.onclick = async ()=>{
           const d2 = liveDay(ln, dateStr, currentShift);
           const bx = (d2.breaks||[]).find(b=>b.id===el.dataset.brkId);
@@ -12958,7 +13104,9 @@ function doExport(){
         supRows.push({Line:ln, Shift:shiftLabel, Date:dt, 'Shift Start':day.shiftStart, 'Shift End':day.shiftEnd,
           'Base Direct M/P':day.baseDirectMP, 'Indirect M/P':day.indirectMP,
           'Supervisor Name':day.supervisorName, 'Supervisor ID':day.supervisorId, 'Supervisor Mobile':day.supervisorMobile,
-          'Line Leader Name':day.lineLeaderName, 'Line Leader ID':day.lineLeaderId, 'Line Leader Mobile':day.lineLeaderMobile});
+          'Line Leader Name':day.lineLeaderName, 'Line Leader ID':day.lineLeaderId, 'Line Leader Mobile':day.lineLeaderMobile,
+          'Breaks': (day.breaks||[]).map(b=>b.startTime+'-'+b.endTime).join(', '),
+          'Break Edits': (day.breakEdits||[]).map(e=>fmtSavedAt(e.atEpoch)+' '+(e.by||'')+': '+e.before.startTime+'-'+e.before.endTime+' \u2192 '+e.after.startTime+'-'+e.after.endTime+' \u2014 '+e.reason).join(' | ')});
         // Older/partial day records may predate one of these lists, and a missing array
         // used to throw here and silently abort the whole export mid-way.
         // "Saved At" is the real clock time the entry was recorded, next to the Hour it was
