@@ -773,7 +773,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-03a-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-03b-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1092,7 +1092,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-03a-supabase';
+const APP_BUILD = '2026-10-03b-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -2083,12 +2083,37 @@ function editQualityFlag(flagId, qty, reason, sizes){
   flag.reason = reason||'';
   return { ok:true, flag };
 }
-function deleteQualityFlag(flagId){
+// Build 31b: a not-yet-decided flag is deleted only with a reason, and kept on record as
+// status 'deleted' (who / when / why) instead of vanishing. Nothing on the line changes — an
+// undecided flag never touched the hourly record.
+function deleteQualityFlag(flagId, reason){
   const flag = (store.qualityFlags||[]).find(f=>f.id===flagId);
   if(!flag || flag.status!=='pending') return { ok:false, error:'Flag not found or already resolved' };
-  store.qualityFlags = store.qualityFlags.filter(f=>f.id!==flagId);
-  deletedFlagIds.add(flagId);
-  return { ok:true };
+  reason = String(reason||'').trim();
+  if(reason.length < 10) return { ok:false, error:'Write the reason (at least 10 characters)' };
+  flag.status = 'deleted'; flag.deleteReason = reason; flag.deletedAtEpoch = Date.now();
+  flag.deletedBy = (session && (session.username||session.role)) || '';
+  flag.deletedDecision = null;
+  return { ok:true, removedDecision:false };
+}
+// Reason-required confirm used by Line QC deletes (minor records).
+function askReasonModal(title, bodyHtml, okText){
+  return new Promise(resolve=>{
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(20,20,20,.6);display:flex;align-items:center;justify-content:center;padding:18px;';
+    wrap.innerHTML = `<div style="max-width:420px;width:100%;background:#fff;border-radius:16px;border:3px solid var(--danger);padding:18px;font-family:system-ui,sans-serif;">
+      <div style="font-size:18px;font-weight:800;color:var(--danger);margin-bottom:6px;">${title}</div>
+      <div style="font-size:13.5px;line-height:1.5;margin-bottom:10px;">${bodyHtml}</div>
+      <input type="text" class="arm-reason" placeholder="Reason (at least 10 characters)" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;">
+      <div class="arm-count" style="font-size:12px;color:var(--steel);margin-bottom:10px;">0 / 10 characters</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><button class="arm-ok" style="padding:12px;border:none;border-radius:10px;background:var(--danger);color:#fff;font-weight:800;">${okText||'Delete'}</button><button class="arm-no" style="padding:12px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font-weight:700;">Cancel</button></div></div>`;
+    document.body.appendChild(wrap);
+    const inp = wrap.querySelector('.arm-reason'), cnt = wrap.querySelector('.arm-count');
+    inp.addEventListener('input', ()=>{ const n = inp.value.trim().length; cnt.textContent = n + ' / 10 characters'; cnt.style.color = n>=10 ? 'var(--success)' : ''; });
+    wrap.querySelector('.arm-no').onclick = ()=>{ wrap.remove(); resolve(null); };
+    wrap.querySelector('.arm-ok').onclick = ()=>{ const r = inp.value.trim(); if(r.length<10){ cnt.style.color='var(--danger)'; inp.focus(); return; } wrap.remove(); resolve(r); };
+    inp.focus();
+  });
 }
 
 // Build 28l: Line QC may delete a flag AFTER Quality Management decided it (to clear test data or a
@@ -7903,7 +7928,7 @@ function qualityPanelHTML(){
       <div class="empty" id="qcMinorEmpty">No minor repairs yet this shift.</div>
       <div class="qc-majwait-head">&#9888;&#65039; Major &mdash; status from QC Mgmt <span>(this line &middot; this shift)</span></div>
     </div>
-    <div class="table-scroll"><table class="qc-log" id="qcMajorTable"><thead><tr><th>Hour</th><th class="qc-art">Article</th><th>Code</th><th class="qc-qtycol">Qty</th><th class="qc-szcol">Sizes</th><th class="qc-stcol">Status</th><th class="qc-major-only qc-actcol"></th></tr></thead><tbody id="qcBody"></tbody></table></div>
+    <div class="table-scroll"><table class="qc-log" id="qcMajorTable"><thead><tr><th>Hour</th><th class="qc-art">Article</th><th>Code</th><th class="qc-qtycol">Qty</th><th class="qc-szcol">Sizes</th><th class="qc-stcol">Status</th><th class="qc-actcol"></th></tr></thead><tbody id="qcBody"></tbody></table></div>
     <div class="empty" id="qcEmpty">No major entries this shift.</div>
   </div>
   `;
@@ -11455,13 +11480,17 @@ function attachPanelEvents(key){
       mBody.querySelectorAll('[data-del-minor]').forEach(b=>b.onclick = async ()=>{
         if(qcLockedNow()) return;
         const id = b.dataset.delMinor;
-        const ok = await bigConfirm('Delete this minor repair?', 'It is only a record — output and efficiency do not change.', 'Delete', 'Keep');
-        if(!ok) return;
+        const rec0 = minorFor(selectedLine, dateStr, currentShift).find(x=>x.id===id);
+        const reason = await askReasonModal('Delete this minor repair?',
+          (rec0 ? `<b>${rec0.qty} pairs</b> · ${esc(codeParts(rec0.code).code)} ${esc(codeParts(rec0.code).name)}<br>` : '') +
+          '<span style="color:var(--steel);">These pairs go back from Repair Minor to 1st Time Pass on the line. Total output and efficiency do not change.</span>', 'Delete');
+        if(!reason) return;
         b.disabled = true;
         const res = await minorMutate(selectedLine, dateStr, arr=>{
           const r = arr.find(x=>x && x.id===id);
           if(!r) return { ok:false, error:'Already removed' };
-          r.deleted = true; r.deletedAtEpoch = Date.now();
+          r.deleted = true; r.deletedAtEpoch = Date.now(); r.deleteReason = reason;
+          r.deletedBy = (session && (session.username||session.role)) || '';
         });
         if(!res.ok){ toast(res.error); b.disabled = false; return; }
         renderQcLogs(); toast('✔ Deleted', 'ok');
@@ -11476,10 +11505,10 @@ function attachPanelEvents(key){
         const layout = findArticle(selectedLine, f.layoutNo);
         const cp = codeParts(f.reason);
         const actionsHtml = f.status==='pending'
-          ? `<button class="btn-ghost" data-edit-q="${f.id}">Edit</button><button class="btn-ghost" data-del-q="${f.id}">Delete</button>`
+          ? `<button class="btn-ghost" data-edit-q="${f.id}">Edit</button><button class="btn-ghost" data-del-dq="${f.id}">Delete</button>`
           : `<button class="btn-ghost" data-del-dq="${f.id}" title="Delete this decided flag (reason required)">Delete</button>`;
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${esc(String(f.hour).replace(/ Hour$/,''))}</td><td class="qc-art">${layout?esc(layout.articleNo):'—'}</td><td>${esc(cp.code)} ${esc(cp.name)}<div class="qc-sz-inline">${sizeChipsHtml(f.sizes)}</div></td><td class="num"><b>${f.qty}</b></td><td class="qc-szcol">${sizeChipsHtml(f.sizes)}</td><td>${majorStatusHtml(f)}</td><td class="qc-major-only">${actionsHtml}</td>`;
+        tr.innerHTML = `<td>${esc(String(f.hour).replace(/ Hour$/,''))}</td><td class="qc-art">${layout?esc(layout.articleNo):'—'}</td><td>${esc(cp.code)} ${esc(cp.name)}<div class="qc-sz-inline">${sizeChipsHtml(f.sizes)}</div></td><td class="num"><b>${f.qty}</b></td><td class="qc-szcol">${sizeChipsHtml(f.sizes)}</td><td>${majorStatusHtml(f)}</td><td class="qc-actcol" style="white-space:nowrap;">${actionsHtml}</td>`;
         body.appendChild(tr);
       });
       wireMajorActions(myFlags);
@@ -11544,6 +11573,7 @@ function attachPanelEvents(key){
       if(qcLockedNow()) return;
       const f = myFlags.find(fl=>fl.id===b.dataset.editQ);
       if(!f) return;
+      if(qcMode!=='major') setQcMode('major');
       editingFlagId = f.id;
       qcHourSel.value = f.hour; qcSel.value = f.layoutNo;
       computeCurrentTallySizes();
@@ -11572,7 +11602,7 @@ function attachPanelEvents(key){
       const tr = document.createElement('tr');
       tr.className = 'dq-reason-row';
       tr.innerHTML = `<td colspan="7" style="background:#FFF5F5;">
-        <div style="font-weight:700;color:var(--danger);margin-bottom:6px;">Delete this decided flag? Its Repair / Reject / D-grade will be removed from the hourly production.</div>
+        <div style="font-weight:700;color:var(--danger);margin-bottom:6px;">${(((store.qualityFlags||[]).find(f=>f.id===b.dataset.delDq)||{}).status==='pending') ? 'Delete this flag? It has not been decided yet, so nothing changes on the line.' : 'Delete this decided flag? Its Repair / Reject / D-grade will be removed from the hourly production, and the line\u2019s output and efficiency will be recalculated.'}</div>
         <input type="text" class="dq-reason" placeholder="Reason (at least 10 characters)" style="width:100%;box-sizing:border-box;margin-bottom:6px;">
         <div class="row2"><button class="btn-primary dq-ok" style="background:var(--danger);">Delete</button><button class="btn-ghost dq-cancel">Cancel</button></div>
         <div class="note dq-count" style="margin-top:4px;">0 / 10 characters</div></td>`;
@@ -11589,10 +11619,10 @@ function attachPanelEvents(key){
         // Read this line's latest record first, so the supervisor's newest entries on that day are
         // not overwritten by an older copy held on this device.
         if(f0){ try{ await loadStore([f0.line], { skipHr:true, skipMeta:true }); }catch(e){} }
-        const r = deleteDecidedQualityFlag(fid, reason);
+        const r = (f0 && f0.status==='pending') ? deleteQualityFlag(fid, reason) : deleteDecidedQualityFlag(fid, reason);
         if(!r.ok){ toast(r.error); return; }
         await saveStore(); buildPanel('quality'); renderAll();
-        toast(r.removedDecision ? '\u2714 Deleted \u2014 removed from hourly production' : '\u2714 Deleted (no matching decision was found in the hourly record)', 'ok');
+        toast((f0 && f0.status==='deleted' && !f0.deletedDecision) ? '\u2714 Flag deleted' : r.removedDecision ? '\u2714 Deleted \u2014 removed from hourly production' : '\u2714 Deleted (no matching decision was found in the hourly record)', 'ok');
       };
     });
     } // wireMajorActions
