@@ -465,6 +465,9 @@
   .tally-inc.active{background:var(--accent-dark);color:#fff;}
   .tally-dec{border:none;border-top:1.5px solid var(--border);background:#E4E8E6;font-size:15px;font-weight:800;padding:5px 0;color:var(--ink);width:100%;}
   .tally-dec:disabled{background:#F3F5F4;color:var(--border);}
+  /* Build 31a: Line QC locked (view only) */
+  #qcCard.qc-locked #qcTallyRows, #qcCard.qc-locked #qcAddCategoryBtn, #qcCard.qc-locked #qcAddBtn,
+  #qcCard.qc-locked .row3 select, #qcCard.qc-locked table.qc-log button{pointer-events:none;opacity:.45;}
   /* Build 29b: QC Minor / Major */
   .qc-seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
   .qc-seg button{text-align:left;border:2px solid var(--border);border-radius:14px;background:var(--panel);padding:10px 12px;cursor:pointer;font:inherit;}
@@ -770,7 +773,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-09-30d-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-03a-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1089,7 +1092,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-09-30d-supabase';
+const APP_BUILD = '2026-10-03a-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -4529,10 +4532,14 @@ function hasShiftEnded(lineName, dateStr, shift){
 
 // HR backdate grants (build 21h) replace the old open-everything window: each grant opens exactly
 // one Line + Date + Shift, for both that line's supervisor and IE, until it expires or HR closes it.
-function activeUnlockFor(lineName, dateStr, shift){
+// Build 31a: a grant names who it opens (roles: supervisor / ie / quality). Grants saved before
+// this build carry no list and keep opening the line's supervisor, IE and Line QC alike.
+const UNLOCK_ROLES = [['supervisor','Supervisor'],['ie','IE'],['quality','Line QC']];
+function unlockRolesOf(u){ return (u && Array.isArray(u.roles) && u.roles.length) ? u.roles : UNLOCK_ROLES.map(r=>r[0]); }
+function activeUnlockFor(lineName, dateStr, shift, role){
   const now = Date.now();
   return (store.unlocks||[]).find(u=>u.line===lineName && u.date===dateStr && u.shift===shift &&
-    !u.closedAt && u.expiresAt && now < u.expiresAt) || null;
+    !u.closedAt && u.expiresAt && now < u.expiresAt && (!role || unlockRolesOf(u).includes(role))) || null;
 }
 // For audit exports: the reason of an HR grant that was open for this Line/Date/Shift at the
 // moment an entry was saved, or '' if none was.
@@ -4542,8 +4549,8 @@ function unlockReasonAt(lineName, dateStr, shift, epoch){
     epoch>=x.openedAt && epoch < (x.closedAt || x.expiresAt));
   return u ? u.reason : '';
 }
-function isEntryLocked(dateStr, day, lineName, shift){
-  if(lineName && shift && activeUnlockFor(lineName, dateStr, shift)) return false;
+function isEntryLocked(dateStr, day, lineName, shift, role){
+  if(lineName && shift && activeUnlockFor(lineName, dateStr, shift, role||'supervisor')) return false;
   if(!day.shiftEnd){
     // No Shift End filled in yet — only allow starting a fresh entry for today; a
     // past date with nothing filled in is treated as locked (prevents fresh backdating).
@@ -8010,7 +8017,7 @@ function hrPanelHTML(){
 
   <div class="card" id="unlockCard">
     <h2><span class="dot"></span>Backdate Entry Open</h2>
-    <div class="note" style="font-size:12.5px;margin-bottom:10px;">Opens ONE Line + Date + Shift only &mdash; for that line's supervisor and IE. Every opening is kept permanently in the Excel "Backdate Unlocks" sheet.</div>
+    <div class="note" style="font-size:12.5px;margin-bottom:10px;">Opens ONE Line + Date + Shift only &mdash; for the people ticked below (that line's Supervisor, IE and/or Line QC). Every opening is kept permanently in the Excel "Backdate Unlocks" sheet.</div>
     <div class="row2">
       <div class="field"><label>Open for (hours)</label><input id="unlockHours" type="number" min="1" value="1"></div>
       <div class="field"><label>Line</label><select id="unlockLine"></select></div>
@@ -8019,6 +8026,12 @@ function hrPanelHTML(){
       <div class="field"><label>Date</label><input id="unlockDate" type="date"></div>
       <div class="field"><label>Shift</label><select id="unlockShift"><option value="">Select&hellip;</option><option value="A">A Shift</option><option value="B">B Shift</option><option value="G">G (General) Shift</option></select></div>
     </div>
+    <div class="field"><label>Open for</label>
+      <div id="unlockRoles" style="display:flex;gap:18px;flex-wrap:wrap;padding:6px 2px;font-size:14px;">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" value="supervisor" checked> Supervisor</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" value="ie" checked> IE</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" value="quality" checked> Line QC</label>
+      </div></div>
     <div class="field"><label>Reason (required, at least 10 characters)</label><input id="unlockReason" type="text" maxlength="200" placeholder="Why this line/shift needs a backdated entry"></div>
     <button class="btn-primary" id="unlockOpenBtn" style="width:100%;margin-top:4px;">Open Entry</button>
     <div style="font-size:11.5px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 4px;">Currently open</div>
@@ -10923,7 +10936,7 @@ function attachPanelEvents(key){
     // before that deadline is a normal carry-forward save (never back-dated into earlier shifts).
     function ieLockState(){
       const lockedNormally = isIeEntryLocked(currentDate);
-      const grant = activeUnlockFor(selectedLine, currentDate, currentShift);
+      const grant = activeUnlockFor(selectedLine, currentDate, currentShift, 'ie');
       return { lockedNormally, grant, locked: lockedNormally && !grant };
     }
     (function showIeLock(){
@@ -11341,6 +11354,32 @@ function attachPanelEvents(key){
     if(window._qcWarnTimer) clearInterval(window._qcWarnTimer);
     window._qcWarnTimer = setInterval(()=>{ if(document.getElementById('qcShiftEndWarn')) refreshShiftEndWarn(); else { clearInterval(window._qcWarnTimer); window._qcWarnTimer = null; } }, 30000);
 
+    // Build 31a: Line QC locks like the line itself — Shift End + 1 hour of THIS line's date+shift
+    // (A, B and G alike). An HR opening ticked for "Line QC" reopens it for its window.
+    function qcLockState(){
+      const d0 = ensureLineDay(selectedLine, dateStr, currentShift);
+      const locked = isEntryLocked(dateStr, d0, selectedLine, currentShift, 'quality');
+      const grant = activeUnlockFor(selectedLine, dateStr, currentShift, 'quality');
+      return { locked, grant, normallyLocked: !!grant && isEntryLocked(dateStr, d0, null, null) };
+    }
+    function qcLockedNow(){
+      if(!qcLockState().locked) return false;
+      toast('\ud83d\udd12 Locked \u2014 Shift End + 1 hour has passed for this date/shift. Ask HR to open it for Line QC.');
+      return true;
+    }
+    function applyQcLockUI(){
+      const st = qcLockState();
+      let el = document.getElementById('qcLockNote');
+      if(!el){ el = document.createElement('div'); el.id = 'qcLockNote'; const seg = qcCard.querySelector('.qc-seg'); seg.after(el); }
+      qcCard.classList.toggle('qc-locked', st.locked);
+      if(st.locked){
+        el.style.cssText = 'border:2px solid var(--danger);background:#FFF5F5;border-radius:12px;padding:10px 12px;margin-bottom:12px;color:#7F1D1D;font-weight:700;font-size:13.5px;line-height:1.45;';
+        el.innerHTML = `\ud83d\udd12 Locked (view only) \u2014 Shift End + 1 hour has passed for ${esc(lineLabel(selectedLine))} \u00b7 ${esc(dateStr)} \u00b7 ${esc(SHIFT_LABELS[currentShift]||currentShift)}. Ask HR to open this Line/Date/Shift for Line QC.`;
+      } else if(st.grant && st.normallyLocked){
+        el.style.cssText = 'border:1.5px solid #F5D9A8;background:#FFFBEB;border-radius:12px;padding:8px 12px;margin-bottom:12px;color:#92400E;font-weight:700;font-size:13px;';
+        el.innerHTML = `\ud83d\udd13 Opened by HR (${esc(st.grant.reason)}) \u2014 entries here apply to this date/shift only.`;
+      } else { el.innerHTML = ''; el.style.cssText = 'display:none;'; }
+    }
     function setQcMode(m){
       qcMode = (m==='major') ? 'major' : 'minor';
       qcCard.classList.toggle('mode-minor', qcMode==='minor');
@@ -11354,6 +11393,7 @@ function attachPanelEvents(key){
       resetQcForm();
       refreshShiftEndWarn();
       renderQcLogs();
+      applyQcLockUI();
     }
     document.getElementById('qcModeMinor').onclick = ()=> setQcMode('minor');
     document.getElementById('qcModeMajor').onclick = ()=> setQcMode('major');
@@ -11413,6 +11453,7 @@ function attachPanelEvents(key){
         return `<tr><td>${hhmm(r.savedAtEpoch)}</td><td class="qc-art">${art?esc(art.articleNo):'—'}</td><td>${esc(cp.code)} ${esc(cp.name)}<div class="qc-sz-inline">${sizeChipsHtml(r.sizes)}</div></td><td class="qc-szcol">${sizeChipsHtml(r.sizes)}</td><td class="num"><b>${r.qty}</b></td><td><span class="qc-chip qc-c-ok">Repaired ✓</span></td><td><button class="btn-ghost" data-del-minor="${esc(r.id)}">Delete</button></td></tr>`;
       }).join('');
       mBody.querySelectorAll('[data-del-minor]').forEach(b=>b.onclick = async ()=>{
+        if(qcLockedNow()) return;
         const id = b.dataset.delMinor;
         const ok = await bigConfirm('Delete this minor repair?', 'It is only a record — output and efficiency do not change.', 'Delete', 'Keep');
         if(!ok) return;
@@ -11445,6 +11486,7 @@ function attachPanelEvents(key){
     }
 
     qcAddBtn.onclick = async ()=>{
+      if(qcLockedNow()) return;
       const hour = qcHourSel.value;
       const layoutNo = Number(qcSel.value)||0;
       if(!layoutNo){ toast('Please select the Layout/Article'); return; }
@@ -11499,6 +11541,7 @@ function attachPanelEvents(key){
 
     function wireMajorActions(myFlags){
     document.querySelectorAll('[data-edit-q]').forEach(b=>b.onclick=()=>{
+      if(qcLockedNow()) return;
       const f = myFlags.find(fl=>fl.id===b.dataset.editQ);
       if(!f) return;
       editingFlagId = f.id;
@@ -11514,12 +11557,14 @@ function attachPanelEvents(key){
       qcCard.scrollIntoView({ behavior:'smooth', block:'start' });
     });
     document.querySelectorAll('[data-del-q]').forEach(b=>b.onclick=async()=>{
+      if(qcLockedNow()) return;
       const r = deleteQualityFlag(b.dataset.delQ);
       if(!r.ok){ toast(r.error); return; }
       await saveStore(); buildPanel('quality'); renderAll();
     });
     // Build 28l: decided flag -> inline reason box right under its row (no browser prompt).
     document.querySelectorAll('[data-del-dq]').forEach(b=>b.onclick=()=>{
+      if(qcLockedNow()) return;
       const row = b.closest('tr');
       const open = row.nextElementSibling;
       if(open && open.classList.contains('dq-reason-row')){ open.remove(); return; }
@@ -11627,6 +11672,7 @@ function attachPanelEvents(key){
         return `<div style="display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
           <div style="font-size:13px;"><span style="color:var(--success);font-weight:700;">&#9679; OPEN</span>
             <b>${esc(lineLabel(u.line))}</b> &middot; ${esc(u.date)} &middot; ${esc(SHIFT_LABELS[u.shift]||u.shift)} &mdash; closes in ${h}h ${m}m
+            <div class="note">For: <b>${unlockRolesOf(u).map(r=>(UNLOCK_ROLES.find(x=>x[0]===r)||[r,r])[1]).join(', ')}</b></div>
             <div class="note">Reason: ${esc(u.reason)}</div></div>
           <button class="btn-ghost" style="color:var(--danger);white-space:nowrap;" data-unlock-close="${esc(u.id)}">Close now</button>
         </div>`;
@@ -11651,10 +11697,13 @@ function attachPanelEvents(key){
       if(!shift){ toast('\u26a0 Select the Shift'); return; }
       if(reason.length < 10){ toast('\u26a0 Write the reason (at least 10 characters)'); return; }
       if(hrs <= 0){ toast('\u26a0 Enter how many hours to keep it open'); return; }
-      if(activeUnlockFor(line, date, shift)){ toast('\u26a0 This Line/Date/Shift is already open'); return; }
+      const roles = Array.from(document.querySelectorAll('#unlockRoles input:checked')).map(x=>x.value);
+      if(!roles.length){ toast('\u26a0 Tick who it is for: Supervisor, IE and/or Line QC'); return; }
+      const already = roles.filter(r=>activeUnlockFor(line, date, shift, r));
+      if(already.length){ toast('\u26a0 Already open for ' + already.map(r=>(UNLOCK_ROLES.find(x=>x[0]===r)||[r,r])[1]).join(', ') + ' on this Line/Date/Shift'); return; }
       const now = savedNowEpoch();
       if(!Array.isArray(store.unlocks)) store.unlocks = [];
-      store.unlocks.push({ id: uid(), line, date, shift, reason, hours: hrs,
+      store.unlocks.push({ id: uid(), line, date, shift, reason, hours: hrs, roles,
         openedAt: now, expiresAt: now + hrs*3600*1000, closedAt: null });
       document.getElementById('unlockReason').value = '';
       await saveStore(); renderUnlockStatus();
@@ -13186,7 +13235,8 @@ function doExport(){
   smvLogRows.sort((a,b)=> String(a['Saved At']).localeCompare(String(b['Saved At'])));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(smvLogRows.length?smvLogRows:[{Note:'No SMV changes recorded yet'}]), 'SMV Log');
   const unlockRows = (store.unlocks||[]).slice().sort((a,b)=>(a.openedAt||0)-(b.openedAt||0)).map(u=>({
-    Line:u.line, Date:u.date, Shift:SHIFT_LABELS[u.shift]||u.shift, Reason:u.reason, 'Hours Granted':u.hours,
+    Line:u.line, Date:u.date, Shift:SHIFT_LABELS[u.shift]||u.shift,
+    'Open For': unlockRolesOf(u).map(r=>(UNLOCK_ROLES.find(x=>x[0]===r)||[r,r])[1]).join(', '), Reason:u.reason, 'Hours Granted':u.hours,
     'Opened At': fmtSavedAt(u.openedAt), 'Expires At': fmtSavedAt(u.expiresAt),
     'Closed Early At': u.closedAt ? fmtSavedAt(u.closedAt) : '' }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(unlockRows.length?unlockRows:[{Note:'No backdate openings yet'}]), 'Backdate Unlocks');
