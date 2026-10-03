@@ -465,6 +465,13 @@
   .tally-inc.active{background:var(--accent-dark);color:#fff;}
   .tally-dec{border:none;border-top:1.5px solid var(--border);background:#E4E8E6;font-size:15px;font-weight:800;padding:5px 0;color:var(--ink);width:100%;}
   .tally-dec:disabled{background:#F3F5F4;color:var(--border);}
+  /* Build 31c: HR "Open for" — big tap chips instead of tiny checkboxes */
+  .role-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:2px;}
+  .role-chip{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 8px;border:2px solid var(--border);border-radius:12px;background:var(--panel);color:var(--steel);font-weight:800;font-size:14.5px;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;}
+  .role-chip .rc-box{width:20px;height:20px;border:2px solid var(--border);border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:14px;line-height:1;}
+  .role-chip.on{border-color:var(--success);background:#EAF7EE;color:#14532D;}
+  .role-chip.on .rc-box{background:var(--success);border-color:var(--success);color:#fff;}
+  .role-chip.on .rc-box::after{content:'\2713';font-weight:900;}
   /* Build 31a: Line QC locked (view only) */
   #qcCard.qc-locked #qcTallyRows, #qcCard.qc-locked #qcAddCategoryBtn, #qcCard.qc-locked #qcAddBtn,
   #qcCard.qc-locked .row3 select, #qcCard.qc-locked table.qc-log button{pointer-events:none;opacity:.45;}
@@ -773,7 +780,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-03b-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-03c-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1092,7 +1099,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-03b-supabase';
+const APP_BUILD = '2026-10-03c-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -8042,7 +8049,6 @@ function hrPanelHTML(){
 
   <div class="card" id="unlockCard">
     <h2><span class="dot"></span>Backdate Entry Open</h2>
-    <div class="note" style="font-size:12.5px;margin-bottom:10px;">Opens ONE Line + Date + Shift only &mdash; for the people ticked below (that line's Supervisor, IE and/or Line QC). Every opening is kept permanently in the Excel "Backdate Unlocks" sheet.</div>
     <div class="row2">
       <div class="field"><label>Open for (hours)</label><input id="unlockHours" type="number" min="1" value="1"></div>
       <div class="field"><label>Line</label><select id="unlockLine"></select></div>
@@ -8052,10 +8058,10 @@ function hrPanelHTML(){
       <div class="field"><label>Shift</label><select id="unlockShift"><option value="">Select&hellip;</option><option value="A">A Shift</option><option value="B">B Shift</option><option value="G">G (General) Shift</option></select></div>
     </div>
     <div class="field"><label>Open for</label>
-      <div id="unlockRoles" style="display:flex;gap:18px;flex-wrap:wrap;padding:6px 2px;font-size:14px;">
-        <label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" value="supervisor" checked> Supervisor</label>
-        <label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" value="ie" checked> IE</label>
-        <label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" value="quality" checked> Line QC</label>
+      <div id="unlockRoles" class="role-chips">
+        <button type="button" class="role-chip on" data-role="supervisor" aria-pressed="true"><span class="rc-box"></span>Supervisor</button>
+        <button type="button" class="role-chip on" data-role="ie" aria-pressed="true"><span class="rc-box"></span>IE</button>
+        <button type="button" class="role-chip on" data-role="quality" aria-pressed="true"><span class="rc-box"></span>Line QC</button>
       </div></div>
     <div class="field"><label>Reason (required, at least 10 characters)</label><input id="unlockReason" type="text" maxlength="200" placeholder="Why this line/shift needs a backdated entry"></div>
     <button class="btn-primary" id="unlockOpenBtn" style="width:100%;margin-top:4px;">Open Entry</button>
@@ -11688,6 +11694,11 @@ function attachPanelEvents(key){
     unlockLineSel.innerHTML = '<option value="">Select&hellip;</option>' +
       ALL_LINES.map(l=>`<option value="${esc(l)}">${esc(lineLabel(l))}</option>`).join('');
     document.getElementById('unlockDate').value = todayStr();
+    document.querySelectorAll('#unlockRoles .role-chip').forEach(c=>c.onclick = (ev)=>{
+      ev.preventDefault();
+      const on = !c.classList.contains('on');
+      c.classList.toggle('on', on); c.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
     function renderUnlockStatus(){
       const now = Date.now();
       const open = (store.unlocks||[]).filter(u=>!u.closedAt && u.expiresAt && now < u.expiresAt)
@@ -11727,7 +11738,7 @@ function attachPanelEvents(key){
       if(!shift){ toast('\u26a0 Select the Shift'); return; }
       if(reason.length < 10){ toast('\u26a0 Write the reason (at least 10 characters)'); return; }
       if(hrs <= 0){ toast('\u26a0 Enter how many hours to keep it open'); return; }
-      const roles = Array.from(document.querySelectorAll('#unlockRoles input:checked')).map(x=>x.value);
+      const roles = Array.from(document.querySelectorAll('#unlockRoles .role-chip.on')).map(x=>x.dataset.role);
       if(!roles.length){ toast('\u26a0 Tick who it is for: Supervisor, IE and/or Line QC'); return; }
       const already = roles.filter(r=>activeUnlockFor(line, date, shift, r));
       if(already.length){ toast('\u26a0 Already open for ' + already.map(r=>(UNLOCK_ROLES.find(x=>x[0]===r)||[r,r])[1]).join(', ') + ' on this Line/Date/Shift'); return; }
