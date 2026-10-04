@@ -719,6 +719,51 @@
     #obModal .pic{height:90px;}
     #obModal td.l,#obModal td.l input{min-width:160px;}
   }
+  /* ===== Build 10-04d: OB Library ===== */
+  #obLibModal{position:fixed;inset:0;z-index:2900;background:#EEF1EF;overflow:auto;-webkit-overflow-scrolling:touch;}
+  #obLibModal .olw{max-width:1150px;margin:0 auto;padding:12px 12px 60px;}
+  #obLibModal .oltop{background:var(--accent2);color:#fff;border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  #obLibModal .oltop h1{margin:0;font-size:18px;} #obLibModal .oltop .sub{font-size:12px;opacity:.85;}
+  #obLibModal .olx{background:rgba(255,255,255,.18);color:#fff;font-size:16px;}
+  #obLibModal .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:10px;}
+  #obLibModal .olcnt{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;}
+  #obLibModal .c{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 12px;}
+  #obLibModal .c .t{font-size:10.5px;font-weight:800;color:var(--steel);text-transform:uppercase;} #obLibModal .c .n{font-size:24px;font-weight:800;} #obLibModal .c .s{font-size:11px;color:var(--steel);}
+  #obLibModal .oltabs{display:flex;gap:6px;margin-bottom:8px;}
+  #obLibModal .oltabs button{background:#F1F4F3;color:var(--steel);padding:9px 14px;font-size:13px;}
+  #obLibModal .oltabs button.on{background:var(--accent2);color:#fff;}
+  #obLibModal .olsb{position:relative;}
+  #obLibModal .olsb input{padding:12px 40px 12px 14px;border:2px solid var(--accent2);border-radius:10px;font-size:15px;background:#fff;}
+  #obLibModal .olsb>button{position:absolute;right:6px;top:7px;background:#F1F4F3;color:var(--steel);padding:6px 10px;}
+  #obLibModal .olsug{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,.15);z-index:5;overflow:hidden;max-height:320px;overflow-y:auto;}
+  #obLibModal .olsug div{padding:11px 14px;font-size:13.5px;border-bottom:1px solid #F1F4F3;display:flex;justify-content:space-between;gap:8px;cursor:pointer;}
+  #obLibModal .olsug div:hover{background:#EAF6F5;}
+  #obLibModal .tag{font-size:10.5px;font-weight:800;border-radius:6px;padding:2px 7px;white-space:nowrap;}
+  #obLibModal .tp{background:#E0E7FF;color:#3730A3;} #obLibModal .ta{background:#DCFCE7;color:#166534;}
+  #obLibModal .ollist{max-height:470px;overflow:auto;}
+  #obLibModal .olrow{display:grid;grid-template-columns:64px 1.4fr 1fr 1fr auto;gap:12px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;}
+  #obLibModal .olph{width:64px;height:46px;border-radius:8px;background:#F1F4F3;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:22px;}
+  #obLibModal .olph img{max-width:100%;max-height:100%;}
+  #obLibModal .ola{font-weight:800;font-size:15px;} #obLibModal .olm{font-size:12px;color:var(--steel);margin-top:2px;}
+  #obLibModal .olk{font-size:12px;color:var(--steel);} #obLibModal .olk b{color:var(--ink);font-size:14px;}
+  #obLibModal .olbtns{display:flex;gap:6px;}
+  #obLibModal .olv{background:#fff;border:1.5px solid var(--accent2);color:var(--accent2);} #obLibModal .olp{background:var(--accent);color:#231604;}
+  #obLibModal .olgrp{font-size:13px;font-weight:800;color:var(--accent2);margin:10px 0 8px;}
+  #obLibModal .oltab{width:100%;border-collapse:collapse;font-size:13px;}
+  #obLibModal .oltab th{background:#F1F4F3;color:var(--steel);font-size:10.5px;text-transform:uppercase;padding:8px 6px;text-align:left;position:sticky;top:0;}
+  #obLibModal .oltab td{padding:8px 6px;border-bottom:1px solid var(--border);} #obLibModal .oltab td.n{text-align:right;font-weight:800;}
+  #obLibModal .oltab tr[data-view]{cursor:pointer;} #obLibModal .oltab tr[data-view]:hover td{background:#F7FBFA;}
+  #obLibModal mark{background:#FEF3C7;padding:0 1px;}
+  #obLibModal .alert{border:2px solid var(--danger);background:#FFF5F5;border-radius:12px;padding:10px 12px;color:#7F1D1D;font-weight:700;}
+  #obModal.ro #obCopyBtn,#obModal.ro #obSaveBtn,#obModal.ro #obApplyBtn,#obModal.ro #obAddBtn,#obModal.ro #obPasteBtn,#obModal.ro #obMcBtn,#obModal.ro .allall,#obModal.ro .rb,#obModal.ro .stop,#obModal.ro .pic-btns,#obModal.ro .swb{display:none !important;}
+  #obModal.ro .prep{border-color:var(--border);background:#fff;}
+  #obModal.ro .ro-badge{display:inline-block;background:#fff;color:var(--accent2);border-radius:6px;padding:1px 7px;font-weight:800;font-size:11px;margin-left:6px;}
+  @media(max-width:700px){
+    #obLibModal .olcnt{grid-template-columns:1fr 1fr;}
+    #obLibModal .olrow{grid-template-columns:52px 1fr;}
+    #obLibModal .olrow .olk,#obLibModal .olrow .olbtns{grid-column:1/-1;}
+    #obLibModal .olph{width:52px;}
+  }
 </style>
 </head>
 <body>
@@ -885,7 +930,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04c-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04d-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1204,7 +1249,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-04c-supabase';
+const APP_BUILD = '2026-10-04d-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -7959,7 +8004,7 @@ function iePanelHTML(){
     <div class="note" id="catTgtNote"></div>
   </div>
   <div class="card">
-    <h2 style="display:flex;align-items:center;gap:6px;"><span class="dot"></span><span>Set Category / SMV / Target% — <span id="ieLineLabel"></span></span><div class="ie-kebab" style="margin-left:auto;"><button type="button" id="ieObMenuBtn" title="Study sheets">&#8942;</button><div class="ie-kebab-menu" id="ieObMenu"><button type="button" id="ieObOpen">&#128203; OB (Operation Breakdown)</button></div></div></h2>
+    <h2 style="display:flex;align-items:center;gap:6px;"><span class="dot"></span><span>Set Category / SMV / Target% — <span id="ieLineLabel"></span></span><div class="ie-kebab" style="margin-left:auto;"><button type="button" id="ieObMenuBtn" title="Study sheets">&#8942;</button><div class="ie-kebab-menu" id="ieObMenu"><button type="button" id="ieObOpen">&#128203; OB (Operation Breakdown)</button><button type="button" id="ieObLib">&#128218; OB Library</button></div></div></h2>
     <div class="row2">
       <div class="field"><label>Date</label><input id="ieDate" type="date"></div>
       <div class="field"><label>Shift</label><select id="ieShiftSel"><option value="A">A Shift</option><option value="B">B Shift</option><option value="G">G (General) Shift</option></select></div>
@@ -8083,7 +8128,8 @@ function obParsePaste(text){
 let obUI = null;
 let ieObRefPending = null;   // set only while an OB Apply runs the IE Save   // { art, line, doc, rows, plan, hdr, photo, baseVer, dirty, sel, readOk }
 function obBlankRow(){ const mc = obMcNames()[0]; return { op:'', mc, smv:'', cyc:[null,null,null,null,null], rating:100, allow: obMcAllow(mc), allowOv:false }; }
-function obFmtWhen(ep){ try{ const d = new Date(ep); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+d.toTimeString().slice(0,5); }catch(e){ return ''; } }
+const OB_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function obFmtWhen(ep){ try{ const d = new Date(ep); if(!ep || isNaN(d)) return ''; return String(d.getDate()).padStart(2,'0')+' '+OB_MON[d.getMonth()]+' '+d.toTimeString().slice(0,5); }catch(e){ return ''; } }
 function obLoadVersion(v){
   obUI.rows = JSON.parse(JSON.stringify(v.rows||[]));
   obUI.rows.forEach(r=>{ r.cyc = (r.cyc||[]).slice(0,5); while(r.cyc.length<5) r.cyc.push(null); });
@@ -8124,7 +8170,7 @@ function obRenderShell(){
   const a = obUI.art;
   m.innerHTML = `<div class="obw">
    <div class="obtop">
-     <div><h1>OB (Operation Breakdown) &amp; Line Balancing</h1><div class="sub">${esc(lineLabel(obUI.line))} · L-${a.layoutNo} · ${esc(a.articleNo)} <span id="obDirty"></span></div></div>
+     <div><h1>OB (Operation Breakdown) &amp; Line Balancing</h1><div class="sub">${esc(lineLabel(obHdrLine()))}${a.layoutNo?' · L-'+a.layoutNo:''} · ${esc(a.articleNo)}${obUI.readOnly?'<span class="ro-badge">VIEW ONLY</span>':''} <span id="obDirty"></span></div></div>
      <div class="acts">
        <select id="obVerSel" title="Saved versions">${obVersionOptions()}</select>
        <button class="b-w" id="obCopyBtn">⧉ Copy from…</button>
@@ -8136,19 +8182,19 @@ function obRenderShell(){
    </div>
    ${obUI.readOk ? '' : '<div class="alert">⚠ Could not read the saved OB for this article from the server. You can look, but Save is blocked until the page can reach the server (close and open again).</div>'}
    <div class="card hdr">
-     <div><div class="pic" id="obPic" title="Tap to add / change the article image">${obUI.photo ? `<img src="${obUI.photo}" alt="">` : '📷<br>Article image<br><span style="font-size:10px">(tap to add)</span>'}</div>
+     <div><div class="pic" id="obPic" title="Tap to add / change the article image">${obUI.photo ? `<img src="${obUI.photo}" alt="">` : (obUI.readOnly ? 'No article image' : '📷<br>Article image<br><span style="font-size:10px">(tap to add)</span>')}</div>
        <div class="pic-btns" id="obPicBtns"><button type="button" id="obPicCam">📷 Camera</button><button type="button" id="obPicUp">🖼 Upload</button></div>
        <input type="file" id="obPicCamIn" accept="image/*" capture="environment" style="display:none">
        <input type="file" id="obPicIn" accept="image/*" style="display:none"></div>
      <div><h3>Article</h3><div class="g3">
        <div class="f"><label>Article</label><div class="v">${esc(a.articleNo)}</div></div>
        <div class="f"><label>Shop Order</label><div class="v">${esc(a.shopOrderNo||'—')}</div></div>
-       <div class="f"><label>Category</label><div class="v">${esc(a.category||'—')}</div></div>
-       <div class="f"><label>Project</label><div class="v">${esc(prepProjectFor(a)||'—')}</div></div>
-       <div class="f"><label>Line</label><div class="v">${esc(lineLabel(obUI.line))}</div></div>
-       <div class="f"><label>Date</label><div class="v">${esc(currentDate)}</div></div>
+       <div class="f"><label>Category</label><div class="v">${esc(obHdrCategory()||'—')}</div></div>
+       <div class="f"><label>Project</label><div class="v">${esc(obHdrProject()||'—')}</div></div>
+       <div class="f"><label>Line</label><div class="v">${esc(lineLabel(obHdrLine()))}</div></div>
+       <div class="f"><label>Date</label><div class="v">${esc(obHdrDate()||'—')}</div></div>
      </div></div>
-     <div class="set"><h3>Plan <span class="note">(yellow = you set)</span></h3><div class="g3">
+     <div class="set"><h3>Plan ${obUI.readOnly?'':'<span class="note">(yellow = you set)</span>'}</h3><div class="g3">
        <div class="f"><label>Today's M/P</label><input class="in" id="obMp" type="number" min="1" step="1" value="${obEv(obUI.plan.mp)}" placeholder="M/P"></div>
        <div class="f"><label>Operator efficiency %</label><input class="in" id="obOe" type="number" step="1" value="${obEv(obUI.plan.opEff)}"></div>
        <div class="f"><label>Line target efficiency %</label><input class="in" id="obLe" type="number" step="0.1" value="${obEv(obUI.plan.lineEff)}"></div>
@@ -8177,11 +8223,12 @@ function obRenderShell(){
        <div class="btns"><button class="b-start" id="obSwStart">▶ Start</button><button class="b-lap" id="obSwLap">Lap → C1</button><button class="b-reset" id="obSwReset">Reset</button></div></div>
    </div>
    <div class="card" id="obChartCard"><h3>Line balance — work per operator (min) against line target</h3><div id="obChart"></div><div class="leg" id="obChartLeg"></div></div>
-   <div class="card prep"><div class="f"><label>Prepared by (IE name) <span style="color:var(--danger)">*</span></label><input id="obPrepBy" value="${esc(obUI.preparedBy||'')}" placeholder="Write your name — needed to save" maxlength="60"></div>
-     <div class="note">Lasting IE share one login, so the name written here is what the version list and the PDF show.</div></div>
+   <div class="card prep"><div class="f"><label>Prepared by (IE name) <span style="color:var(--danger)">*</span></label><input id="obPrepBy" value="${esc(obUI.readOnly ? (((obUI.doc.versions||[]).find(x=>x.ver===obUI.baseVer)||{}).preparedBy||'') : (obUI.preparedBy||''))}" placeholder="Write your name — needed to save" maxlength="60"></div>
+     <div class="note">${obUI.readOnly ? 'The IE who saved this version.' : 'Lasting IE share one login, so the name written here is what the version list and the PDF show.'}</div></div>
    </div>`;
   obRenderRows();
   obWireShell();
+  obApplyReadOnly();
 }
 function obRowHtml(r, i){
   const mcOpts = obMcNames().concat(obMcNames().includes(r.mc)||!r.mc ? [] : [r.mc]);
@@ -8208,6 +8255,7 @@ function obRenderRows(){
   } else body.innerHTML = obUI.rows.map(obRowHtml).join('');
   obWireRows();
   obRecalc();
+  obApplyReadOnly();
 }
 function obMarkDirty(){ obUI.dirty = true; const d = document.getElementById('obDirty'); if(d) d.innerHTML = '<span style="background:#FEF3C7;color:#92400E;border-radius:6px;padding:1px 6px;font-weight:800">● not saved</span>'; }
 // Display rounding: half-up at the shown digit (1.145 -> 1.15, 57.5 -> 58). The numbers behind the
@@ -8529,6 +8577,7 @@ async function obSaveVersion(btn){
   if(btn) btn.disabled = false;
   if(!res.ok){ alert(res.error); return null; }
   obUI.doc = res.doc; obUI.baseVer = res.ver; obUI.dirty = false; obUI.photoDirty = false; obUI.copiedFrom = null;
+  obIndexRefresh(obUI.key, res.doc);
   obUI.rows = obUI.doc.versions[obUI.doc.versions.length-1].rows.map(r=>Object.assign({}, r, { cyc: r.cyc.slice() }));
   obRenderShell();
   return res.ver;
@@ -8567,7 +8616,7 @@ function obSvgToPng(svg, pxW, pxH){
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   });
 }
-function obFmtDateLong(ep){ try{ const d = new Date(ep); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toTimeString().slice(0,5); }catch(e){ return ''; } }
+function obFmtDateLong(ep){ try{ const d = new Date(ep); if(!ep || isNaN(d)) return ''; return String(d.getDate()).padStart(2,'0')+' '+OB_MON[d.getMonth()]+' '+d.getFullYear()+' '+d.toTimeString().slice(0,5); }catch(e){ return ''; } }
 async function obBuildPdf(){
   const JsPDF = await obLoadJsPdf();
   const v = ((obUI.doc&&obUI.doc.versions)||[]).find(x=>x.ver===obUI.baseVer);
@@ -8580,7 +8629,7 @@ async function obBuildPdf(){
     doc.text('Apex Footwear Ltd. | Lasting', M, M+3);
     const tw = doc.getTextWidth('Apex Footwear Ltd. | Lasting');
     doc.setFont('helvetica','normal'); doc.text('- Operation Breakdown & Line Balancing', M+tw+1.5, M+3);
-    doc.text(T(`${a.articleNo} | ${lineLabel(obUI.line)} | OB v${obUI.baseVer} | Page ${page} of 2`), pw-M, M+3, { align:'right' });
+    doc.text(T(`${a.articleNo} | ${lineLabel(obHdrLine())} | OB v${obUI.baseVer} | Page ${page} of 2`), pw-M, M+3, { align:'right' });
     doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(M, M+5, pw-M, M+5);
   };
   const field = (x, y, w, label, value, strong)=>{
@@ -8614,7 +8663,7 @@ async function obBuildPdf(){
   } else { doc.setDrawColor(170); doc.setLineDashPattern([1,1],0); doc.rect(px, py, pw, ph); doc.setLineDashPattern([],0); doc.setFontSize(7); doc.setTextColor(120); doc.text('No image', px+pw/2, py+ph/2, { align:'center' }); }
   const ax = px+pw+4, colW = (CW - pw - 10)/2, fw = (colW-4)/3;
   doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(0); doc.text('Article', ax, y+5); doc.text('Plan', ax+colW+4, y+5);
-  const aF = [['Article', a.articleNo],['Shop Order', a.shopOrderNo||'-'],['Category', a.category||'-'],['Project', prepProjectFor(a)||'-'],['Line', lineLabel(obUI.line)],['Date', currentDate]];
+  const aF = [['Article', a.articleNo],['Shop Order', a.shopOrderNo||'-'],['Category', obHdrCategory()||'-'],['Project', obHdrProject()||'-'],['Line', lineLabel(obHdrLine())],['Date', obHdrDate()||'-']];
   const pF = [["Today's M/P", obUI.plan.mp],['Operator effi', f0(Number(obUI.plan.opEff)||0)+'%'],['Line target effi', f2(Number(obUI.plan.lineEff)||0).replace(/\.00$/,'')+'%'],['Working minutes', obUI.plan.mins],['Line leader', obUI.plan.leaders],['Bottleneck target', R.ok ? f0(R.bnOE)+' /hr' : '-']];
   aF.forEach((f,i)=>field(ax+(i%3)*(fw+2), y+9+Math.floor(i/3)*10, fw, f[0], f[1], false));
   pF.forEach((f,i)=>field(ax+colW+4+(i%3)*(fw+2), y+9+Math.floor(i/3)*10, fw, f[0], f[1], true));
@@ -8683,7 +8732,7 @@ async function obBuildPdf(){
     const by = v ? (v.preparedBy||v.by||'') : '';
     doc.text(T(`Prepared by: ${by}`), M, ph-M-0.5);
     doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(70);
-    doc.text(T(`Saved ${v?obFmtDateLong(v.savedAt):''} | OB v${obUI.baseVer}${v&&v.applied&&v.applied.length?' | applied to L-'+a.layoutNo+' from '+v.applied[v.applied.length-1].date+' '+(SHIFT_LABELS[v.applied[v.applied.length-1].shift]||''):''}`), M+doc.getTextWidth(T(`Prepared by: ${by}`))*8/7+4, ph-M-0.5);
+    doc.text(T(`Saved ${v?obFmtDateLong(v.savedAt):''} | OB v${obUI.baseVer}${v&&v.applied&&v.applied.length?' | applied to L-'+v.applied[v.applied.length-1].layoutNo+' from '+v.applied[v.applied.length-1].date+' '+(SHIFT_LABELS[v.applied[v.applied.length-1].shift]||''):''}`), M+doc.getTextWidth(T(`Prepared by: ${by}`))*8/7+4, ph-M-0.5);
     doc.text('Apex Meridian', pw-M, ph-M-0.5, { align:'right' });
   };
   foot(PW, PH);
@@ -8728,7 +8777,7 @@ async function obExportPdf(){
   try{ doc = await obBuildPdf(); }
   catch(e){ alert((e && e.message) || 'Could not make the PDF.'); return; }
   finally{ const b = document.getElementById('obPdfBtn'); if(b){ b.disabled = false; b.textContent = '📄 PDF / Share'; } }
-  const name = `OB_${slugify(obUI.art.articleNo).toUpperCase()}_${slugify(lineLabel(obUI.line))}_v${obUI.baseVer}.pdf`;
+  const name = `OB_${slugify(obUI.art.articleNo).toUpperCase()}_${slugify(lineLabel(obHdrLine()))}_v${obUI.baseVer}.pdf`;
   const blob = doc.output('blob');
   const file = (typeof File==='function') ? new File([blob], name, { type:'application/pdf' }) : null;
   const canShare = !!(file && navigator.canShare && navigator.share && (()=>{ try{ return navigator.canShare({ files:[file] }); }catch(e){ return false; } })());
@@ -8743,9 +8792,217 @@ async function obExportPdf(){
   w.querySelector('[data-dl]').onclick = ()=>{ download(); w.remove(); };
   const sh = w.querySelector('[data-share]');
   if(sh) sh.onclick = async ()=>{
-    try{ await navigator.share({ files:[file], title: name, text: `OB ${obUI.art.articleNo} - ${lineLabel(obUI.line)} (v${obUI.baseVer})` }); w.remove(); }
+    try{ await navigator.share({ files:[file], title: name, text: `OB ${obUI.art.articleNo} - ${lineLabel(obHdrLine())} (v${obUI.baseVer})` }); w.remove(); }
     catch(e){ if(e && e.name==='AbortError') return; toast('Share did not work here — downloading instead'); download(); w.remove(); }
   };
+}
+
+// ===================================================================================================
+// Build 10-04d: OB Library — every saved OB, all lines, view only. A small index key keeps the list and
+// the search fast; it is updated on every OB save/apply, and on opening the library any OB the index
+// does not know yet (or knows an older copy of) is read and added, so the list can never stay wrong.
+// ===================================================================================================
+const K_OBINDEX = K_PREFIX + ':obindex';
+async function obListKeys(){
+  try{
+    const res = await fetch(KV_ENDPOINT + '?k=like.' + encodeURIComponent(K_PREFIX + ':ob:*') + '&select=k,updated_at&order=updated_at.desc&limit=2000',
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
+    if(!res.ok) return null;
+    const rows = await res.json();
+    return Array.isArray(rows) ? rows.filter(x=>x && x.k) : null;
+  }catch(e){ return null; }
+}
+async function obKeyUpdatedAt(k){
+  try{
+    const res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&select=updated_at', { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
+    if(!res.ok) return null; const rows = await res.json(); return rows && rows[0] ? (rows[0].updated_at||null) : null;
+  }catch(e){ return null; }
+}
+function obThumb(dataUrl, max){
+  return new Promise(res=>{
+    if(!dataUrl) return res('');
+    const im = new Image();
+    im.onload = ()=>{ let w = im.naturalWidth, h = im.naturalHeight; const k = Math.min(1, max/Math.max(w,h)); w = Math.max(1,Math.round(w*k)); h = Math.max(1,Math.round(h*k));
+      const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0,0,w,h); g.drawImage(im,0,0,w,h);
+      res(c.toDataURL('image/jpeg', 0.7)); };
+    im.onerror = ()=>res('');
+    im.src = dataUrl;
+  });
+}
+async function obIndexItemFromDoc(key, doc, keyAt){
+  const vs = (doc && doc.versions) || []; if(!vs.length) return null;
+  const v = vs[vs.length-1];
+  const R = obCompute(v.rows||[], v.plan||{});
+  const applied = [];
+  vs.forEach(x=>(x.applied||[]).forEach(ap=>{ const lb = lineLabel(ap.line); if(!applied.includes(lb)) applied.push(lb); }));
+  return {
+    key, keyAt: keyAt||null, article: doc.article||'', shopOrder: v.shopOrder||'', category: (v.hdr&&v.hdr.category)||'', project: (v.hdr&&v.hdr.project)||'',
+    line: v.line||'', ver: v.ver, versions: vs.length, vTimes: vs.map(x=>x.savedAt||0), savedAt: v.savedAt||0, preparedBy: v.preparedBy||v.by||'',
+    totalSmv: obRound(R.S,2), mp: R.ok ? R.N : (Number(v.plan&&v.plan.mp)||0), bnOE: R.ok ? obRound(R.bnOE,0) : null, balance: R.ok ? obRound(R.balance*100,2) : null,
+    applied, thumb: await obThumb(doc.photo, 72),
+    ops: (v.rows||[]).map(r=>[String(r.op||''), r.mc||'', obRound(obRowSmv(r),2)]).filter(o=>o[0] && o[2]>0)
+  };
+}
+// Write some items into the index (strict read first, so two devices never drop each other's rows).
+async function obIndexPut(items){
+  items = (items||[]).filter(Boolean); if(!items.length) return true;
+  const r = await readKeyStrict(K_OBINDEX);
+  if(!r.ok) return false;
+  const idx = (r.value && r.value.items) ? r.value : { v:1, items:{} };
+  items.forEach(it=>{ idx.items[it.key] = it; });
+  idx.updatedAt = Date.now();
+  return await writeKey(K_OBINDEX, idx);
+}
+// After an OB save/apply: refresh this article's row in the index. Never blocks the save itself.
+async function obIndexRefresh(key, doc){
+  try{ const at = await obKeyUpdatedAt(key); await obIndexPut([await obIndexItemFromDoc(key, doc, at)]); }catch(e){ console.warn('OB index refresh failed', e); }
+}
+// Library load: index + any OB the index is missing or holds an older copy of.
+async function obLibraryLoad(onStep){
+  const [r, keys] = await Promise.all([ readKeyStrict(K_OBINDEX), obListKeys() ]);
+  if(!r.ok || !keys) return { ok:false };
+  const items = Object.assign({}, (r.value && r.value.items) || {});
+  const need = keys.filter(x=>!items[x.k] || (x.updated_at && items[x.k].keyAt!==x.updated_at));
+  const fresh = [];
+  for(let i=0;i<need.length;i+=4){
+    const slice = need.slice(i,i+4);
+    if(onStep) onStep(i, need.length);
+    const got = await Promise.all(slice.map(x=>readKeyStrict(x.k)));
+    for(let j=0;j<slice.length;j++){ if(got[j].ok && got[j].value){ const it = await obIndexItemFromDoc(slice[j].k, got[j].value, slice[j].updated_at); if(it){ items[it.key] = it; fresh.push(it); } } }
+    if(i+4<need.length) await new Promise(res=>setTimeout(res, 200));
+  }
+  const live = new Set(keys.map(x=>x.k));
+  Object.keys(items).forEach(k=>{ if(!live.has(k)) delete items[k]; });
+  if(fresh.length) obIndexPut(fresh);          // background: next opening is quick
+  return { ok:true, items: Object.values(items).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0)) };
+}
+let obLib = null;   // { items, tab, q, pick }
+async function openObLibrary(){
+  let m = document.getElementById('obLibModal');
+  if(!m){ m = document.createElement('div'); m.id = 'obLibModal'; document.body.appendChild(m); }
+  m.innerHTML = `<div class="olw"><div class="oltop"><div><h1>📚 OB Library</h1><div class="sub">All lines · view only — no editing here</div></div><button class="olx" id="olClose">✕</button></div>
+    <div class="card" id="olBody"><div class="note" id="olLoad">Loading the OB list…</div></div></div>`;
+  document.getElementById('olClose').onclick = ()=>{ m.remove(); obLib = null; };
+  const res = await obLibraryLoad((i,n)=>{ const el = document.getElementById('olLoad'); if(el) el.textContent = `Adding saved OB to the list… ${i}/${n}`; });
+  if(!document.getElementById('obLibModal')) return;
+  if(!res.ok){ document.getElementById('olBody').innerHTML = '<div class="alert">Could not reach the server. Close and try again.</div>'; return; }
+  obLib = { items: res.items, tab: 'ap', q: '', pick: null };
+  obLibRender();
+}
+function obLibCounts(items){
+  const ym = String(todayStr()).slice(0,7);
+  const versions = items.reduce((s,it)=>s+(it.versions||0),0);
+  const month = items.reduce((s,it)=>s+(it.vTimes||[]).filter(t=>{ try{ const d = new Date(t); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')===ym; }catch(e){ return false; } }).length,0);
+  const projects = new Set(items.map(it=>(it.project||'').trim().toLowerCase()).filter(Boolean)).size;
+  return [['Articles with OB', items.length, 'all lines'],['Versions saved', versions, 'v1, v2 … kept'],['This month', month, 'OB saved in '+OB_MON[new Date().getMonth()]+' '+new Date().getFullYear()],['Projects', projects, 'from Preparation']];
+}
+function obLibRender(){
+  const m = document.getElementById('obLibModal'); if(!m || !obLib) return;
+  const items = obLib.items;
+  const cnt = obLibCounts(items).map(c=>`<div class="c"><div class="t">${c[0]}</div><div class="n">${c[1]}</div><div class="s">${esc(c[2])}</div></div>`).join('');
+  m.querySelector('.olw').innerHTML = `<div class="oltop"><div><h1>📚 OB Library</h1><div class="sub">All lines · view only — no editing here</div></div><button class="olx" id="olClose">✕</button></div>
+    <div class="olcnt">${cnt}</div>
+    <div class="card">
+      <div class="oltabs"><button data-tab="ap" class="${obLib.tab==='ap'?'on':''}">Article / Project</button><button data-tab="op" class="${obLib.tab==='op'?'on':''}">Process SMV</button></div>
+      <div class="olsb"><input id="olQ" autocomplete="off" value="${esc(obLib.q)}" placeholder="${obLib.tab==='ap'?'Type an article no. or a project name':'Type a process name, e.g. sole roughing'}"><button id="olClr" title="Clear" style="${obLib.q?'':'display:none'}">✕</button><div class="olsug" id="olSug" style="display:none"></div></div>
+      <div id="olRes"></div>
+    </div>`;
+  m.querySelector('#olClose').onclick = ()=>{ m.remove(); obLib = null; };
+  m.querySelectorAll('[data-tab]').forEach(b=>b.onclick = ()=>{ obLib.tab = b.dataset.tab; obLib.q = ''; obLib.pick = null; obLibRender(); });
+  const q = m.querySelector('#olQ'), sug = m.querySelector('#olSug');
+  q.addEventListener('input', ()=>{ obLib.q = q.value; obLib.pick = null; m.querySelector('#olClr').style.display = q.value ? '' : 'none'; obLibSuggest(); obLibResults(); });
+  q.addEventListener('focus', ()=>obLibSuggest());
+  q.addEventListener('blur', ()=>setTimeout(()=>{ sug.style.display = 'none'; }, 180));
+  m.querySelector('#olClr').onclick = ()=>{ obLib.q = ''; obLib.pick = null; q.value = ''; m.querySelector('#olClr').style.display = 'none'; sug.style.display = 'none'; obLibResults(); };
+  obLibResults();
+}
+function obLibWords(s){ return String(s||'').toLowerCase().split(/\s+/).filter(Boolean); }
+function obLibSuggest(){
+  const sug = document.getElementById('olSug'); if(!sug || !obLib) return;
+  const t = String(obLib.q||'').trim().toLowerCase();
+  if(!t){ sug.style.display = 'none'; return; }
+  const out = [];
+  if(obLib.tab==='ap'){
+    const proj = {};
+    obLib.items.forEach(it=>{ const p = (it.project||'').trim(); if(p && p.toLowerCase().includes(t)){ const k = p.toLowerCase(); proj[k] = proj[k] || { name:p, n:0 }; proj[k].n++; } });
+    Object.values(proj).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,5).forEach(p=>out.push({ kind:'p', val:p.name, html:`<span><b>${esc(p.name)}</b> — project</span><span class="tag tp">${p.n} article${p.n===1?'':'s'}</span>` }));
+    obLib.items.filter(it=>String(it.article).toLowerCase().includes(t)).slice(0,6).forEach(it=>out.push({ kind:'a', val:it.key, html:`<span><b>${esc(it.article)}</b>${it.project?' · '+esc(it.project):''}</span><span class="tag ta">article</span>` }));
+  } else {
+    const words = obLibWords(t), names = {};
+    obLib.items.forEach(it=>(it.ops||[]).forEach(o=>{ const nm = o[0].trim(), low = nm.toLowerCase(); if(words.every(w=>low.includes(w))){ names[low] = names[low] || { name:nm, n:0 }; names[low].n++; } }));
+    Object.values(names).sort((a,b)=>b.n-a.n).slice(0,8).forEach(x=>out.push({ kind:'o', val:x.name, html:`<span>${esc(x.name)}</span><span class="tag ta">${x.n}</span>` }));
+  }
+  if(!out.length){ sug.style.display = 'none'; return; }
+  sug.innerHTML = out.map((o,i)=>`<div data-s="${i}">${o.html}</div>`).join('');
+  sug.style.display = '';
+  sug.querySelectorAll('[data-s]').forEach(d=>d.onmousedown = (e)=>{ e.preventDefault(); const o = out[Number(d.dataset.s)];
+    if(o.kind==='o'){ obLib.q = o.val; obLib.pick = null; } else { obLib.pick = { kind:o.kind, val:o.val }; obLib.q = o.kind==='p' ? o.val : (obLib.items.find(x=>x.key===o.val)||{}).article||o.val; }
+    const q = document.getElementById('olQ'); q.value = obLib.q; document.getElementById('olClr').style.display = ''; sug.style.display = 'none'; obLibResults(); });
+}
+function obLibRow(it){
+  return `<div class="olrow"><div class="olph">${it.thumb?`<img src="${it.thumb}" alt="">`:'👟'}</div>
+    <div><div class="ola">${esc(it.article)} <span class="tag ta">v${it.ver}</span></div><div class="olm">${esc(it.shopOrder||'—')} · ${esc(it.category||'—')} · Project <b>${esc(it.project||'—')}</b></div>
+      <div class="olm">By <b>${esc(it.preparedBy||'—')}</b> · ${obFmtWhen(it.savedAt)} · Applied: ${esc((it.applied||[]).join(', ')||'—')}</div></div>
+    <div class="olk">Total SMV <b>${obF2(it.totalSmv||0)}</b><br>M/P <b>${it.mp||'—'}</b></div>
+    <div class="olk">Bottleneck <b>${it.bnOE==null?'—':it.bnOE}</b>/hr<br>Balance <b>${it.balance==null?'—':obF2(it.balance)+'%'}</b></div>
+    <div class="olbtns"><button class="olv" data-view="${esc(it.key)}">👁 View</button><button class="olp" data-pdf="${esc(it.key)}">📄 PDF / Share</button></div></div>`;
+}
+function obLibResults(){
+  const box = document.getElementById('olRes'); if(!box || !obLib) return;
+  const items = obLib.items, t = String(obLib.q||'').trim().toLowerCase();
+  if(obLib.tab==='ap'){
+    let list = items, head = '';
+    if(obLib.pick && obLib.pick.kind==='p'){ list = items.filter(it=>(it.project||'').trim().toLowerCase()===obLib.pick.val.toLowerCase()); head = `Project ${esc(obLib.pick.val)} — ${list.length} article${list.length===1?'':'s'}`; }
+    else if(obLib.pick && obLib.pick.kind==='a'){ list = items.filter(it=>it.key===obLib.pick.val); head = ''; }
+    else if(t){ list = items.filter(it=>String(it.article).toLowerCase().includes(t) || String(it.project||'').toLowerCase().includes(t)); head = `${list.length} found for “${esc(obLib.q)}”`; }
+    box.innerHTML = (head ? `<div class="olgrp">${head}</div>` : `<div class="note" style="margin:8px 0">Latest first · showing ${Math.min(5,list.length)} of ${list.length}${list.length>5?' — scroll for more':''}</div>`)
+      + (list.length ? `<div class="ollist">${list.map(obLibRow).join('')}</div>` : '<div class="note" style="padding:14px 0">No OB found.</div>');
+    box.querySelectorAll('[data-view]').forEach(b=>b.onclick = ()=>openObReadOnly(b.dataset.view, false));
+    box.querySelectorAll('[data-pdf]').forEach(b=>b.onclick = ()=>openObReadOnly(b.dataset.pdf, true));
+  } else {
+    const words = obLibWords(t);
+    if(!words.length){ box.innerHTML = '<div class="note" style="padding:12px 0">Type a process name — every article whose latest OB has an operation with all these words is listed with its SMV.</div>'; return; }
+    const hits = [];
+    items.forEach(it=>(it.ops||[]).forEach(o=>{ const low = o[0].toLowerCase(); if(words.every(w=>low.includes(w))) hits.push({ it, op:o[0], mc:o[1], smv:o[2] }); }));
+    hits.sort((a,b)=>b.smv-a.smv);
+    if(!hits.length){ box.innerHTML = '<div class="note" style="padding:12px 0">No operation found with these words.</div>'; return; }
+    const arts = new Set(hits.map(h=>h.it.key)).size;
+    const lo = hits[hits.length-1], hi = hits[0], avg = hits.reduce((s,h)=>s+h.smv,0)/hits.length;
+    const mark = s=>{ let h = esc(s); words.forEach(w=>{ h = h.replace(new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'), '<mark>$1</mark>'); }); return h; };
+    box.innerHTML = `<div class="note" style="margin:6px 0">Operations whose name contains every word you typed · latest version of each article</div>
+      <div class="olcnt" style="margin:8px 0">
+        <div class="c"><div class="t">Found</div><div class="n">${hits.length}</div><div class="s">operation${hits.length===1?'':'s'} in ${arts} article${arts===1?'':'s'}</div></div>
+        <div class="c"><div class="t">Lowest SMV</div><div class="n">${obF2(lo.smv)}</div><div class="s">${esc(lo.it.article)}</div></div>
+        <div class="c"><div class="t">Average SMV</div><div class="n">${obF2(avg)}</div><div class="s">of the ${hits.length}</div></div>
+        <div class="c"><div class="t">Highest SMV</div><div class="n">${obF2(hi.smv)}</div><div class="s">${esc(hi.it.article)}</div></div></div>
+      <div class="scroll ollist"><table class="oltab"><thead><tr><th>Article</th><th>Project</th><th>Operation</th><th>M/C</th><th style="text-align:right">SMV</th><th>Prepared by</th><th>Date</th></tr></thead><tbody>
+      ${hits.map(h=>`<tr data-view="${esc(h.it.key)}"><td><b>${esc(h.it.article)}</b></td><td>${esc(h.it.project||'—')}</td><td>${mark(h.op)}</td><td>${esc(h.mc)}</td><td class="n">${obF2(h.smv)}</td><td>${esc(h.it.preparedBy||'—')}</td><td>${obFmtWhen(h.it.savedAt).slice(0,6)}</td></tr>`).join('')}</tbody></table></div>`;
+    box.querySelectorAll('tr[data-view]').forEach(tr=>tr.onclick = ()=>openObReadOnly(tr.dataset.view, false));
+  }
+}
+// Read-only OB from the library: works for any article, on a line or not.
+async function openObReadOnly(key, thenPdf){
+  const r = await readKeyStrict(key);
+  if(!r.ok || !r.value || !(r.value.versions||[]).length){ toast(r.ok ? 'This OB has no saved version' : 'Could not reach the server — try again'); return; }
+  await obLoadCfg();
+  const doc = r.value, v = doc.versions[doc.versions.length-1];
+  const art = { articleNo: doc.article||'', shopOrderNo: v.shopOrder||'', category: (v.hdr&&v.hdr.category)||'', layoutNo: v.layoutNo };
+  obUI = { art, line: v.line||'', key, doc, readOk: true, readOnly: true, applyFn: null, sel: 0, dirty: false, baseVer: null,
+           rows: [], photo: doc.photo||'', photoDirty: false, plan: { mp:'', opEff:80, lineEff:70, mins:60, leaders:1 }, hdr: {} };
+  obLoadVersion(v);
+  obRenderShell();
+  if(thenPdf) obExportPdf();
+}
+// header values: live for the IE sheet, as saved for a library (read-only) view
+function obHdrProject(){ if(obUI.readOnly){ const v = ((obUI.doc&&obUI.doc.versions)||[]).find(x=>x.ver===obUI.baseVer); return (v&&v.hdr&&v.hdr.project)||''; } return prepProjectFor(obUI.art)||''; }
+function obHdrCategory(){ if(obUI.readOnly){ const v = ((obUI.doc&&obUI.doc.versions)||[]).find(x=>x.ver===obUI.baseVer); return (v&&v.hdr&&v.hdr.category)||obUI.art.category||''; } return obUI.art.category||''; }
+function obHdrDate(){ if(obUI.readOnly){ const v = ((obUI.doc&&obUI.doc.versions)||[]).find(x=>x.ver===obUI.baseVer); return (v&&v.date)||''; } return currentDate; }
+function obHdrLine(){ if(obUI.readOnly){ const v = ((obUI.doc&&obUI.doc.versions)||[]).find(x=>x.ver===obUI.baseVer); return (v&&v.line)||obUI.line; } return obUI.line; }
+// lock everything on a read-only view (version list, time-study toggle and PDF stay usable)
+function obApplyReadOnly(){
+  const m = document.getElementById('obModal'); if(!m || !obUI || !obUI.readOnly) return;
+  m.classList.add('ro');
+  m.querySelectorAll('input, select, textarea').forEach(el=>{ if(el.id!=='obVerSel') el.disabled = true; });
 }
 
 async function obApply(){
@@ -8778,7 +9035,7 @@ async function obApply(){
     v.applied = (v.applied||[]).concat([{ at: Date.now(), by: String(obUI.preparedBy||'').trim() || by, line: obUI.line, layoutNo: obUI.art.layoutNo, date: currentDate, shift: currentShift, smv, target: tgt }]);
     return { ok:true, doc, ver };
   });
-  if(mres && mres.ok){ obUI.doc = mres.doc; const s = document.getElementById('obVerSel'); if(s) s.innerHTML = obVersionOptions(); }
+  if(mres && mres.ok){ obIndexRefresh(obUI.key, mres.doc); obUI.doc = mres.doc; const s = document.getElementById('obVerSel'); if(s) s.innerHTML = obVersionOptions(); }
   toast(`Applied OB v${ver}: SMV ${smv} · Target ${tgt}%`);
 }
 
@@ -11964,8 +12221,9 @@ function attachPanelEvents(key){
         const iv = shiftIEValues(selectedLine, currentDate, currentShift, layoutNo);
         await openObModal(selectedLine, layoutNo, ieApplyFromOb, iv);
       };
+      document.getElementById('ieObLib').onclick = ()=>{ menu.classList.remove('open'); openObLibrary(); };
       // a rebuilt panel hands the open OB the fresh apply function
-      if(typeof obUI!=='undefined' && obUI) obUI.applyFn = ieApplyFromOb;
+      if(typeof obUI!=='undefined' && obUI && !obUI.readOnly) obUI.applyFn = ieApplyFromOb;
     })();
 
     const tb = document.getElementById('ieTableBody');
