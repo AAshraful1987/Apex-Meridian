@@ -936,7 +936,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04g-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04h-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1255,7 +1255,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-04g-supabase';
+const APP_BUILD = '2026-10-04h-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -7995,7 +7995,7 @@ function iePanelHTML(){
   </div>
   <div class="card">
     <h2><span class="dot"></span>IE Members</h2>
-    <div class="note" style="margin-bottom:8px;">The Lasting IE share one login. Each OB is signed by picking a name from this list.</div>
+    <div class="note" style="margin-bottom:8px;">The Lasting IE share one login. Each OB is signed by picking a name from this list. Remove (with a reason) takes a person off for good; their saved OB keep their name.</div>
     <div class="row2">
       <div class="field"><label>ID No.</label><input id="ieMemId" type="text" placeholder="e.g. 10234" autocomplete="off"></div>
       <div class="field"><label>Name</label><input id="ieMemName" type="text" placeholder="Full name" autocomplete="off"></div>
@@ -9058,7 +9058,7 @@ function obLibIeSummary(range){
   const rows = {};
   const keyOf = (id, name)=> id ? 'id:'+id : 'nm:'+String(name||'').trim().toLowerCase();
   const rowFor = (id, name)=>{ const k = keyOf(id, name); if(!rows[k]){ const mem = id ? ieMemberById(id) : null;
-      rows[k] = { k, id: id||'', name: mem ? mem.name : (String(name||'').trim() || '—'), newOb:0, rev:0, saves:0, arts:{}, applied:0 }; } return rows[k]; };
+      rows[k] = { k, id: id||'', name: mem ? mem.name : (String(name||'').trim() || (ieMembersRemoved.find(x=>String(x.id)===String(id))||{}).name || '—'), newOb:0, rev:0, saves:0, arts:{}, applied:0 }; } return rows[k]; };
   (obLib.items||[]).forEach(it=>{
     (it.vh||[]).forEach(v=>{ if(!inR(v.t)) return; const r = rowFor(v.id, v.by); r.saves++; if(v.ver===1) r.newOb++; else r.rev++;
       const a = r.arts[it.key] = r.arts[it.key] || { article: it.article, project: it.project, vers: [], applied: 0 }; a.vers.push(v.ver); });
@@ -9076,16 +9076,13 @@ function obLibRenderIe(box){
   const rows = obLibIeSummary(range);
   const tot = rows.reduce((s,r)=>({ newOb:s.newOb+r.newOb, rev:s.rev+r.rev, saves:s.saves+r.saves, applied:s.applied+r.applied }), { newOb:0, rev:0, saves:0, applied:0 });
   box.innerHTML = `<div class="olierow"><select id="olIeMonth">${months.map(m=>`<option ${m.name===obLib.ieMonth?'selected':''}>${esc(m.name)}</option>`).join('')}</select>
-      <span class="note">${esc(range.from)} to ${esc(range.to)} · tap an IE to see the articles</span></div>
+      <span class="note">${esc(range.from)} to ${esc(range.to)}</span></div>
     ${rows.length ? `<div class="scroll"><table class="oltab"><thead><tr><th>IE</th><th style="text-align:right">New OB (v1)</th><th style="text-align:right">Revision (v2+)</th><th style="text-align:right">Total saves</th><th style="text-align:right">Articles</th><th style="text-align:right">Applied</th></tr></thead><tbody>
-      ${rows.map(r=>`<tr data-ie="${esc(r.k)}"><td><b>${esc(r.name)}</b>${r.id?` <span class="note">ID ${esc(r.id)}</span>`:' <span class="note">(no ID — before IE Members)</span>'}</td><td class="n">${r.newOb}</td><td class="n">${r.rev}</td><td class="n">${r.saves}</td><td class="n">${Object.keys(r.arts).length}</td><td class="n">${r.applied}</td></tr>
-        <tr class="oldet hidden" data-det="${esc(r.k)}"><td colspan="6">${Object.entries(r.arts).map(([k,a])=>`<div class="olart" data-view="${esc(k)}"><b>${esc(a.article)}</b> · ${esc(a.project||'—')} · ${a.vers.length?'saved '+a.vers.sort((x,y)=>x-y).map(v=>'v'+v).join(', '):'no save this month'}${a.applied?' · applied '+a.applied+'×':''} <span class="note">› view</span></div>`).join('')}</td></tr>`).join('')}
+      ${rows.map(r=>`<tr><td><b>${esc(r.name)}</b>${r.id?` <span class="note">ID ${esc(r.id)}${(!ieMemberById(r.id) && ieMembersRemoved.some(x=>String(x.id)===String(r.id)))?' · removed':''}</span>`:' <span class="note">(no ID — before IE Members)</span>'}</td><td class="n">${r.newOb}</td><td class="n">${r.rev}</td><td class="n">${r.saves}</td><td class="n">${Object.keys(r.arts).length}</td><td class="n">${r.applied}</td></tr>`).join('')}
       </tbody><tfoot><tr><td><b>Total</b></td><td class="n">${tot.newOb}</td><td class="n">${tot.rev}</td><td class="n">${tot.saves}</td><td></td><td class="n">${tot.applied}</td></tr></tfoot></table></div>`
       : '<div class="note" style="padding:14px 0">No OB saved or applied in this month.</div>'}
     <div class="note" style="margin-top:8px">New OB = first version of an article · Revision = v2, v3 … · Applied = OB put on a running article (✓ Apply), counted for the IE who applied it.</div>`;
   box.querySelector('#olIeMonth').onchange = (e)=>{ obLib.ieMonth = e.target.value; obLibRenderIe(box); };
-  box.querySelectorAll('tr[data-ie]').forEach(tr=>tr.onclick = ()=>{ const d = box.querySelector(`tr[data-det="${CSS.escape(tr.dataset.ie)}"]`); if(d) d.classList.toggle('hidden'); });
-  box.querySelectorAll('.olart[data-view]').forEach(el=>el.onclick = ()=>openObReadOnly(el.dataset.view, false));
 }
 
 async function openObReadOnly(key, thenPdf){
@@ -9152,21 +9149,24 @@ async function obApply(){
 // from this list (ID No. + name), never a typed name. Its own key; read-before-write like the OB keys.
 // ===================================================================================================
 const K_IEMEM = K_PREFIX + ':iemembers';
-let ieMembers = [];          // [{ id, name, active, addedAt }]
+let ieMembers = [];          // [{ id, name, addedAt }] — only people who can sign now
+let ieMembersRemoved = [];   // [{ id, name, reason, at }] — kept for the record only, never listed
 async function loadIeMembers(){
   const r = await readKeyStrict(K_IEMEM);
-  if(r.ok) ieMembers = (r.value && Array.isArray(r.value.members)) ? r.value.members : [];
+  if(r.ok){ ieMembers = (r.value && Array.isArray(r.value.members)) ? r.value.members.filter(m=>m.active!==false) : [];
+            ieMembersRemoved = (r.value && Array.isArray(r.value.removed)) ? r.value.removed : []; }
   return r.ok;
 }
 async function ieMembersMutate(fn){
   const r = await readKeyStrict(K_IEMEM);
   if(!r.ok) return { ok:false, error:'Could not reach the server — nothing saved. Try again.' };
   const doc = (r.value && Array.isArray(r.value.members)) ? r.value : { members: [] };
-  const out = fn(doc.members);
+  if(!Array.isArray(doc.removed)) doc.removed = [];
+  const out = fn(doc.members, doc.removed);
   if(out && out.ok===false) return out;
   doc.updatedAt = Date.now();
   if(!(await writeKey(K_IEMEM, doc))) return { ok:false, error:'Save failed — press the button again.' };
-  ieMembers = doc.members;
+  ieMembers = doc.members.filter(m=>m.active!==false); ieMembersRemoved = doc.removed;
   return { ok:true };
 }
 function ieMemberById(id){ return ieMembers.find(m=>String(m.id)===String(id)) || null; }
@@ -12145,18 +12145,20 @@ function attachPanelEvents(key){
     // ---- IE Members (Build 10-04g) ----
     function renderIeMembers(){
       const tb = document.getElementById('ieMemBody'); if(!tb) return;
-      const list = ieMembers.slice().sort((a,b)=>(b.active!==false)-(a.active!==false) || String(a.name).localeCompare(String(b.name)));
-      tb.innerHTML = list.length ? list.map(m=>`<tr style="${m.active===false?'opacity:.5':''}"><td class="num">${esc(m.id)}</td><td>${esc(m.name)}${m.active===false?' <span class="note">(removed)</span>':''}</td>`+
-        `<td class="num">${m.active===false?`<button class="link-danger" style="color:var(--accent2)" data-mem-on="${esc(m.id)}">Add back</button>`:`<button class="link-danger" data-mem-off="${esc(m.id)}">Remove</button>`}</td></tr>`).join('')
+      const list = ieMembers.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+      tb.innerHTML = list.length ? list.map(m=>`<tr><td class="num">${esc(m.id)}</td><td>${esc(m.name)}</td><td class="num"><button class="link-danger" data-mem-off="${esc(m.id)}">Remove</button></td></tr>`).join('')
         : '<tr><td colspan="3" class="empty">No IE members yet — add each IE once.</td></tr>';
-      const flip = (id, on)=>async ()=>{
-        const m = ieMemberById(id);
-        if(!on && !confirm(`Remove ${m?m.name:id} from the list?\n\nTheir saved OB keep their name; they just cannot be picked for new saves.`)) return;
-        const r = await ieMembersMutate(list=>{ const x = list.find(q=>String(q.id)===String(id)); if(x) x.active = on; });
-        if(!r.ok){ alert(r.error); return; } renderIeMembers();
-      };
-      tb.querySelectorAll('[data-mem-off]').forEach(b=>b.onclick = flip(b.dataset.memOff, false));
-      tb.querySelectorAll('[data-mem-on]').forEach(b=>b.onclick = flip(b.dataset.memOn, true));
+      tb.querySelectorAll('[data-mem-off]').forEach(b=>b.onclick = async ()=>{
+        const m = ieMemberById(b.dataset.memOff); if(!m) return;
+        const reason = await askReasonModal('Remove IE member', `<b>${esc(m.id)} — ${esc(m.name)}</b> will be taken off the list for good. The OB they already saved keep their name and ID.`, 'Remove');
+        if(!reason) return;
+        const r = await ieMembersMutate((list, removed)=>{
+          const i = list.findIndex(q=>String(q.id)===String(m.id)); if(i<0) return;
+          removed.push({ id: list[i].id, name: list[i].name, reason, at: Date.now(), by: (session && (session.username||session.role)) || '' });
+          list.splice(i, 1);
+        });
+        if(!r.ok){ alert(r.error); return; } renderIeMembers(); toast(m.name+' removed');
+      });
     }
     loadIeMembers().then(ok=>{ if(!ok){ const tb = document.getElementById('ieMemBody'); if(tb) tb.innerHTML = '<tr><td colspan="3" class="empty">Could not load — press ↻ Refresh.</td></tr>'; } else renderIeMembers(); });
     document.getElementById('ieMemAddBtn').onclick = async (e)=>{
@@ -12164,9 +12166,10 @@ function attachPanelEvents(key){
       if(!id){ alert('Write the ID No.'); return; }
       if(name.length<2){ alert('Write the name'); return; }
       const r = await ieMembersMutate(list=>{
+        for(let i=list.length-1;i>=0;i--) if(list[i].active===false) list.splice(i,1);   // old-style removed rows
         const x = list.find(q=>String(q.id).toLowerCase()===id.toLowerCase());
-        if(x){ if(x.active!==false) return { ok:false, error:`ID ${id} is already in the list (${x.name}).` }; x.active = true; x.name = name; return; }
-        list.push({ id, name, active:true, addedAt: Date.now() });
+        if(x) return { ok:false, error:`ID ${id} is already in the list (${x.name}).` };
+        list.push({ id, name, addedAt: Date.now() });
       });
       if(!r.ok){ alert(r.error); return; }
       document.getElementById('ieMemId').value = ''; document.getElementById('ieMemName').value = '';
