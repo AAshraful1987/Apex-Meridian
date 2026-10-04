@@ -618,7 +618,7 @@
   .ie-art-row{display:flex;gap:6px;align-items:stretch;}
   .ie-art-row select{flex:1;min-width:0;}
   .ie-kebab{position:relative;}
-  .ie-kebab>button{background:#fff;border:1.5px solid var(--border);color:var(--ink);font-size:20px;line-height:1;padding:4px 12px;border-radius:8px;height:100%;}
+  .ie-kebab>button{background:#fff;border:1.5px solid var(--border);color:var(--ink);font-size:20px;line-height:1;padding:5px 12px;border-radius:8px;}
   .ie-kebab-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:50;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,.18);min-width:240px;display:none;overflow:hidden;}
   .ie-kebab-menu.open{display:block;}
   .ie-kebab-menu button{display:block;width:100%;text-align:left;background:#fff;color:var(--ink);border-radius:0;padding:12px 14px;font-size:13.5px;}
@@ -640,6 +640,9 @@
   #obModal .hdr{display:grid;grid-template-columns:150px 1fr 1.3fr;gap:14px;}
   #obModal .pic{height:120px;border:1.5px dashed var(--border);border-radius:12px;background:#F7F9F8;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--steel);font-size:11.5px;cursor:pointer;overflow:hidden;text-align:center;}
   #obModal .pic img{max-width:100%;max-height:100%;object-fit:contain;}
+  #obModal .pic-btns{display:none;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;}
+  #obModal .pic-btns.open{display:grid;}
+  #obModal .pic-btns button{padding:8px 4px;font-size:12px;background:#fff;border:1.5px solid var(--accent2);color:var(--accent2);}
   #obModal .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
   #obModal .f label{font-size:11px;font-weight:700;margin-bottom:2px;}
   #obModal .f .v{border:1px solid var(--border);border-radius:8px;padding:8px 9px;font-size:13.5px;background:#F1F4F3;min-height:36px;}
@@ -881,7 +884,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04a-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04b-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1200,7 +1203,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-04a-supabase';
+const APP_BUILD = '2026-10-04b-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -7955,13 +7958,13 @@ function iePanelHTML(){
     <div class="note" id="catTgtNote"></div>
   </div>
   <div class="card">
-    <h2><span class="dot"></span>Set Category / SMV / Target% — <span id="ieLineLabel"></span></h2>
+    <h2 style="display:flex;align-items:center;gap:6px;"><span class="dot"></span><span>Set Category / SMV / Target% — <span id="ieLineLabel"></span></span><div class="ie-kebab" style="margin-left:auto;"><button type="button" id="ieObMenuBtn" title="Study sheets">&#8942;</button><div class="ie-kebab-menu" id="ieObMenu"><button type="button" id="ieObOpen">&#128203; OB (Operation Breakdown)</button></div></div></h2>
     <div class="row2">
       <div class="field"><label>Date</label><input id="ieDate" type="date"></div>
       <div class="field"><label>Shift</label><select id="ieShiftSel"><option value="A">A Shift</option><option value="B">B Shift</option><option value="G">G (General) Shift</option></select></div>
     </div>
     <div class="row2">
-      <div class="field"><label>Article</label><div class="ie-art-row"><select id="ieLayoutSel"></select><div class="ie-kebab"><button type="button" id="ieObMenuBtn" title="More">&#8942;</button><div class="ie-kebab-menu" id="ieObMenu"><button type="button" id="ieObOpen">&#128203; OB (Operation Breakdown)</button></div></div></div></div>
+      <div class="field"><label>Article</label><select id="ieLayoutSel"></select></div>
       <div class="field"><label>Category</label><select id="ieCategory"></select></div>
     </div>
     <div class="row2">
@@ -8018,11 +8021,11 @@ function obRowSmv(r){
 }
 function obCompute(rows, plan){
   const N = Math.max(0, Math.floor(Number(plan.mp)||0));
-  const OE = (Number(plan.opEff)||0)/100, LE = (Number(plan.lineEff)||0)/100, HRS = Number(plan.hrs)||0;
+  const OE = (Number(plan.opEff)||0)/100, LE = (Number(plan.lineEff)||0)/100, MINS = Number(plan.mins)>0 ? Number(plan.mins) : 60;
   const smv = rows.map(obRowSmv);
   const act = smv.map((s,i)=>s>0?i:-1).filter(i=>i>=0);
   const S = smv.reduce((a,b)=>a+b,0);
-  const res = { N, OE, LE, HRS, smv, S, act, ok:false, mp: smv.map(()=>0), theo: smv.map(()=>0), load: smv.map(()=>0),
+  const res = { N, OE, LE, MINS, smv, S, act, ok:false, mp: smv.map(()=>0), theo: smv.map(()=>0), load: smv.map(()=>0),
                 cap100: smv.map(()=>0), capOE: smv.map(()=>0), effNeed: smv.map(()=>0), loss: smv.map(()=>0), status: smv.map(()=>'') };
   if(!act.length || !N || !(OE>0) || !(S>0)) return res;
   const need = T => act.map(i=>Math.max(1, Math.ceil(T*smv[i]/(60*OE) - 1e-9)));
@@ -8084,7 +8087,8 @@ function obLoadVersion(v){
   obUI.rows = JSON.parse(JSON.stringify(v.rows||[]));
   obUI.rows.forEach(r=>{ r.cyc = (r.cyc||[]).slice(0,5); while(r.cyc.length<5) r.cyc.push(null); });
   obUI.plan = Object.assign({}, obUI.plan, v.plan||{});
-  obUI.hdr = Object.assign({}, obUI.hdr, { item: (v.hdr&&v.hdr.item)||obUI.hdr.item||'', last: (v.hdr&&v.hdr.last)||obUI.hdr.last||'' });
+  delete obUI.plan.hrs; if(!(Number(obUI.plan.mins)>0)) obUI.plan.mins = 60;   // older drafts had working hours
+
   obUI.baseVer = v.ver; obUI.dirty = false; obUI.sel = 0;
 }
 async function openObModal(lineName, layoutNo, applyFn, currentIe){
@@ -8094,8 +8098,8 @@ async function openObModal(lineName, layoutNo, applyFn, currentIe){
   const [r] = await Promise.all([ readKeyStrict(k), obLoadCfg() ]);
   obUI = { art, line: lineName, key: k, doc: r.value || null, readOk: r.ok, applyFn, sel: 0, dirty: false, baseVer: null,
            rows: [], photo: (r.value && r.value.photo) || '', photoDirty: false,
-           plan: { mp:'', opEff:80, lineEff: Number(currentIe && currentIe.targetPercent) || 70, hrs:10, leaders:1 },
-           hdr: { item:'', last:'' } };
+           plan: { mp:'', opEff:80, lineEff: Number(currentIe && currentIe.targetPercent) || 70, mins:60, leaders:1 },
+           hdr: {} };
   const vs = (obUI.doc && obUI.doc.versions) || [];
   if(vs.length) obLoadVersion(vs[vs.length-1]); else obUI.rows = [];
   obRenderShell();
@@ -8130,13 +8134,15 @@ function obRenderShell(){
    </div>
    ${obUI.readOk ? '' : '<div class="alert">⚠ Could not read the saved OB for this article from the server. You can look, but Save is blocked until the page can reach the server (close and open again).</div>'}
    <div class="card hdr">
-     <div class="pic" id="obPic" title="Tap to add / change the article image">${obUI.photo ? `<img src="${obUI.photo}" alt="">` : '📷<br>Article image<br><span style="font-size:10px">(tap to add)</span>'}</div>
-     <input type="file" id="obPicIn" accept="image/*" style="display:none">
+     <div><div class="pic" id="obPic" title="Tap to add / change the article image">${obUI.photo ? `<img src="${obUI.photo}" alt="">` : '📷<br>Article image<br><span style="font-size:10px">(tap to add)</span>'}</div>
+       <div class="pic-btns" id="obPicBtns"><button type="button" id="obPicCam">📷 Camera</button><button type="button" id="obPicUp">🖼 Upload</button></div>
+       <input type="file" id="obPicCamIn" accept="image/*" capture="environment" style="display:none">
+       <input type="file" id="obPicIn" accept="image/*" style="display:none"></div>
      <div><h3>Article</h3><div class="g3">
        <div class="f"><label>Article</label><div class="v">${esc(a.articleNo)}</div></div>
        <div class="f"><label>Shop Order</label><div class="v">${esc(a.shopOrderNo||'—')}</div></div>
-       <div class="f"><label>Item</label><input id="obItem" value="${esc(obUI.hdr.item||'')}" placeholder="e.g. Upper"></div>
-       <div class="f"><label>Last</label><input id="obLast" value="${esc(obUI.hdr.last||'')}" placeholder="Last no."></div>
+       <div class="f"><label>Category</label><div class="v">${esc(a.category||'—')}</div></div>
+       <div class="f"><label>Project</label><div class="v">${esc(prepProjectFor(a)||'—')}</div></div>
        <div class="f"><label>Line</label><div class="v">${esc(lineLabel(obUI.line))}</div></div>
        <div class="f"><label>Date</label><div class="v">${esc(currentDate)}</div></div>
      </div></div>
@@ -8144,7 +8150,7 @@ function obRenderShell(){
        <div class="f"><label>Today's M/P</label><input class="in" id="obMp" type="number" min="1" step="1" value="${obEv(obUI.plan.mp)}" placeholder="M/P"></div>
        <div class="f"><label>Operator efficiency %</label><input class="in" id="obOe" type="number" step="1" value="${obEv(obUI.plan.opEff)}"></div>
        <div class="f"><label>Line target efficiency %</label><input class="in" id="obLe" type="number" step="0.1" value="${obEv(obUI.plan.lineEff)}"></div>
-       <div class="f"><label>Working hours</label><input class="in" id="obHrs" type="number" step="0.25" value="${obEv(obUI.plan.hrs)}"></div>
+       <div class="f"><label>Working minutes</label><input class="in" id="obMins" type="number" min="1" step="1" value="${obEv(obUI.plan.mins)}"></div>
        <div class="f"><label>Line leader (outside SMV)</label><input class="in" id="obLl" type="number" min="0" step="1" value="${obEv(obUI.plan.leaders)}"></div>
        <div class="f"><label>Bottleneck target</label><div class="v" id="obBt" style="background:#EEF6F5;color:var(--accent2);font-weight:800">auto</div></div>
      </div></div>
@@ -8172,7 +8178,7 @@ function obRenderShell(){
      </tr></thead><tbody id="obBody"></tbody><tfoot id="obFoot"></tfoot></table></div>
      <div class="stop"><div class="op">Timing now<b id="obSwOp">—</b><div class="chips" id="obSwChips"></div></div><div class="time" id="obSwTime">00:00.0</div>
        <div class="btns"><button class="b-start" id="obSwStart">▶ Start</button><button class="b-lap" id="obSwLap">Lap → C1</button><button class="b-reset" id="obSwReset">Reset</button></div></div>
-     <div class="note" style="margin-top:6px;line-height:1.5">SMV = Avg of the filled cycles × Rating × (1 + Allowance) ÷ 60 when cycles are timed; otherwise the SMV typed in the row · Theo. M/P = Bottleneck target × SMV ÷ (60 × operator effi) · Actual M/P = rounded up, then spare people go to the heaviest operations · Work/operator = SMV ÷ M/P · Capacity = 60 × M/P ÷ SMV × operator effi · Effi needed = line target × SMV ÷ (60 × M/P) · Minute loss = (capacity@100% − bottleneck@100%) × SMV · Line balance = 1 − minute loss ÷ (M/P × 60). The line leader is not counted in M/P or SMV.<br><b>Apply</b> puts the Total SMV and the Line target efficiency on this article from ${esc(currentDate)} · ${esc(SHIFT_LABELS[currentShift]||currentShift)} (same as pressing Save in the IE panel).</div>
+     
    </div></div>`;
   obRenderRows();
   obWireShell();
@@ -8245,7 +8251,7 @@ function obRecalc(){
   const K = [
     ['Total SMV', f2(R.S), 'min / pair', ''],
     ['Target @100%', f1(R.t100), 'pairs/hr · '+R.N+' M/P', ''],
-    ['Line target @'+(R.LE*100).toFixed(0)+'%', f1(R.tLine), 'pairs/hr · '+Math.round(R.tLine*R.HRS)+' / day', ''],
+    ['Line target @'+(R.LE*100).toFixed(0)+'%', f1(R.tLine), 'pairs/hr · '+Math.round(R.tLine*R.MINS/60)+' / '+R.MINS+' min', ''],
     ['Bottleneck output', f1(R.bnOE), 'pairs/hr @'+(R.OE*100).toFixed(0)+'% · Op '+(R.bnI+1), R.bnOE<R.tLine?'red':'grn'],
     ['Takt time', (R.takt*60).toFixed(1)+' s', f3(R.takt)+' min at line target', ''],
     ['Pitch time', (R.pitch*60).toFixed(1)+' s', f3(R.pitch)+' min = SMV ÷ M/P', ''],
@@ -8318,8 +8324,8 @@ function obWireRows(){
 }
 function obReadPlan(){
   const g = id=>document.getElementById(id).value;
-  obUI.plan = { mp: g('obMp'), opEff: g('obOe'), lineEff: g('obLe'), hrs: g('obHrs'), leaders: g('obLl') };
-  obUI.hdr.item = g('obItem'); obUI.hdr.last = g('obLast');
+  obUI.plan = { mp: g('obMp'), opEff: g('obOe'), lineEff: g('obLe'), mins: g('obMins'), leaders: g('obLl') };
+
 }
 function obSub(html){
   const w = document.createElement('div'); w.className = 'ob-sub'; w.innerHTML = `<div class="box">${html}</div>`;
@@ -8328,17 +8334,21 @@ function obSub(html){
 }
 function obWireShell(){
   const $ = id=>document.getElementById(id);
-  ['obMp','obOe','obLe','obHrs','obLl','obItem','obLast'].forEach(id=>$(id).addEventListener('input', ()=>{ obReadPlan(); obMarkDirty(); obRecalc(); }));
+  ['obMp','obOe','obLe','obMins','obLl'].forEach(id=>$(id).addEventListener('input', ()=>{ obReadPlan(); obMarkDirty(); obRecalc(); }));
   $('obCloseBtn').onclick = ()=>obClose(false);
   $('obTog').onclick = ()=>{ const m = $('obModal'); m.classList.toggle('study'); $('obTogTxt').textContent = m.classList.contains('study') ? 'Open' : 'Hidden'; };
   $('obAllBtn').onclick = ()=>{ const v = parseFloat($('obAllAll').value); if(isNaN(v)) return; obUI.rows.forEach(r=>{ r.allow = v; r.allowOv = true; }); obMarkDirty(); obRenderRows(); };
   $('obAddBtn').onclick = ()=>{ obUI.rows.push(obBlankRow()); obMarkDirty(); obRenderRows(); const ins = document.querySelectorAll('#obBody input[data-f="op"]'); if(ins.length) ins[ins.length-1].focus(); };
-  $('obPic').onclick = ()=>$('obPicIn').click();
-  $('obPicIn').onchange = async (e)=>{
-    const file = e.target.files && e.target.files[0]; if(!file) return;
-    try{ obUI.photo = await compressImageToBase64(file, 360); obUI.photoDirty = true; $('obPic').innerHTML = `<img src="${obUI.photo}" alt="">`; obMarkDirty(); }
+  // Tap the picture: choose Camera or Upload. Compressed the same way as the supervisor photo (220 px).
+  $('obPic').onclick = ()=>{ $('obPicBtns').classList.toggle('open'); };
+  $('obPicCam').onclick = ()=>{ $('obPicBtns').classList.remove('open'); $('obPicCamIn').click(); };
+  $('obPicUp').onclick = ()=>{ $('obPicBtns').classList.remove('open'); $('obPicIn').click(); };
+  const onPic = async (e)=>{
+    const file = e.target.files && e.target.files[0]; e.target.value = ''; if(!file) return;
+    try{ obUI.photo = await compressImageToBase64(file, 220); obUI.photoDirty = true; $('obPic').innerHTML = `<img src="${obUI.photo}" alt="">`; obMarkDirty(); }
     catch(err){ toast('Could not read that image'); }
   };
+  $('obPicCamIn').onchange = onPic; $('obPicIn').onchange = onPic;
   $('obVerSel').onchange = ()=>{
     const v = ((obUI.doc&&obUI.doc.versions)||[]).find(x=>String(x.ver)===$('obVerSel').value); if(!v) return;
     if(obUI.dirty && !confirm('Open v'+v.ver+'? Your unsaved changes will be lost.')){ $('obVerSel').value = obUI.baseVer||''; return; }
@@ -8388,7 +8398,7 @@ function obWireShell(){
     };
   };
   $('obCopyBtn').onclick = async ()=>{
-    const w = obSub(`<h3>⧉ Copy operations from another OB</h3><div class="note">Copies the operations, M/C, SMV, time study and plan of the latest version. Article details stay as they are.</div><div id="obCopyList" style="margin-top:8px">Loading…</div><div class="btns"><button class="btn-line" data-x>Cancel</button></div>`);
+    const w = obSub(`<h3>⧉ Copy operations from another OB</h3><div class="note">Copies the operations, M/C, SMV, time study and plan of the latest version. Article, Category and Project stay as they are.</div><div id="obCopyList" style="margin-top:8px">Loading…</div><div class="btns"><button class="btn-line" data-x>Cancel</button></div>`);
     w.querySelector('[data-x]').onclick = ()=>w.remove();
     let keys = null;
     try{
@@ -8410,9 +8420,9 @@ function obWireShell(){
       if(!vs.length){ b.disabled = false; toast(r.ok ? 'That OB has no saved version' : 'Could not read it — try again'); return; }
       const v = vs[vs.length-1];
       if(obUI.rows.length && !confirm(`Replace the ${obUI.rows.length} operations on this sheet with ${v.rows.length} from ${r.value.article||''} v${v.ver}?`)){ b.disabled = false; return; }
-      const keepHdr = Object.assign({}, obUI.hdr), keepBase = obUI.baseVer;
+      const keepBase = obUI.baseVer;
       obLoadVersion(v);
-      obUI.hdr = keepHdr; obUI.baseVer = keepBase; obUI.copiedFrom = { article: r.value.article||'', ver: v.ver };
+      obUI.baseVer = keepBase; obUI.copiedFrom = { article: r.value.article||'', ver: v.ver };
       w.remove(); obRenderShell(); obMarkDirty();
       toast(`Copied ${v.rows.length} operations from ${r.value.article||''} v${v.ver} — Save to keep them`);
     });
@@ -8461,7 +8471,7 @@ async function obSaveVersion(btn){
   const ver = {
     savedAt: Date.now(), by, line: obUI.line, layoutNo: obUI.art.layoutNo, shopOrder: obUI.art.shopOrderNo||'', date: currentDate,
     basedOn: obUI.baseVer || null, copiedFrom: obUI.copiedFrom || undefined,
-    hdr: { item: obUI.hdr.item||'', last: obUI.hdr.last||'' },
+    hdr: { category: obUI.art.category||'', project: prepProjectFor(obUI.art)||'' },
     plan: Object.assign({}, obUI.plan),
     rows: rows.map(r=>({ op: String(r.op).trim(), mc: r.mc, smv: (r.smv===''||r.smv==null)?'':Number(r.smv), cyc: r.cyc.slice(0,5), rating: r.rating, allow: r.allow, allowOv: !!r.allowOv })),
     totalSmv: Math.round(R.S*1000)/1000,
