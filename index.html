@@ -930,7 +930,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04d-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04e-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1249,7 +1249,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-04d-supabase';
+const APP_BUILD = '2026-10-04e-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -6571,10 +6571,10 @@ function wireMgmtDateControls(){
 
   pSel.onchange = ()=>{
     mgmtPeriod = pSel.value;
-    if(mgmtPeriod==='M' && !mgmtMonthName){
+    if(mgmtPeriod==='M'){                     // Monthly always opens on the current month
       const cur = currentMonthRange();
       const list = store.monthRanges || [];
-      mgmtMonthName = cur ? cur.name : (list[0] ? list[0].name : '');
+      { const nw = list.slice().sort((a,b)=>(b.from||'').localeCompare(a.from||''))[0]; mgmtMonthName = cur ? cur.name : (nw ? nw.name : ''); }
     }
     if(mgmtPeriod==='R' && !mgmtRangeFrom){
       const cur = currentMonthRange();
@@ -7959,14 +7959,16 @@ function iePanelHTML(){
   <div class="card">
     <h2><span class="dot"></span>Month Range (fiscal months)</h2>
     <div class="row2">
-      <div class="field"><label>Month name</label><input id="ieMonthName" type="text" placeholder="e.g. July 2026"></div>
+      <div class="field"><label>Month name (month + year)</label><div class="suggest-wrap"><input id="ieMonthName" type="text" placeholder="Start typing, e.g. Oct" autocomplete="off"><div class="suggest-list hidden" id="ieMonthSuggest"></div></div></div>
       <div class="field"><label>&nbsp;</label><button class="btn-primary" id="ieMonthSaveBtn" style="width:100%;">Add / Update</button></div>
     </div>
     <div class="row2">
       <div class="field"><label>From date</label><input id="ieMonthFrom" type="date"></div>
       <div class="field"><label>To date</label><input id="ieMonthTo" type="date"></div>
     </div>
+    <div class="note" id="ieMonthEditNote" style="margin:-2px 0 6px;"></div>
     <div class="table-scroll"><table><thead><tr><th>Month</th><th>From</th><th>To</th><th></th></tr></thead><tbody id="ieMonthBody"></tbody></table></div>
+    <button class="btn-ghost hidden" id="ieMonthMoreBtn" style="width:100%;text-align:left;margin-top:6px;color:var(--accent2);"></button>
   </div>
   <div class="card">
     <h2><span class="dot"></span>Product Categories</h2>
@@ -11907,29 +11909,101 @@ function attachPanelEvents(key){
 
   if(key==='ie'){
     // ---- Month Range (fiscal months) ----
+    // Build 10-04e: newest 3 months shown, the rest behind "Show all"; the name must be "Month YYYY"
+    // (picked from suggestions), so next year's October can never overwrite this year's.
+    const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    function normMonthName(raw){
+      const m = String(raw||'').trim().match(/^([A-Za-z]+)\.?\s*,?\s*(\d{4})$/);
+      if(!m) return null;
+      const mon = MONTH_NAMES.find(n=>n.toLowerCase()===m[1].toLowerCase() || (m[1].length>=3 && n.toLowerCase().startsWith(m[1].toLowerCase())));
+      const yr = Number(m[2]);
+      return (mon && yr>=2020 && yr<=2100) ? mon+' '+yr : null;
+    }
+    let ieMonthShowAll = false, ieMonthEditing = null;
     function renderMonthRanges(){
       const tb = document.getElementById('ieMonthBody');
       const list = (store.monthRanges||[]).slice().sort((a,b)=>(b.from||'').localeCompare(a.from||''));
+      const shown = ieMonthShowAll ? list : list.slice(0,3);
       tb.innerHTML = list.length
-        ? list.map(mr=>`<tr><td>${esc(mr.name)}</td><td class="num">${mr.from}</td><td class="num">${mr.to}</td>`+
-            `<td class="num"><button class="link-danger" data-del-month="${esc(mr.name)}">Delete</button></td></tr>`).join('')
+        ? shown.map(mr=>{ const ok = !!normMonthName(mr.name);
+            return `<tr><td>${esc(mr.name)}${ok?'':' <span style="color:var(--danger);font-weight:700;font-size:11.5px;">⚠ no year</span>'}</td><td class="num">${mr.from}</td><td class="num">${mr.to}</td>`+
+            `<td class="num">${ok?'':`<button class="link-danger" style="color:var(--accent2);margin-right:10px;" data-edit-month="${esc(mr.name)}">Add year</button>`}<button class="link-danger" data-del-month="${esc(mr.name)}">Delete</button></td></tr>`; }).join('')
         : '<tr><td colspan="4" class="empty">No months set yet</td></tr>';
+      const more = document.getElementById('ieMonthMoreBtn');
+      if(list.length>3){ more.classList.remove('hidden'); more.textContent = ieMonthShowAll ? '▴ Show only the latest 3' : `▾ Show all (${list.length}) — ${list.length-3} older`; }
+      else more.classList.add('hidden');
+      more.onclick = ()=>{ ieMonthShowAll = !ieMonthShowAll; renderMonthRanges(); };
       tb.querySelectorAll('[data-del-month]').forEach(b=>b.onclick=async()=>{
+        if(!confirm(`Delete ${b.dataset.delMonth}?\n\nIt will no longer be in the Monthly list of the Executive Summary and Quality Management.`)) return;
         store.monthRanges = (store.monthRanges||[]).filter(m=>m.name!==b.dataset.delMonth);
         await saveStore(); renderMonthRanges();
       });
+      // a month saved without its year: fill the form so one Save renames it (same dates)
+      tb.querySelectorAll('[data-edit-month]').forEach(b=>b.onclick=()=>{
+        const mr = (store.monthRanges||[]).find(m=>m.name===b.dataset.editMonth); if(!mr) return;
+        const mi = MONTH_NAMES.findIndex(n=>n.toLowerCase().startsWith(String(mr.name).trim().toLowerCase().slice(0,3)));
+        const d = new Date((mr.from||todayStr())+'T00:00:00');
+        document.getElementById('ieMonthName').value = (mi>=0 ? MONTH_NAMES[mi] : MONTH_NAMES[d.getMonth()]) + ' ' + d.getFullYear();
+        document.getElementById('ieMonthFrom').value = mr.from; document.getElementById('ieMonthTo').value = mr.to;
+        ieMonthEditing = mr.name;
+        document.getElementById('ieMonthEditNote').innerHTML = `Renaming <b>${esc(mr.name)}</b> — check the name and press Add / Update.`;
+        document.getElementById('ieMonthName').focus();
+      });
     }
     renderMonthRanges();
+    // suggestions: "Month YYYY" as you type
+    (function wireMonthSuggest(){
+      const inp = document.getElementById('ieMonthName'), box = document.getElementById('ieMonthSuggest');
+      const lastDay = (y,m)=>new Date(y, m+1, 0).getDate();
+      function cands(){
+        const q = inp.value.trim().toLowerCase();
+        const ty = Number(String(todayStr()).slice(0,4));
+        const yq = (q.match(/\d{1,4}/)||[''])[0], wq = (q.match(/[a-z]+/)||[''])[0];
+        let years = [ty, ty+1, ty-1];
+        if(yq) years = [ty-1, ty, ty+1, ty+2].filter(y=>String(y).startsWith(yq) || String(y).slice(2).startsWith(yq));
+        const months = MONTH_NAMES.map((n,i)=>({n,i})).filter(o=>!wq || o.n.toLowerCase().startsWith(wq));
+        const taken = new Set((store.monthRanges||[]).map(m=>String(m.name).toLowerCase()));
+        const out = [];
+        years.forEach(y=>months.forEach(o=>out.push({ name:o.n+' '+y, y, m:o.i, taken: taken.has((o.n+' '+y).toLowerCase()) })));
+        // nearest first: this month and the ones after it
+        const now = ty*12 + Number(String(todayStr()).slice(5,7))-1;
+        out.sort((a,b)=>Math.abs(a.y*12+a.m-now) - Math.abs(b.y*12+b.m-now));
+        return out.slice(0,8);
+      }
+      function render(){
+        if(!inp.value.trim()){ box.classList.add('hidden'); return; }
+        const list = cands();
+        if(!list.length){ box.classList.add('hidden'); return; }
+        box.innerHTML = list.map((c,i)=>`<div class="suggest-item" data-mi="${i}">${esc(c.name)}${c.taken?' <span style="color:var(--steel);font-size:11px;">(saved — will update)</span>':''}</div>`).join('');
+        box.classList.remove('hidden');
+        box.onmousedown = (e)=>{ const it = e.target.closest('[data-mi]'); if(!it) return; e.preventDefault();
+          const c = list[Number(it.dataset.mi)];
+          inp.value = c.name; box.classList.add('hidden');
+          const f = document.getElementById('ieMonthFrom'), t = document.getElementById('ieMonthTo');
+          // calendar month as a starting point only — fiscal dates can be changed before saving
+          if(!f.value && !t.value){ const mm = String(c.m+1).padStart(2,'0'); f.value = `${c.y}-${mm}-01`; t.value = `${c.y}-${mm}-${String(lastDay(c.y,c.m)).padStart(2,'0')}`; }
+        };
+      }
+      inp.addEventListener('input', render); inp.addEventListener('focus', render);
+      inp.addEventListener('blur', ()=>setTimeout(()=>box.classList.add('hidden'), 150));
+    })();
     document.getElementById('ieMonthSaveBtn').onclick = async (e)=>{
-      const name = document.getElementById('ieMonthName').value.trim();
+      const raw = document.getElementById('ieMonthName').value.trim();
       const from = document.getElementById('ieMonthFrom').value;
       const to = document.getElementById('ieMonthTo').value;
-      if(!name || !from || !to){ alert('Enter month name, From date and To date'); return; }
+      if(!raw || !from || !to){ alert('Enter month name, From date and To date'); return; }
+      const name = normMonthName(raw);
+      if(!name){ alert('Write the month with its year, e.g. "October 2026" — pick it from the suggestions.'); return; }
       if(from > to){ alert('From date must be on or before To date'); return; }
       if(!store.monthRanges) store.monthRanges = [];
+      if(ieMonthEditing && ieMonthEditing.toLowerCase()!==name.toLowerCase()){
+        if(store.monthRanges.some(m=>m.name.toLowerCase()===name.toLowerCase())){ alert(name+' is already in the list.'); return; }
+        store.monthRanges = store.monthRanges.filter(m=>m.name!==ieMonthEditing);
+      }
       const existing = store.monthRanges.find(m=>m.name.toLowerCase()===name.toLowerCase());
-      if(existing){ existing.from = from; existing.to = to; }
+      if(existing){ existing.name = name; existing.from = from; existing.to = to; }
       else store.monthRanges.push({ name, from, to });
+      ieMonthEditing = null; document.getElementById('ieMonthEditNote').innerHTML = '';
       document.getElementById('ieMonthName').value='';
       document.getElementById('ieMonthFrom').value='';
       document.getElementById('ieMonthTo').value='';
@@ -13866,10 +13940,10 @@ function attachPanelEvents(key){
 
       pSel.onchange = ()=>{
         qmPeriod = pSel.value;
-        if(qmPeriod==='M' && !qmMonthName){
+        if(qmPeriod==='M'){                     // Monthly always opens on the current month
           const cur = currentMonthRange();
           const list = store.monthRanges || [];
-          qmMonthName = cur ? cur.name : (list[0] ? list[0].name : '');
+          { const nw = list.slice().sort((a,b)=>(b.from||'').localeCompare(a.from||''))[0]; qmMonthName = cur ? cur.name : (nw ? nw.name : ''); }
         }
         if(qmPeriod==='R' && !qmRangeFrom){
           const cur = currentMonthRange();
