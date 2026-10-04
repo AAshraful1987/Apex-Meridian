@@ -936,7 +936,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04h-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04i-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1255,7 +1255,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-04h-supabase';
+const APP_BUILD = '2026-10-04i-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -3710,8 +3710,31 @@ function computeArticleBreakdown(lineName, dateStr, shift){
 // Production-weighted monthly target for a line on a date/shift, taken from the global
 // category→target table. Each running article contributes its category's target, weighted
 // by that article's man-minutes. A mixed-category line therefore gets a blended target.
+// Build 10-04i: Monthly Average Target % is set PER MONTH (IE's Month Range). A change inside one
+// month's range changes only that month — no carry-forward into the next month, nothing backward.
+// Kept in its own key so an older app build saving the settings row can never drop it.
+let catTargetsByMonth = null;          // { "<month name>": { category or sub-section: % } }
+let catTargetsSaved = false;           // false = built in memory from the old single table, not on the server yet
+function monthRangeFor(dateStr){ return (store.monthRanges||[]).find(mr=>mr.from && mr.to && mr.from<=dateStr && dateStr<=mr.to) || null; }
+function catTargetsMigrated(){
+  // first run: every month IE has already set gets the targets that were in force until now
+  // (a month already over keeps every value it was reported with; the running and later months
+  //  get only the categories that are active — an inactive one has no target there)
+  const out = {}, today = todayStr(), cats = articleCategories(), src = store.categoryTargets||{};
+  (store.monthRanges||[]).forEach(mr=>{
+    const t = Object.assign({}, src);
+    if(!(mr.to < today)) cats.forEach(c=>{ if(!isCategoryActive(c)) delete t[c]; });
+    out[mr.name] = t;
+  });
+  return out;
+}
+function monthTargetsFor(dateStr){
+  const mr = monthRangeFor(dateStr); if(!mr) return {};
+  const all = catTargetsByMonth || catTargetsMigrated();
+  return all[mr.name] || {};
+}
 function lineCategoryMonthlyTarget(lineName, dateStr, shift){
-  const ct = store.categoryTargets || {};
+  const ct = monthTargetsFor(dateStr);
   let w = 0, tot = 0;
   computeArticleWorkingTime(lineName, dateStr, shift).forEach(a=>{
     const art = findArticle(lineName, a.layoutNo);
@@ -3724,7 +3747,7 @@ function lineCategoryMonthlyTarget(lineName, dateStr, shift){
 // Effective monthly target for a line. Sub-sections (except Preparation) have their own
 // target keyed by line name; the main lines (1-6) pull it from the article's category.
 function lineMonthlyTarget(lineName, dateStr, shift){
-  const ct = store.categoryTargets || {};
+  const ct = monthTargetsFor(dateStr);
   if(SUBSECTION_LINES.includes(lineName) && lineName!=='Preparation'){
     return Number(ct[lineName])||0;
   }
@@ -3907,6 +3930,7 @@ const K_REQ  = K_PREFIX + ':req';    // manpower transfer requests (shared by ev
 const K_QF   = K_PREFIX + ':qf';     // quality decision-pending flags (reject awaiting Quality Management)
 const K_NOTICE = K_PREFIX + ':notice'; // notices/interactions pushed to lines (day-scoped, block until acknowledged)
 const K_UNLOCK = K_PREFIX + ':unlock'; // HR backdate-entry grants, one per Line+Date+Shift (build 21h)
+const K_CATTGT = K_PREFIX + ':cattargets';   // Build 10-04i: Monthly Average Target % per month
 const K_PHOTOS = K_PREFIX + ':photos'; // person photos, keyed by ID No. — shared by everyone, no role gate (any session can update its own)
 function lineKey(ln){ return K_PREFIX + ':line:' + slugify(ln); }
 
@@ -4276,12 +4300,17 @@ async function loadStore(lines, opts){
   // yet re-reading them on every routine poll costs a storage message every time. Polls can
   // ask to skip it; sign-in and the periodic deep refresh still read it.
   const needMeta = !(opts && opts.skipMeta);
-  const [meta, hr, req, qf, notice, photos, unlocks] = await Promise.all([
+  const [meta, hr, req, qf, notice, photos, unlocks, ctm] = await Promise.all([
     needMeta ? readKey(K_META, null) : Promise.resolve(null),
     needHr ? readKey(K_HR, null) : Promise.resolve(null),
     readKey(K_REQ, null), readKey(K_QF, null), readKey(K_NOTICE, null), readKey(K_PHOTOS, null),
-    readKey(K_UNLOCK, null)
+    readKey(K_UNLOCK, null),
+    needMeta ? readKeyStrict(K_CATTGT) : Promise.resolve(null)
   ]);
+  if(ctm && ctm.ok){
+    if(ctm.value && ctm.value.byMonth && typeof ctm.value.byMonth==='object'){ catTargetsByMonth = ctm.value.byMonth; catTargetsSaved = true; }
+    else if(!catTargetsSaved) catTargetsByMonth = null;          // not created yet: computed from the old table
+  }
   // Read on every poll (it's tiny), so a grant HR opens reaches the line within one refresh.
   if(Array.isArray(unlocks)) store.unlocks = unlocks; else if(!Array.isArray(store.unlocks)) store.unlocks = [];
   if(!store.lines) store.lines = {};
@@ -5216,7 +5245,7 @@ function dashMetrics(period, key, shiftFilter){
   const activeDates = new Set();
 
   function bucket(c){
-    if(!cat[c]) cat[c] = {qty:0, earn:0, work:0, earnT:0, req:0, rej:0, rep:0, dg:0};
+    if(!cat[c]) cat[c] = {qty:0, earn:0, work:0, earnT:0, req:0, rej:0, rep:0, dg:0, mtW:0, mtWork:0};
     return cat[c];
   }
 
@@ -5249,6 +5278,7 @@ function dashMetrics(period, key, shiftFilter){
           const art = findArticle(ln, a.layoutNo);
           const b = bucket(art && art.category ? art.category : 'Not set');
           b.qty += a.qty; b.earn += a.earnMin; b.work += a.manMinutes;
+          { const mt = Number(monthTargetsFor(dt)[art && art.category])||0; if(mt>0 && a.manMinutes>0){ b.mtW += mt*a.manMinutes; b.mtWork += a.manMinutes; } }
           // That date+shift's own Target% (not the article's latest), so a later IE change
           // can never rewrite an earlier period's category target.
           const tp = Number(a.targetPercent)||0;
@@ -5367,7 +5397,7 @@ function dashMetrics(period, key, shiftFilter){
       // The category's MONTHLY target as IE set it in "Monthly Average Target %" \u2014 a
       // deliberate, stable goal per category, distinct from `target` above (which is just
       // the weighted average of whatever each article's own target% happened to be that day).
-      monthlyTargetPct: Number((store.categoryTargets||{})[name])||0,
+      monthlyTargetPct: c.mtWork>0 ? c.mtW/c.mtWork : 0,
       rej:c.rej, rep:c.rep, dg:c.dg,
       rejPct: c.qty>0 ? c.rej/c.qty*100 : 0,
       repPct: c.qty>0 ? c.rep/c.qty*100 : 0,
@@ -5941,6 +5971,7 @@ function exportAllData(){
     qf: store.qualityFlags,
     notice: store.notices,
     unlock: store.unlocks,
+    catTargets: catTargetsByMonth ? { byMonth: catTargetsByMonth } : null,
     lines: store.lines };
   const blob = new Blob([JSON.stringify(dump,null,2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -5982,6 +6013,7 @@ async function importAllData(file){
   if(dump.qf)     pairs.push([K_QF, dump.qf]);
   if(dump.notice) pairs.push([K_NOTICE, dump.notice]);
   if(dump.unlock) pairs.push([K_UNLOCK, dump.unlock]);
+  if(dump.catTargets && dump.catTargets.byMonth) pairs.push([K_CATTGT, dump.catTargets]);
   Object.keys(dump.lines||{}).forEach(ln=>{ if(dump.lines[ln]) pairs.push([lineKey(ln), dump.lines[ln]]); });
   const results = await writeKeysSequential(pairs);
   if(results.some(r=>r===false) || !BACKEND_CONFIGURED){
@@ -6015,6 +6047,7 @@ async function importAllData(file){
     store.categories = Array.isArray(m.categories) ? m.categories : [];
     store.inactiveCategories = Array.isArray(m.inactiveCategories) ? m.inactiveCategories : [];
   }
+  if(dump.catTargets && dump.catTargets.byMonth){ catTargetsByMonth = dump.catTargets.byMonth; catTargetsSaved = true; }
   ALL_LINES.forEach(ln=>{ if(dump.lines && dump.lines[ln]) absorbLine(ln, dump.lines[ln]); else ensureLine(ln); });
   rebaseSigs();
   renderAll();
@@ -8018,6 +8051,8 @@ function iePanelHTML(){
   </div>
   <div class="card">
     <h2><span class="dot"></span>Monthly Average Target %</h2>
+    <div class="row2" style="align-items:end;"><div class="field"><label>Month</label><select id="catTgtMonth"></select></div><div class="note" id="catTgtRange" style="padding-bottom:12px;"></div></div>
+    <div id="catTgtNoMonth" class="note hidden" style="color:var(--danger);font-weight:700;margin:6px 0;">Add the month in Month Range first — targets are set per month.</div>
     <div style="font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--steel);margin:6px 0 4px;">By product category (Line 1–6)</div>
     <div class="table-scroll"><table><tbody id="ieCatTargetBody"></tbody></table></div>
     <div style="font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--steel);margin:12px 0 4px;">By sub-section</div>
@@ -12129,7 +12164,15 @@ function attachPanelEvents(key){
       if(!store.monthRanges) store.monthRanges = [];
       if(ieMonthEditing && ieMonthEditing.toLowerCase()!==name.toLowerCase()){
         if(store.monthRanges.some(m=>m.name.toLowerCase()===name.toLowerCase())){ alert(name+' is already in the list.'); return; }
-        store.monthRanges = store.monthRanges.filter(m=>m.name!==ieMonthEditing);
+        // the month's targets move with its new name
+        const oldName = ieMonthEditing;
+        const r = await readKeyStrict(K_CATTGT);
+        if(!r.ok){ alert('Could not reach the server — nothing saved. Try again.'); return; }
+        const byMonth = (r.value && r.value.byMonth) ? r.value.byMonth : catTargetsMigrated();
+        if(byMonth[oldName]){ byMonth[name] = byMonth[oldName]; delete byMonth[oldName];
+          if(!(await writeKey(K_CATTGT, { byMonth, updatedAt: Date.now() }))){ alert('Save failed — press Save again.'); return; }
+          catTargetsByMonth = byMonth; catTargetsSaved = true; }
+        store.monthRanges = store.monthRanges.filter(m=>m.name!==oldName);
       }
       const existing = store.monthRanges.find(m=>m.name.toLowerCase()===name.toLowerCase());
       if(existing){ existing.name = name; existing.from = from; existing.to = to; }
@@ -12291,38 +12334,53 @@ function attachPanelEvents(key){
       flashSaved(e.target);
     };
 
-    // ---- Monthly Average Target % (global: by category + by sub-section) ----
-    store.categoryTargets = store.categoryTargets || {};
-    // Rows are built from the live category list, two per row, so a newly added category
-    // gets its target box automatically.
-    (function renderCategoryTargetRows(){
-      const list = articleCategories();
-      const body = document.getElementById('ieCatTargetBody');
-      let html = '';
-      for(let i=0;i<list.length;i+=2){
-        const cells = [list[i], list[i+1]].map(cName=> cName
-          ? `<td>${cName}</td><td><input class="cat-tgt" data-cat="${cName}" type="number" step="0.1" style="width:90px;"></td>`
-          : '<td></td><td></td>').join('');
-        html += `<tr>${cells}</tr>`;
+    // ---- Monthly Average Target % — per month (Build 10-04i) ----
+    (function monthlyTargetCard(){
+      const months = (store.monthRanges||[]).filter(m=>m.from && m.to).slice().sort((a,b)=>(b.from||'').localeCompare(a.from||''));
+      const sel = document.getElementById('catTgtMonth');
+      const noMonth = document.getElementById('catTgtNoMonth');
+      if(!months.length){ sel.innerHTML = '<option value="">No month set</option>'; noMonth.classList.remove('hidden'); document.getElementById('catTgtSaveBtn').disabled = true; }
+      if(!window._catTgtMonth || !months.find(m=>m.name===window._catTgtMonth)){
+        const cur = currentMonthRange(); window._catTgtMonth = cur ? cur.name : (months[0] ? months[0].name : '');
       }
-      body.innerHTML = html;
+      if(months.length) sel.innerHTML = months.map(m=>`<option ${m.name===window._catTgtMonth?'selected':''}>${esc(m.name)}</option>`).join('');
+      const draw = ()=>{
+        const mr = months.find(m=>m.name===window._catTgtMonth);
+        const vals = mr ? ((catTargetsByMonth || catTargetsMigrated())[mr.name] || {}) : {};
+        document.getElementById('catTgtRange').textContent = mr ? `${mr.from} to ${mr.to} · changes apply to this month only` : '';
+        // active categories, plus any category that already has a target in this month
+        const list = articleCategories().filter(c=>isCategoryActive(c) || (vals[c]!==undefined && vals[c]!==''));
+        const body = document.getElementById('ieCatTargetBody');
+        let html = '';
+        for(let i=0;i<list.length;i+=2){
+          const cells = [list[i], list[i+1]].map(cName=> cName
+            ? `<td>${esc(cName)}${isCategoryActive(cName)?'':' <span class="note">(inactive)</span>'}</td><td><input class="cat-tgt" data-cat="${esc(cName)}" type="number" step="0.1" style="width:90px;"></td>`
+            : '<td></td><td></td>').join('');
+          html += `<tr>${cells}</tr>`;
+        }
+        body.innerHTML = html || '<tr><td class="empty">No active category</td></tr>';
+        document.querySelectorAll('.cat-tgt').forEach(inp=>{
+          const v = vals[inp.dataset.cat];
+          inp.value = (v===undefined || v===null || v==='') ? '' : v;
+          inp.disabled = !mr;
+        });
+      };
+      sel.onchange = ()=>{ window._catTgtMonth = sel.value; draw(); };
+      draw();
+      document.getElementById('catTgtSaveBtn').onclick = async (e)=>{
+        const mr = months.find(m=>m.name===window._catTgtMonth); if(!mr){ alert('Add the month in Month Range first.'); return; }
+        const mine = {};
+        document.querySelectorAll('.cat-tgt').forEach(inp=>{ const num = Number(inp.value); if(inp.value!=='' && !isNaN(num)) mine[inp.dataset.cat] = num; });
+        const r = await readKeyStrict(K_CATTGT);
+        if(!r.ok){ alert('Could not reach the server — nothing saved. Try again.'); return; }
+        const byMonth = (r.value && r.value.byMonth && typeof r.value.byMonth==='object') ? r.value.byMonth : catTargetsMigrated();
+        byMonth[mr.name] = mine;                       // this month only
+        if(!(await writeKey(K_CATTGT, { byMonth, updatedAt: Date.now() }))){ alert('Save failed — press Save again.'); return; }
+        catTargetsByMonth = byMonth; catTargetsSaved = true;
+        renderAll(); flashSaved(e.target);
+        const n = document.getElementById('catTgtNote'); n.textContent = `✓ Targets saved for ${mr.name} only (all lines)`; setTimeout(()=>{ n.textContent=''; }, 3500);
+      };
     })();
-    document.querySelectorAll('.cat-tgt').forEach(inp=>{
-      const key = inp.dataset.cat;
-      const v = store.categoryTargets[key];
-      inp.value = (v===undefined || v===null || v==='') ? '' : v;
-    });
-    document.getElementById('catTgtSaveBtn').onclick = async (e)=>{
-      document.querySelectorAll('.cat-tgt').forEach(inp=>{
-        const key = inp.dataset.cat;
-        const num = Number(inp.value);
-        if(inp.value==='' || isNaN(num)) delete store.categoryTargets[key];
-        else store.categoryTargets[key] = num;
-      });
-      await saveStore(); renderAll();
-      flashSaved(e.target);
-      const n=document.getElementById('catTgtNote'); n.textContent='✓ Targets saved (all lines)'; setTimeout(()=>{n.textContent='';},3000);
-    };
 
     document.getElementById('ieLineLabel').textContent = lineLabel(selectedLine);
     const ieDate = document.getElementById('ieDate');
