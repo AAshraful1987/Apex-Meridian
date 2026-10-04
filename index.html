@@ -614,6 +614,107 @@
     .qs-grid{grid-template-columns:repeat(2,1fr);}
     .qs-bottom-grid{grid-template-columns:1fr;}
   }
+  /* ===== Build 10-04a: OB (Operation Breakdown) ===== */
+  .ie-art-row{display:flex;gap:6px;align-items:stretch;}
+  .ie-art-row select{flex:1;min-width:0;}
+  .ie-kebab{position:relative;}
+  .ie-kebab>button{background:#fff;border:1.5px solid var(--border);color:var(--ink);font-size:20px;line-height:1;padding:4px 12px;border-radius:8px;height:100%;}
+  .ie-kebab-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:50;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,.18);min-width:240px;display:none;overflow:hidden;}
+  .ie-kebab-menu.open{display:block;}
+  .ie-kebab-menu button{display:block;width:100%;text-align:left;background:#fff;color:var(--ink);border-radius:0;padding:12px 14px;font-size:13.5px;}
+  .ie-kebab-menu button:hover{background:#F1F4F3;}
+  .ie-ob-note{font-size:11.5px;color:var(--accent2);font-weight:700;margin-top:3px;}
+  #obModal{position:fixed;inset:0;z-index:3000;background:#EEF1EF;overflow:auto;-webkit-overflow-scrolling:touch;}
+  #obModal .obw{max-width:1320px;margin:0 auto;padding:12px 12px 120px;}
+  #obModal .obtop{background:var(--accent2);color:#fff;border-radius:14px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;position:sticky;top:6px;z-index:5;box-shadow:0 6px 16px rgba(0,0,0,.15);}
+  #obModal .obtop h1{margin:0;font-size:17px;}
+  #obModal .obtop .sub{font-size:12px;opacity:.85;font-weight:600;}
+  #obModal .obtop .acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  #obModal .obtop select{width:auto;max-width:260px;padding:7px 8px;font-size:12.5px;background:#fff;}
+  #obModal .obtop button{padding:8px 12px;font-size:12.5px;}
+  #obModal .b-w{background:#fff;color:var(--accent2);}
+  #obModal .b-a{background:var(--accent);color:#231604;}
+  #obModal .b-x{background:rgba(255,255,255,.18);color:#fff;font-size:16px;}
+  #obModal .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:10px;}
+  #obModal .card h3{margin:0 0 8px;font-size:13.5px;color:var(--ink);}
+  #obModal .hdr{display:grid;grid-template-columns:150px 1fr 1.3fr;gap:14px;}
+  #obModal .pic{height:120px;border:1.5px dashed var(--border);border-radius:12px;background:#F7F9F8;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--steel);font-size:11.5px;cursor:pointer;overflow:hidden;text-align:center;}
+  #obModal .pic img{max-width:100%;max-height:100%;object-fit:contain;}
+  #obModal .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  #obModal .f label{font-size:11px;font-weight:700;margin-bottom:2px;}
+  #obModal .f .v{border:1px solid var(--border);border-radius:8px;padding:8px 9px;font-size:13.5px;background:#F1F4F3;min-height:36px;}
+  #obModal .f input.in{background:#FFF8E6;border-color:#F3D08A;font-weight:800;}
+  #obModal .set{border-left:1px solid var(--border);padding-left:14px;}
+  #obModal .kpis{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:10px;}
+  #obModal .k{background:#fff;border:1px solid var(--border);border-radius:12px;padding:9px 10px;}
+  #obModal .k .t{font-size:10.5px;color:var(--steel);font-weight:800;text-transform:uppercase;letter-spacing:.2px;}
+  #obModal .k .n{font-size:20px;font-weight:800;margin-top:2px;}
+  #obModal .k .s{font-size:10.5px;color:var(--steel);}
+  #obModal .k.red{border-color:#F3B4B4;background:#FFF5F5;} #obModal .k.red .n{color:var(--danger);} #obModal .k.grn .n{color:var(--success);}
+  #obModal .alert{border:2px solid var(--danger);background:#FFF5F5;border-radius:12px;padding:10px 12px;color:#7F1D1D;font-weight:700;font-size:13px;margin-bottom:10px;line-height:1.5;}
+  #obModal .two{display:grid;grid-template-columns:1.6fr 1fr;gap:10px;}
+  #obModal table{width:100%;border-collapse:collapse;font-size:12px;}
+  #obModal th{background:#F1F4F3;color:var(--steel);font-size:10px;text-transform:uppercase;padding:6px 4px;border-bottom:1.5px solid var(--border);text-align:center;white-space:nowrap;}
+  #obModal td{padding:4px 3px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;}
+  #obModal td.l{text-align:left;min-width:220px;}
+  #obModal td.l input{min-width:220px;}
+  #obModal td.c{background:#EEF6F5;color:var(--accent2);font-weight:700;}
+  #obModal td input,#obModal td select{padding:4px 5px;font-size:12px;border-radius:6px;}
+  #obModal td input.n{width:58px;text-align:center;}
+  #obModal td input.smv{width:66px;text-align:center;font-weight:800;}
+  #obModal td input.smv[readonly]{background:#EEF6F5;border-color:#BFDDD9;color:var(--accent2);}
+  #obModal td select{width:auto;min-width:86px;}
+  #obModal .st{display:inline-block;border-radius:7px;padding:2px 7px;font-size:10.5px;font-weight:800;}
+  #obModal .s-bn{background:#FEE2E2;color:#991B1B;} #obModal .s-fo{background:#FEF3C7;color:#92400E;} #obModal .s-ok{background:#DCFCE7;color:#166534;} #obModal .s-go{background:#E5E7EB;color:#374151;}
+  #obModal tr.bn td{background:#FFF1F1;} #obModal tr.sel td{background:#FFF4E5 !important;}
+  #obModal tfoot td{font-weight:800;background:#F1F4F3;}
+  #obModal .leg{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--steel);margin-top:6px;}
+  #obModal .leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px;}
+  #obModal .help li{margin-bottom:6px;font-size:12.5px;line-height:1.45;}
+  #obModal .note{font-size:11px;color:var(--steel);}
+  #obModal .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  #obModal th.ts,#obModal td.ts{background:#FFFBEB;} #obModal th.ts{color:#92400E;}
+  #obModal:not(.study) .ts{display:none !important;}
+  #obModal td.ts input{width:48px;text-align:center;border-color:#F3D08A;background:#fff;}
+  #obModal .tsbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  #obModal .tsbar .grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+  #obModal .tsbar button{padding:7px 10px;font-size:12px;background:#fff;border:1.5px solid var(--border);color:var(--ink);}
+  #obModal .tog{border:2px solid var(--accent) !important;color:var(--accent-dark) !important;font-weight:800;}
+  #obModal.study .tog{background:var(--accent) !important;color:#111 !important;}
+  #obModal .allall{font-size:12px;color:var(--steel);display:flex;gap:6px;align-items:center;}
+  #obModal .allall input{width:56px;padding:5px;text-align:center;}
+  #obModal .swb{border:1.5px solid var(--accent);color:var(--accent-dark);background:#fff;border-radius:7px;padding:1px 7px;font-weight:800;font-size:13px;}
+  #obModal .rb{background:#fff;border:1px solid var(--border);color:var(--steel);padding:2px 6px;font-size:11px;border-radius:6px;}
+  #obModal .rb.del{color:var(--danger);}
+  #obModal .stop{position:sticky;bottom:8px;background:#151B19;color:#fff;border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:1.3fr 1fr 2fr;gap:12px;align-items:center;margin-top:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:4;}
+  #obModal:not(.study) .stop{display:none;}
+  #obModal .stop .op{font-size:12px;color:#9FB3AE;} #obModal .stop .op b{color:#fff;font-size:15px;display:block;}
+  #obModal .stop .time{font-family:Consolas,'SFMono-Regular',monospace;font-size:40px;font-weight:800;letter-spacing:1px;text-align:center;}
+  #obModal .stop .btns{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;}
+  #obModal .stop button{border:none;border-radius:12px;padding:14px 6px;font-size:15px;font-weight:800;}
+  #obModal .b-start{background:#15803D;color:#fff;} #obModal .b-lap{background:var(--accent);color:#111;} #obModal .b-reset{background:#2A3431;color:#fff;}
+  #obModal .chips span{display:inline-block;background:#2A3431;color:#fff;border-radius:6px;padding:2px 7px;margin:3px 3px 0 0;font-size:11.5px;}
+  #obModal .empty-ob{padding:22px;text-align:center;color:var(--steel);font-size:13px;}
+  #obModal .badge{display:inline-block;background:#E8F5EE;color:var(--success);border-radius:6px;padding:1px 6px;font-size:10.5px;font-weight:800;margin-left:4px;}
+  .ob-sub{position:fixed;inset:0;z-index:3100;background:rgba(20,20,20,.55);display:flex;align-items:center;justify-content:center;padding:16px;}
+  .ob-sub .box{background:#fff;border-radius:14px;padding:16px;max-width:640px;width:100%;max-height:86vh;overflow:auto;}
+  .ob-sub h3{margin:0 0 8px;font-size:15px;}
+  .ob-sub textarea{min-height:200px;font-family:Consolas,monospace;font-size:12px;}
+  .ob-sub .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap;}
+  .ob-sub .btns button{padding:9px 14px;}
+  .ob-sub .pick{display:block;width:100%;text-align:left;background:#F7F9F8;border:1px solid var(--border);color:var(--ink);margin:5px 0;padding:10px 12px;font-weight:600;}
+  .ob-sub table{width:100%;border-collapse:collapse;font-size:13px;} .ob-sub td{padding:4px;border-bottom:1px solid var(--border);}
+  @media(max-width:760px){
+    #obModal .hdr,#obModal .two{grid-template-columns:1fr;}
+    #obModal .set{border-left:0;padding-left:0;}
+    #obModal .kpis{grid-template-columns:repeat(2,1fr);}
+    #obModal .g3{grid-template-columns:1fr 1fr;}
+    #obModal .stop{grid-template-columns:1fr;text-align:center;}
+    #obModal .stop .time{font-size:44px;}
+    #obModal .obtop{position:static;}
+    #obModal .pic{height:90px;}
+    #obModal td.l,#obModal td.l input{min-width:160px;}
+  }
 </style>
 </head>
 <body>
@@ -780,7 +881,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-03c-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04a-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1099,7 +1200,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-03c-supabase';
+const APP_BUILD = '2026-10-04a-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -7860,11 +7961,11 @@ function iePanelHTML(){
       <div class="field"><label>Shift</label><select id="ieShiftSel"><option value="A">A Shift</option><option value="B">B Shift</option><option value="G">G (General) Shift</option></select></div>
     </div>
     <div class="row2">
-      <div class="field"><label>Article</label><select id="ieLayoutSel"></select></div>
+      <div class="field"><label>Article</label><div class="ie-art-row"><select id="ieLayoutSel"></select><div class="ie-kebab"><button type="button" id="ieObMenuBtn" title="More">&#8942;</button><div class="ie-kebab-menu" id="ieObMenu"><button type="button" id="ieObOpen">&#128203; OB (Operation Breakdown)</button></div></div></div></div>
       <div class="field"><label>Category</label><select id="ieCategory"></select></div>
     </div>
     <div class="row2">
-      <div class="field"><label>SMV</label><input id="ieSmv" type="number" step="0.01"></div>
+      <div class="field"><label>SMV</label><input id="ieSmv" type="number" step="0.01"><div class="ie-ob-note" id="ieObNote"></div></div>
       <div class="field"><label>Target %</label><input id="ieTarget" type="number" step="0.1"></div>
     </div>
     <div class="note" id="ieOrderQtyNote"></div>
@@ -7873,6 +7974,548 @@ function iePanelHTML(){
     <div class="table-scroll"><table><thead><tr><th>Layout</th><th>Article</th><th>Category</th><th>SMV</th><th>Target%</th><th>Order Qty</th><th>Rcv Qty</th><th>Reset</th></tr></thead><tbody id="ieTableBody"></tbody></table></div>
   </div>
   `;
+}
+
+
+// ===================================================================================================
+// Build 10-04a: OB (Operation Breakdown) & line balancing — opened from the ⋮ next to the Article in
+// the IE panel. One key per ARTICLE (the same article on another line can reuse it); every Save adds
+// a new version (v1, v2 …), nothing is overwritten. "Apply" puts the OB's Total SMV and the line
+// target efficiency onto the article through the normal IE Save (same lock, same category rule,
+// same carry-forward log), so a hand-typed SMV/Target% keeps working exactly as before.
+// ===================================================================================================
+const K_OBCFG = K_PREFIX + ':obcfg';                 // M/C type -> allowance %
+function obKey(articleNo){ return K_PREFIX + ':ob:' + slugify(String(articleNo||'').trim()); }
+const OB_DEFAULT_MC = { 'Machine':15, 'Manual':12 };
+let obCfg = { mc: Object.assign({}, OB_DEFAULT_MC) };
+let obCfgLoaded = false;
+async function obLoadCfg(){
+  const r = await readKeyStrict(K_OBCFG);
+  if(r.ok){ obCfgLoaded = true; if(r.value && r.value.mc && Object.keys(r.value.mc).length) obCfg = r.value; }
+  return r.ok;
+}
+function obEv(v){ return (v===null||v===undefined) ? '' : esc(v); }
+function obMcNames(){ return Object.keys((obCfg&&obCfg.mc)||OB_DEFAULT_MC); }
+function obMcAllow(mc){ const t = (obCfg&&obCfg.mc)||OB_DEFAULT_MC; return (mc in t) ? (Number(t[mc])||0) : 15; }
+// Strict read-modify-write of one OB key: if the current copy cannot be READ nothing is written.
+async function obMutate(k, fn){
+  const r = await readKeyStrict(k);
+  if(!r.ok) return { ok:false, error:'Could not reach the server — nothing saved. Try again.' };
+  const out = fn(r.value);
+  if(!out || out.ok===false) return out || { ok:false, error:'Nothing to save' };
+  const ok = await writeKey(k, out.doc);
+  if(!ok) return { ok:false, error:'Save failed — press the button again.' };
+  return { ok:true, doc: out.doc, ver: out.ver };
+}
+
+// ---- calculation (pure: rows + plan in, numbers out) ----
+function obRowAvg(r){ const c = (r.cyc||[]).map(Number).filter(x=>x>0); return c.length ? c.reduce((a,b)=>a+b,0)/c.length : 0; }
+function obRowHasStudy(r){ return (r.cyc||[]).some(x=>Number(x)>0); }
+function obRowRating(r){ const v = Number(r.rating); return (r.rating===''||r.rating==null||!(v>0)) ? 100 : v; }
+function obRowSmv(r){
+  if(obRowHasStudy(r)) return obRowAvg(r) * obRowRating(r)/100 * (1 + (Number(r.allow)||0)/100) / 60;
+  return Number(r.smv)||0;
+}
+function obCompute(rows, plan){
+  const N = Math.max(0, Math.floor(Number(plan.mp)||0));
+  const OE = (Number(plan.opEff)||0)/100, LE = (Number(plan.lineEff)||0)/100, HRS = Number(plan.hrs)||0;
+  const smv = rows.map(obRowSmv);
+  const act = smv.map((s,i)=>s>0?i:-1).filter(i=>i>=0);
+  const S = smv.reduce((a,b)=>a+b,0);
+  const res = { N, OE, LE, HRS, smv, S, act, ok:false, mp: smv.map(()=>0), theo: smv.map(()=>0), load: smv.map(()=>0),
+                cap100: smv.map(()=>0), capOE: smv.map(()=>0), effNeed: smv.map(()=>0), loss: smv.map(()=>0), status: smv.map(()=>'') };
+  if(!act.length || !N || !(OE>0) || !(S>0)) return res;
+  const need = T => act.map(i=>Math.max(1, Math.ceil(T*smv[i]/(60*OE) - 1e-9)));
+  const sum = a => a.reduce((x,y)=>x+y,0);
+  const feasible = act.length <= N;
+  // 1) the highest hourly output (step 0.25) that today's M/P can cover
+  let T = 0;
+  if(feasible){ for(let t=0.25; t<=5000; t+=0.25){ if(sum(need(t))<=N) T = t; else break; } }
+  let mpA = need(T);
+  // 2) spare people go to the heaviest work per operator
+  let spare = N - sum(mpA);
+  while(spare>0){ let k = 0; mpA.forEach((m,j)=>{ if(smv[act[j]]/m > smv[act[k]]/mpA[k]) k = j; }); mpA[k]++; spare--; }
+  act.forEach((i,j)=>{ res.mp[i] = mpA[j]; });
+  act.forEach(i=>{
+    res.theo[i] = T*smv[i]/(60*OE);
+    res.load[i] = smv[i]/res.mp[i];
+    res.cap100[i] = 60*res.mp[i]/smv[i];
+    res.capOE[i] = res.cap100[i]*OE;
+  });
+  let bnI = act[0]; act.forEach(i=>{ if(res.load[i] > res.load[bnI]) bnI = i; });
+  const mpUsed = sum(mpA);
+  const bn100 = res.cap100[bnI], bnOE = res.capOE[bnI];
+  const t100 = 60/S*N, tLine = t100*LE;
+  const takt = tLine>0 ? 60/tLine : 0, pitch = S/N, UCL = pitch/0.85, LCL = 2*pitch - UCL;
+  act.forEach(i=>{ res.loss[i] = (res.cap100[i]-bn100)*smv[i]; res.effNeed[i] = tLine*smv[i]/(60*res.mp[i]); });
+  const lossSum = sum(act.map(i=>res.loss[i]));
+  const balance = 1 - lossSum/(mpUsed*60);
+  act.forEach(i=>{ res.status[i] = i===bnI ? 'bn' : res.load[i]>UCL ? 'fo' : res.load[i]<LCL ? 'go' : 'ok'; });
+  return Object.assign(res, { ok:true, feasible, T, bnI, bn100, bnOE, t100, tLine, takt, pitch, UCL, LCL, lossSum, balance, mpUsed,
+    theoSum: sum(act.map(i=>res.theo[i])) });
+}
+// Excel paste: one operation per line. Columns may be  [SL] Operation [M/C] SMV  (tab separated).
+function obParsePaste(text){
+  const out = [];
+  String(text||'').split(/\r?\n/).forEach(line=>{
+    let cells = line.split('\t').map(s=>s.trim()).filter(s=>s!=='');
+    if(!cells.length) return;
+    const isNum = s=>/^-?\d+(\.\d+)?$/.test(s.replace(/,/g,''));
+    if(cells.length>=2 && /^\d+$/.test(cells[0]) && !isNum(cells[1])) cells = cells.slice(1);   // SL column
+    const name = cells.find(c=>!isNum(c));
+    const nums = cells.filter(isNum).map(s=>Number(s.replace(/,/g,'')));
+    if(!name) return;
+    if(/^(sl|operation|operation name|total)\b/i.test(name) && !nums.length) return;           // header row
+    if(/^total\b/i.test(name)) return;
+    const others = cells.filter(c=>!isNum(c) && c!==name);
+    const mcNames = obMcNames();
+    const mc = mcNames.find(m=>others.some(o=>o.toLowerCase()===m.toLowerCase())) || mcNames[0];
+    out.push({ op:name, mc, smv: nums.length ? nums[nums.length-1] : '', cyc:[null,null,null,null,null], rating:100, allow: obMcAllow(mc), allowOv:false });
+  });
+  return out;
+}
+
+// ---- modal ----
+let obUI = null;
+let ieObRefPending = null;   // set only while an OB Apply runs the IE Save   // { art, line, doc, rows, plan, hdr, photo, baseVer, dirty, sel, readOk }
+function obBlankRow(){ const mc = obMcNames()[0]; return { op:'', mc, smv:'', cyc:[null,null,null,null,null], rating:100, allow: obMcAllow(mc), allowOv:false }; }
+function obFmtWhen(ep){ try{ const d = new Date(ep); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+d.toTimeString().slice(0,5); }catch(e){ return ''; } }
+function obLoadVersion(v){
+  obUI.rows = JSON.parse(JSON.stringify(v.rows||[]));
+  obUI.rows.forEach(r=>{ r.cyc = (r.cyc||[]).slice(0,5); while(r.cyc.length<5) r.cyc.push(null); });
+  obUI.plan = Object.assign({}, obUI.plan, v.plan||{});
+  obUI.hdr = Object.assign({}, obUI.hdr, { item: (v.hdr&&v.hdr.item)||obUI.hdr.item||'', last: (v.hdr&&v.hdr.last)||obUI.hdr.last||'' });
+  obUI.baseVer = v.ver; obUI.dirty = false; obUI.sel = 0;
+}
+async function openObModal(lineName, layoutNo, applyFn, currentIe){
+  const art = findArticle(lineName, layoutNo);
+  if(!art){ toast('Select an article first'); return; }
+  const k = obKey(art.articleNo);
+  const [r] = await Promise.all([ readKeyStrict(k), obLoadCfg() ]);
+  obUI = { art, line: lineName, key: k, doc: r.value || null, readOk: r.ok, applyFn, sel: 0, dirty: false, baseVer: null,
+           rows: [], photo: (r.value && r.value.photo) || '', photoDirty: false,
+           plan: { mp:'', opEff:80, lineEff: Number(currentIe && currentIe.targetPercent) || 70, hrs:10, leaders:1 },
+           hdr: { item:'', last:'' } };
+  const vs = (obUI.doc && obUI.doc.versions) || [];
+  if(vs.length) obLoadVersion(vs[vs.length-1]); else obUI.rows = [];
+  obRenderShell();
+}
+function obClose(force){
+  if(!force && obUI && obUI.dirty && !confirm('You have changes that are not saved. Close the OB anyway?')) return;
+  obSwReset();
+  const m = document.getElementById('obModal'); if(m) m.remove();
+  obUI = null;
+}
+function obVersionOptions(){
+  const vs = (obUI.doc && obUI.doc.versions) || [];
+  if(!vs.length) return '<option value="">No saved version yet</option>';
+  return vs.slice().reverse().map(v=>`<option value="${v.ver}" ${v.ver===obUI.baseVer?'selected':''}>v${v.ver} · ${obFmtWhen(v.savedAt)} · ${esc(v.by||'')}${(v.applied&&v.applied.length)?' · applied':''}</option>`).join('');
+}
+function obRenderShell(){
+  let m = document.getElementById('obModal');
+  const study = m ? m.classList.contains('study') : false;
+  if(!m){ m = document.createElement('div'); m.id = 'obModal'; document.body.appendChild(m); }
+  if(study) m.classList.add('study');
+  const a = obUI.art;
+  m.innerHTML = `<div class="obw">
+   <div class="obtop">
+     <div><h1>OB (Operation Breakdown) &amp; Line Balancing</h1><div class="sub">${esc(lineLabel(obUI.line))} · L-${a.layoutNo} · ${esc(a.articleNo)} <span id="obDirty"></span></div></div>
+     <div class="acts">
+       <select id="obVerSel" title="Saved versions">${obVersionOptions()}</select>
+       <button class="b-w" id="obCopyBtn">⧉ Copy from…</button>
+       <button class="b-w" id="obSaveBtn">💾 Save new version</button>
+       <button class="b-a" id="obApplyBtn">✓ Apply to article</button>
+       <button class="b-x" id="obCloseBtn" title="Close">✕</button>
+     </div>
+   </div>
+   ${obUI.readOk ? '' : '<div class="alert">⚠ Could not read the saved OB for this article from the server. You can look, but Save is blocked until the page can reach the server (close and open again).</div>'}
+   <div class="card hdr">
+     <div class="pic" id="obPic" title="Tap to add / change the article image">${obUI.photo ? `<img src="${obUI.photo}" alt="">` : '📷<br>Article image<br><span style="font-size:10px">(tap to add)</span>'}</div>
+     <input type="file" id="obPicIn" accept="image/*" style="display:none">
+     <div><h3>Article</h3><div class="g3">
+       <div class="f"><label>Article</label><div class="v">${esc(a.articleNo)}</div></div>
+       <div class="f"><label>Shop Order</label><div class="v">${esc(a.shopOrderNo||'—')}</div></div>
+       <div class="f"><label>Item</label><input id="obItem" value="${esc(obUI.hdr.item||'')}" placeholder="e.g. Upper"></div>
+       <div class="f"><label>Last</label><input id="obLast" value="${esc(obUI.hdr.last||'')}" placeholder="Last no."></div>
+       <div class="f"><label>Line</label><div class="v">${esc(lineLabel(obUI.line))}</div></div>
+       <div class="f"><label>Date</label><div class="v">${esc(currentDate)}</div></div>
+     </div></div>
+     <div class="set"><h3>Plan <span class="note">(yellow = you set)</span></h3><div class="g3">
+       <div class="f"><label>Today's M/P</label><input class="in" id="obMp" type="number" min="1" step="1" value="${obEv(obUI.plan.mp)}" placeholder="M/P"></div>
+       <div class="f"><label>Operator efficiency %</label><input class="in" id="obOe" type="number" step="1" value="${obEv(obUI.plan.opEff)}"></div>
+       <div class="f"><label>Line target efficiency %</label><input class="in" id="obLe" type="number" step="0.1" value="${obEv(obUI.plan.lineEff)}"></div>
+       <div class="f"><label>Working hours</label><input class="in" id="obHrs" type="number" step="0.25" value="${obEv(obUI.plan.hrs)}"></div>
+       <div class="f"><label>Line leader (outside SMV)</label><input class="in" id="obLl" type="number" min="0" step="1" value="${obEv(obUI.plan.leaders)}"></div>
+       <div class="f"><label>Bottleneck target</label><div class="v" id="obBt" style="background:#EEF6F5;color:var(--accent2);font-weight:800">auto</div></div>
+     </div></div>
+   </div>
+   <div class="kpis" id="obKpis"></div>
+   <div class="alert" id="obAlert" style="display:none"></div>
+   <div class="two">
+     <div class="card"><h3>Line balance — work per operator (min) against pitch, UCL / LCL and takt</h3><div id="obChart"></div>
+       <div class="leg"><span><i style="background:#185FA5"></i>Pitch time</span><span><i style="background:#B91C1C"></i>UCL (pitch ÷ 0.85)</span><span><i style="background:#6B7280"></i>LCL</span><span><i style="background:#D97706;height:0;border-top:2px dashed #D97706"></i>Takt time</span></div></div>
+     <div class="card"><h3>Where to balance &amp; who helps</h3><ul class="help" id="obHelp" style="padding-left:18px;margin:0"></ul></div>
+   </div>
+   <div class="card">
+     <div class="tsbar"><h3 style="margin:0">Operation breakdown</h3>
+       <div class="grp">
+         <button id="obAddBtn">＋ Add operation</button>
+         <button id="obPasteBtn">📋 Paste from Excel</button>
+         <button id="obMcBtn">⚙ M/C allowance</button>
+         <span class="allall ts">Allowance for whole sheet <input id="obAllAll" type="number" value="15"> % <button id="obAllBtn">Apply to all</button></span>
+         <button class="tog" id="obTog">⏱ Time study columns: <span id="obTogTxt">${study?'Open':'Hidden'}</span></button>
+       </div></div>
+     <div class="scroll"><table id="obTable"><thead><tr>
+       <th>SL</th><th style="text-align:left">Operation</th><th>M/C</th>
+       <th class="ts">⏱</th><th class="ts">C1 (s)</th><th class="ts">C2</th><th class="ts">C3</th><th class="ts">C4</th><th class="ts">C5</th><th class="ts">Avg (s)</th><th class="ts">Rating %</th><th class="ts">Basic (s)</th><th class="ts">Allow %</th>
+       <th>SMV</th><th>Target<br>100%</th><th>Theo.<br>M/P</th><th>Actual<br>M/P</th><th>Work /<br>operator</th><th>Capacity/hr<br>@ op. effi</th><th>Effi needed<br>for target</th><th>Minute loss<br>/ hr</th><th>Status</th><th></th>
+     </tr></thead><tbody id="obBody"></tbody><tfoot id="obFoot"></tfoot></table></div>
+     <div class="stop"><div class="op">Timing now<b id="obSwOp">—</b><div class="chips" id="obSwChips"></div></div><div class="time" id="obSwTime">00:00.0</div>
+       <div class="btns"><button class="b-start" id="obSwStart">▶ Start</button><button class="b-lap" id="obSwLap">Lap → C1</button><button class="b-reset" id="obSwReset">Reset</button></div></div>
+     <div class="note" style="margin-top:6px;line-height:1.5">SMV = Avg of the filled cycles × Rating × (1 + Allowance) ÷ 60 when cycles are timed; otherwise the SMV typed in the row · Theo. M/P = Bottleneck target × SMV ÷ (60 × operator effi) · Actual M/P = rounded up, then spare people go to the heaviest operations · Work/operator = SMV ÷ M/P · Capacity = 60 × M/P ÷ SMV × operator effi · Effi needed = line target × SMV ÷ (60 × M/P) · Minute loss = (capacity@100% − bottleneck@100%) × SMV · Line balance = 1 − minute loss ÷ (M/P × 60). The line leader is not counted in M/P or SMV.<br><b>Apply</b> puts the Total SMV and the Line target efficiency on this article from ${esc(currentDate)} · ${esc(SHIFT_LABELS[currentShift]||currentShift)} (same as pressing Save in the IE panel).</div>
+   </div></div>`;
+  obRenderRows();
+  obWireShell();
+}
+function obRowHtml(r, i){
+  const mcOpts = obMcNames().concat(obMcNames().includes(r.mc)||!r.mc ? [] : [r.mc]);
+  const studied = obRowHasStudy(r);
+  return `<tr data-i="${i}">
+   <td>${i+1}</td>
+   <td class="l"><input data-f="op" value="${esc(r.op||'')}" placeholder="Operation name"></td>
+   <td><select data-f="mc">${mcOpts.map(n=>`<option ${n===r.mc?'selected':''}>${esc(n)}</option>`).join('')}</select></td>
+   <td class="ts"><button class="swb" data-swsel="${i}" title="Time this operation">⏱</button></td>
+   ${[0,1,2,3,4].map(c=>`<td class="ts"><input data-cyc="${c}" type="number" step="0.1" value="${r.cyc[c]!=null?r.cyc[c]:''}"></td>`).join('')}
+   <td class="ts c" data-k="avg"></td>
+   <td class="ts"><input data-f="rating" type="number" step="1" value="${obEv(r.rating)}"></td>
+   <td class="ts c" data-k="basic"></td>
+   <td class="ts"><input data-f="allow" type="number" step="0.5" value="${obEv(r.allow)}" title="${r.allowOv?'Set by hand for this row':'From the M/C allowance table'}" style="${r.allowOv?'font-weight:800':''}"></td>
+   <td><input class="smv" data-f="smv" type="number" step="0.001" ${studied?'readonly title="From the time study"':''} value="${studied?'':obEv(r.smv)}"></td>
+   <td class="c" data-k="t100"></td><td class="c" data-k="theo"></td><td data-k="mp" style="font-weight:800"></td><td class="c" data-k="load"></td><td class="c" data-k="cap"></td><td class="c" data-k="eff"></td><td class="c" data-k="loss"></td><td data-k="st"></td>
+   <td><button class="rb" data-mv="-1" title="Move up">↑</button><button class="rb" data-mv="1" title="Move down">↓</button><button class="rb del" data-del="1" title="Remove">✕</button></td>
+  </tr>`;
+}
+function obRenderRows(){
+  const body = document.getElementById('obBody');
+  if(!obUI.rows.length){
+    body.innerHTML = `<tr><td colspan="23" class="empty-ob">No operations yet — use <b>📋 Paste from Excel</b> (Operation and SMV columns), <b>⧉ Copy from…</b> another OB, or <b>＋ Add operation</b>.</td></tr>`;
+  } else body.innerHTML = obUI.rows.map(obRowHtml).join('');
+  obWireRows();
+  obRecalc();
+}
+function obMarkDirty(){ obUI.dirty = true; const d = document.getElementById('obDirty'); if(d) d.innerHTML = '<span style="background:#FEF3C7;color:#92400E;border-radius:6px;padding:1px 6px;font-weight:800">● not saved</span>'; }
+function obRecalc(){
+  const R = obCompute(obUI.rows, obUI.plan);
+  obUI.lastCalc = R;
+  const f1 = v=>v.toFixed(1), f2 = v=>v.toFixed(2), f3 = v=>v.toFixed(3);
+  const STN = { bn:['bn','Bottleneck'], fo:['fo','Focus'], ok:['ok','Balanced'], go:['go','Gossip'] };
+  document.querySelectorAll('#obBody tr[data-i]').forEach(tr=>{
+    const i = Number(tr.dataset.i), r = obUI.rows[i]; if(!r) return;
+    const set = (k, v, st)=>{ const c = tr.querySelector(`[data-k="${k}"]`); if(c){ c.innerHTML = v; if(st!==undefined) c.style.cssText = st; } };
+    const avg = obRowAvg(r), studied = obRowHasStudy(r), s = R.smv[i];
+    set('avg', avg ? f1(avg) : '');
+    set('basic', avg ? f1(avg*obRowRating(r)/100) : '');
+    const smvIn = tr.querySelector('input[data-f="smv"]');
+    if(studied){ smvIn.readOnly = true; smvIn.value = s ? f3(s) : ''; smvIn.title = 'From the time study'; }
+    else if(smvIn.readOnly){ smvIn.readOnly = false; smvIn.value = r.smv; smvIn.title = ''; }
+    const on = R.ok && s>0;
+    set('t100', s>0 ? String(Math.floor(60/s)) : '');
+    set('theo', on ? f2(R.theo[i]) : '');
+    set('mp', on ? String(R.mp[i]) : '');
+    set('load', on ? f3(R.load[i]) : '');
+    set('cap', on ? f1(R.capOE[i]) : '');
+    set('eff', on ? (R.effNeed[i]*100).toFixed(0)+'%' : '', on && R.effNeed[i]>1 ? 'color:#B91C1C' : '');
+    set('loss', on ? f1(R.loss[i]) : '');
+    const st = on ? STN[R.status[i]] : null;
+    set('st', st ? `<span class="st s-${st[0]}">${st[1]}</span>` : (s>0?'':'<span class="note">no SMV</span>'));
+    tr.classList.toggle('bn', on && R.status[i]==='bn');
+    tr.classList.toggle('sel', i===obUI.sel);
+  });
+  document.getElementById('obFoot').innerHTML = obUI.rows.length ? `<tr><td></td><td class="l">Total · ${R.act.length} operation${R.act.length===1?'':'s'} with SMV</td><td></td><td class="ts" colspan="10"></td><td>${f3(R.S)}</td><td></td><td>${R.ok?f1(R.theoSum):''}</td><td>${R.ok?R.mpUsed:''}</td><td></td><td style="color:#B91C1C">${R.ok?f1(R.bnOE):''}</td><td></td><td>${R.ok?R.lossSum.toFixed(0):''}</td><td></td><td></td></tr>` : '';
+  const bt = document.getElementById('obBt');
+  bt.textContent = R.ok ? f1(R.bnOE)+' /hr' : 'auto';
+  const kp = document.getElementById('obKpis'), al = document.getElementById('obAlert');
+  if(!R.ok){
+    kp.innerHTML = `<div class="k" style="grid-column:1/-1"><div class="t">Total SMV</div><div class="n">${f3(R.S)}</div><div class="s">${!R.act.length?'Add operations with SMV':!R.N?'Enter Today’s M/P to see the bottleneck, takt and balance':'Enter the operator efficiency'}</div></div>`;
+    al.style.display = 'none'; document.getElementById('obChart').innerHTML = ''; document.getElementById('obHelp').innerHTML = '';
+    return R;
+  }
+  const opName = i=>esc(String(obUI.rows[i].op||('Op '+(i+1))).split('+')[0].trim());
+  const nF = R.act.filter(i=>R.status[i]==='bn'||R.status[i]==='fo').length, nG = R.act.filter(i=>R.status[i]==='go').length;
+  const K = [
+    ['Total SMV', f2(R.S), 'min / pair', ''],
+    ['Target @100%', f1(R.t100), 'pairs/hr · '+R.N+' M/P', ''],
+    ['Line target @'+(R.LE*100).toFixed(0)+'%', f1(R.tLine), 'pairs/hr · '+Math.round(R.tLine*R.HRS)+' / day', ''],
+    ['Bottleneck output', f1(R.bnOE), 'pairs/hr @'+(R.OE*100).toFixed(0)+'% · Op '+(R.bnI+1), R.bnOE<R.tLine?'red':'grn'],
+    ['Takt time', (R.takt*60).toFixed(1)+' s', f3(R.takt)+' min at line target', ''],
+    ['Pitch time', (R.pitch*60).toFixed(1)+' s', f3(R.pitch)+' min = SMV ÷ M/P', ''],
+    ['Line balance', (R.balance*100).toFixed(1)+'%', '1 − minute loss ÷ (M/P×60)', R.balance<0.7?'red':'grn'],
+    ['Focus / Gossip', nF+' / '+nG, 'above UCL / below LCL', '']
+  ];
+  kp.innerHTML = K.map(k=>`<div class="k ${k[3]}"><div class="t">${k[0]}</div><div class="n">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
+  const msgs = [];
+  if(!R.feasible) msgs.push(`⚠ ${R.act.length} operations but only ${R.N} M/P — every operation needs at least one person, so ${R.mpUsed-R.N} operator${R.mpUsed-R.N===1?' has':'s have'} to cover two operations.`);
+  if(R.bnOE < R.tLine) msgs.push(`⚠ Bottleneck (Op ${R.bnI+1}) can give only <b>${f1(R.bnOE)}/hr</b> at ${(R.OE*100).toFixed(0)}% operator efficiency — the line target is <b>${f1(R.tLine)}/hr</b>. Short <b>${f1(R.tLine-R.bnOE)}/hr</b> until the focus operations are balanced or helped.`);
+  al.innerHTML = msgs.join('<br>'); al.style.display = msgs.length ? '' : 'none';
+  // help list
+  const nb = i=>[i-2,i-1,i+1,i+2].filter(j=>j>=0 && j<obUI.rows.length && R.status[j]==='go');
+  const foc = R.act.filter(i=>R.status[i]==='bn'||R.status[i]==='fo').sort((a,b)=>R.load[b]-R.load[a]);
+  let hl = '';
+  foc.slice(0,5).forEach(i=>{ const h = nb(i); hl += `<li><b>Op ${i+1}</b> ${opName(i)} — ${f3(R.load[i])} min/operator (${((R.load[i]/R.pitch-1)*100).toFixed(0)}% over pitch). ${h.length ? 'Help from <b>'+h.map(j=>'Op '+(j+1)).join(', ')+'</b> (spare time, next to it)' : '<b>Line leader</b> supports here'}.</li>`; });
+  const gos = R.act.filter(i=>R.status[i]==='go');
+  if(gos.length) hl += `<li><b>Spare time (gossip):</b> ${gos.map(i=>'Op '+(i+1)).join(', ')} — work below LCL; combine or share operations.</li>`;
+  if(Number(obUI.plan.leaders)>0) hl += `<li><b>Line leader</b> (outside SMV) floats on Op ${R.bnI+1} first, then the next focus operation.</li>`;
+  if(!hl) hl = '<li>All operations are inside the UCL/LCL band.</li>';
+  document.getElementById('obHelp').innerHTML = hl;
+  // yamazumi chart
+  const W = 760, H = 250, pl = 40, pb = 24, pt = 10, n = obUI.rows.length;
+  const maxY = Math.max(...R.act.map(i=>R.load[i]), R.takt, R.UCL)*1.1, bw = (W-pl-6)/Math.max(1,n);
+  const y = v=>pt+(H-pt-pb)*(1-v/maxY);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
+  for(let g=0; g<=4; g++){ const v = maxY*g/4; svg += `<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#EEF1EF"/><text x="${pl-4}" y="${y(v)+3}" font-size="9" text-anchor="end" fill="#4B5A61">${v.toFixed(2)}</text>`; }
+  obUI.rows.forEach((r,i)=>{ const v = R.load[i]; if(v>0){ const st = R.status[i]; const col = st==='bn'?'#B91C1C':st==='fo'?'#D97706':st==='go'?'#9CA3AF':'#15803D';
+    svg += `<rect x="${pl+i*bw+1.5}" y="${y(v)}" width="${Math.max(1,bw-3)}" height="${y(0)-y(v)}" rx="2" fill="${col}"><title>Op ${i+1}: ${v.toFixed(3)} min</title></rect>`; }
+    if(n<=20 || i%2===0) svg += `<text x="${pl+i*bw+bw/2}" y="${H-8}" font-size="8.5" text-anchor="middle" fill="#4B5A61">${i+1}</text>`; });
+  [[R.pitch,'#185FA5',''],[R.UCL,'#B91C1C',''],[R.LCL,'#6B7280',''],[R.takt,'#D97706','4 3']].forEach(l=>{ if(l[0]>0) svg += `<line x1="${pl}" x2="${W}" y1="${y(l[0])}" y2="${y(l[0])}" stroke="${l[1]}" stroke-width="2" ${l[2]?'stroke-dasharray="'+l[2]+'"':''}/>`; });
+  svg += '</svg>';
+  document.getElementById('obChart').innerHTML = svg;
+  obSwInfo();
+  return R;
+}
+function obWireRows(){
+  document.querySelectorAll('#obBody tr[data-i]').forEach(tr=>{
+    const i = Number(tr.dataset.i);
+    tr.querySelectorAll('[data-f]').forEach(inp=>{
+      const f = inp.dataset.f;
+      const ev = (f==='op'||f==='mc') ? 'change' : 'input';
+      inp.addEventListener(ev, ()=>{
+        const r = obUI.rows[i]; if(!r) return;
+        if(f==='op') r.op = inp.value;
+        else if(f==='mc'){ r.mc = inp.value; r.allow = obMcAllow(r.mc); r.allowOv = false; const a = tr.querySelector('[data-f="allow"]'); if(a){ a.value = r.allow; a.style.fontWeight=''; } }
+        else if(f==='rating') r.rating = inp.value==='' ? '' : Number(inp.value);
+        else if(f==='allow'){ r.allow = inp.value==='' ? 0 : Number(inp.value); r.allowOv = true; inp.style.fontWeight='800'; }
+        else if(f==='smv'){ if(inp.readOnly) return; r.smv = inp.value==='' ? '' : Number(inp.value); }
+        obMarkDirty(); obRecalc();
+      });
+    });
+    tr.querySelectorAll('[data-cyc]').forEach(inp=>inp.addEventListener('input', ()=>{
+      const r = obUI.rows[i]; const v = parseFloat(inp.value); r.cyc[Number(inp.dataset.cyc)] = (isNaN(v)||v<=0) ? null : v;
+      obMarkDirty(); obRecalc();
+    }));
+    const sw = tr.querySelector('[data-swsel]'); if(sw) sw.onclick = ()=>{ obUI.sel = i; obRecalc(); };
+    tr.querySelectorAll('[data-mv]').forEach(b=>b.onclick = ()=>{
+      const j = i + Number(b.dataset.mv); if(j<0 || j>=obUI.rows.length) return;
+      const t = obUI.rows[i]; obUI.rows[i] = obUI.rows[j]; obUI.rows[j] = t; if(obUI.sel===i) obUI.sel = j;
+      obMarkDirty(); obRenderRows();
+    });
+    const del = tr.querySelector('[data-del]'); if(del) del.onclick = ()=>{
+      const r = obUI.rows[i];
+      if((r.op || r.smv || obRowHasStudy(r)) && !confirm(`Remove operation ${i+1}${r.op?' — '+r.op:''}?`)) return;
+      obUI.rows.splice(i,1); if(obUI.sel>=obUI.rows.length) obUI.sel = Math.max(0, obUI.rows.length-1);
+      obMarkDirty(); obRenderRows();
+    };
+  });
+}
+function obReadPlan(){
+  const g = id=>document.getElementById(id).value;
+  obUI.plan = { mp: g('obMp'), opEff: g('obOe'), lineEff: g('obLe'), hrs: g('obHrs'), leaders: g('obLl') };
+  obUI.hdr.item = g('obItem'); obUI.hdr.last = g('obLast');
+}
+function obSub(html){
+  const w = document.createElement('div'); w.className = 'ob-sub'; w.innerHTML = `<div class="box">${html}</div>`;
+  document.body.appendChild(w); w.addEventListener('click', e=>{ if(e.target===w) w.remove(); });
+  return w;
+}
+function obWireShell(){
+  const $ = id=>document.getElementById(id);
+  ['obMp','obOe','obLe','obHrs','obLl','obItem','obLast'].forEach(id=>$(id).addEventListener('input', ()=>{ obReadPlan(); obMarkDirty(); obRecalc(); }));
+  $('obCloseBtn').onclick = ()=>obClose(false);
+  $('obTog').onclick = ()=>{ const m = $('obModal'); m.classList.toggle('study'); $('obTogTxt').textContent = m.classList.contains('study') ? 'Open' : 'Hidden'; };
+  $('obAllBtn').onclick = ()=>{ const v = parseFloat($('obAllAll').value); if(isNaN(v)) return; obUI.rows.forEach(r=>{ r.allow = v; r.allowOv = true; }); obMarkDirty(); obRenderRows(); };
+  $('obAddBtn').onclick = ()=>{ obUI.rows.push(obBlankRow()); obMarkDirty(); obRenderRows(); const ins = document.querySelectorAll('#obBody input[data-f="op"]'); if(ins.length) ins[ins.length-1].focus(); };
+  $('obPic').onclick = ()=>$('obPicIn').click();
+  $('obPicIn').onchange = async (e)=>{
+    const file = e.target.files && e.target.files[0]; if(!file) return;
+    try{ obUI.photo = await compressImageToBase64(file, 360); obUI.photoDirty = true; $('obPic').innerHTML = `<img src="${obUI.photo}" alt="">`; obMarkDirty(); }
+    catch(err){ toast('Could not read that image'); }
+  };
+  $('obVerSel').onchange = ()=>{
+    const v = ((obUI.doc&&obUI.doc.versions)||[]).find(x=>String(x.ver)===$('obVerSel').value); if(!v) return;
+    if(obUI.dirty && !confirm('Open v'+v.ver+'? Your unsaved changes will be lost.')){ $('obVerSel').value = obUI.baseVer||''; return; }
+    obLoadVersion(v); obRenderShell();
+  };
+  $('obPasteBtn').onclick = ()=>{
+    const w = obSub(`<h3>📋 Paste from Excel</h3><div class="note" style="margin-bottom:6px">Copy the rows in Excel (Operation and SMV columns; SL and M/C columns are fine too) and paste here. One operation per line.</div>
+      <textarea id="obPasteTa" placeholder="Tongue Brushing + Upper Punching\t1.15&#10;Upper All Marking\t1.55"></textarea><div class="note" id="obPasteInfo"></div>
+      <div class="btns"><button class="btn-line" data-x>Cancel</button><button class="btn-secondary" style="width:auto" data-add>Add below existing</button><button class="btn-primary" style="width:auto" data-rep>Replace all operations</button></div>`);
+    const ta = w.querySelector('#obPasteTa'), info = w.querySelector('#obPasteInfo');
+    ta.addEventListener('input', ()=>{ const rows = obParsePaste(ta.value); info.textContent = rows.length ? `${rows.length} operation(s) found · Total SMV ${rows.reduce((s,r)=>s+(Number(r.smv)||0),0).toFixed(3)}` : ''; });
+    ta.focus();
+    const go = replace=>{ const rows = obParsePaste(ta.value); if(!rows.length){ info.textContent = 'Nothing found — paste at least an operation name and its SMV.'; return; }
+      if(replace && obUI.rows.length && !confirm(`Replace the ${obUI.rows.length} operations on the sheet with these ${rows.length}?`)) return;
+      obUI.rows = replace ? rows : obUI.rows.concat(rows); obUI.sel = 0; w.remove(); obMarkDirty(); obRenderRows(); };
+    w.querySelector('[data-x]').onclick = ()=>w.remove();
+    w.querySelector('[data-add]').onclick = ()=>go(false);
+    w.querySelector('[data-rep]').onclick = ()=>go(true);
+  };
+  $('obMcBtn').onclick = ()=>{
+    const t = Object.assign({}, (obCfg&&obCfg.mc)||OB_DEFAULT_MC);
+    const draw = ()=>Object.keys(t).map(n=>`<tr><td>${esc(n)}</td><td><input type="number" step="0.5" data-mcv="${esc(n)}" value="${t[n]}" style="width:90px"> %</td><td><button class="btn-ghost" data-mcdel="${esc(n)}">Remove</button></td></tr>`).join('');
+    const w = obSub(`<h3>⚙ Allowance by M/C type</h3><div class="note" style="margin-bottom:8px">Used as the starting allowance of every row with that M/C (all lines, all articles). A row's own Allow % can still be changed by hand.</div>
+      <table><tbody id="obMcRows">${draw()}</tbody></table>
+      <div class="row2" style="margin-top:8px"><input id="obMcNew" placeholder="New M/C type (e.g. Post bed)"><input id="obMcNewV" type="number" step="0.5" placeholder="Allowance %"></div>
+      <div class="btns"><button class="btn-line" data-x>Cancel</button><button class="btn-secondary" style="width:auto" data-addmc>＋ Add type</button><button class="btn-primary" style="width:auto" data-savemc>Save</button></div>`);
+    const rewire = ()=>{
+      w.querySelectorAll('[data-mcv]').forEach(inp=>inp.oninput = ()=>{ t[inp.dataset.mcv] = Number(inp.value)||0; });
+      w.querySelectorAll('[data-mcdel]').forEach(b=>b.onclick = ()=>{ if(Object.keys(t).length<=1){ toast('Keep at least one M/C type'); return; } delete t[b.dataset.mcdel]; w.querySelector('#obMcRows').innerHTML = draw(); rewire(); });
+    };
+    rewire();
+    w.querySelector('[data-x]').onclick = ()=>w.remove();
+    w.querySelector('[data-addmc]').onclick = ()=>{ const n = w.querySelector('#obMcNew').value.trim(); const v = Number(w.querySelector('#obMcNewV').value);
+      if(!n){ toast('Write the M/C type'); return; } if(Object.keys(t).some(x=>x.toLowerCase()===n.toLowerCase())){ toast('That type is already there'); return; }
+      t[n] = isNaN(v) ? 15 : v; w.querySelector('#obMcRows').innerHTML = draw(); rewire(); w.querySelector('#obMcNew').value = ''; w.querySelector('#obMcNewV').value = ''; };
+    w.querySelector('[data-savemc]').onclick = async (e)=>{
+      e.target.disabled = true;
+      const r = await readKeyStrict(K_OBCFG);
+      if(!r.ok){ e.target.disabled = false; toast('Could not reach the server — nothing saved'); return; }
+      const doc = Object.assign({}, r.value||{}, { mc: t, updatedAt: Date.now(), updatedBy: (session && (session.username||session.role)) || '' });
+      if(!(await writeKey(K_OBCFG, doc))){ e.target.disabled = false; toast('Save failed — press Save again'); return; }
+      obCfg = doc;
+      let changed = 0;
+      obUI.rows.forEach(rw=>{ if(!rw.allowOv && (rw.mc in t) && Number(rw.allow)!==Number(t[rw.mc])){ rw.allow = t[rw.mc]; changed++; } });
+      w.remove(); if(changed) obMarkDirty(); obRenderRows();
+      toast('M/C allowance saved' + (changed ? ` · ${changed} row(s) updated` : ''));
+    };
+  };
+  $('obCopyBtn').onclick = async ()=>{
+    const w = obSub(`<h3>⧉ Copy operations from another OB</h3><div class="note">Copies the operations, M/C, SMV, time study and plan of the latest version. Article details stay as they are.</div><div id="obCopyList" style="margin-top:8px">Loading…</div><div class="btns"><button class="btn-line" data-x>Cancel</button></div>`);
+    w.querySelector('[data-x]').onclick = ()=>w.remove();
+    let keys = null;
+    try{
+      const res = await fetch(KV_ENDPOINT + '?k=like.' + encodeURIComponent(K_PREFIX + ':ob:*') + '&select=k,updated_at&order=updated_at.desc&limit=200',
+        { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
+      if(res.ok) keys = await res.json();
+    }catch(e){}
+    const list = w.querySelector('#obCopyList');
+    if(!Array.isArray(keys)){ list.textContent = 'Could not reach the server. Try again.'; return; }
+    keys = keys.filter(x=>x && x.k && x.k!==obUI.key);
+    const ownVs = (obUI.doc&&obUI.doc.versions)||[];
+    let html = ownVs.length>1 ? `<div class="note" style="margin:4px 0">This article's older versions are in the version list at the top.</div>` : '';
+    html += keys.length ? keys.map(x=>`<button class="pick" data-k="${esc(x.k)}">${esc(x.k.slice((K_PREFIX+':ob:').length).toUpperCase())} <span class="note">· saved ${x.updated_at?esc(String(x.updated_at).slice(0,10)):''}</span></button>`).join('') : '<div class="note">No other OB has been saved yet.</div>';
+    list.innerHTML = html;
+    list.querySelectorAll('[data-k]').forEach(b=>b.onclick = async ()=>{
+      b.disabled = true;
+      const r = await readKeyStrict(b.dataset.k);
+      const vs = r.ok && r.value && r.value.versions || [];
+      if(!vs.length){ b.disabled = false; toast(r.ok ? 'That OB has no saved version' : 'Could not read it — try again'); return; }
+      const v = vs[vs.length-1];
+      if(obUI.rows.length && !confirm(`Replace the ${obUI.rows.length} operations on this sheet with ${v.rows.length} from ${r.value.article||''} v${v.ver}?`)){ b.disabled = false; return; }
+      const keepHdr = Object.assign({}, obUI.hdr), keepBase = obUI.baseVer;
+      obLoadVersion(v);
+      obUI.hdr = keepHdr; obUI.baseVer = keepBase; obUI.copiedFrom = { article: r.value.article||'', ver: v.ver };
+      w.remove(); obRenderShell(); obMarkDirty();
+      toast(`Copied ${v.rows.length} operations from ${r.value.article||''} v${v.ver} — Save to keep them`);
+    });
+  };
+  $('obSaveBtn').onclick = async (e)=>{ const r = await obSaveVersion(e.target); if(r) toast(`Saved as v${r}`); };
+  $('obApplyBtn').onclick = ()=>obApply();
+  // stopwatch
+  $('obSwStart').onclick = ()=>{
+    const sw = obSw;
+    if(sw.t0){ sw.acc += Date.now()-sw.t0; sw.t0 = null; clearInterval(sw.timer); $('obSwStart').innerHTML = '▶ Start'; }
+    else { sw.t0 = Date.now(); sw.timer = setInterval(()=>{ const el = document.getElementById('obSwTime'); if(el) el.textContent = obSwFmt(obSwNow()); else clearInterval(sw.timer); }, 100); $('obSwStart').innerHTML = '■ Stop'; }
+  };
+  $('obSwLap').onclick = ()=>{
+    const r = obUI.rows[obUI.sel]; if(!r) return;
+    const n = r.cyc.findIndex(x=>x==null); if(n<0) return;
+    if(!obSw.t0 && !obSw.acc){ toast('Press Start first'); return; }
+    const t = obSwNow(); r.cyc[n] = +((t-obSw.lapStart)/1000).toFixed(1); obSw.lapStart = t;
+    const inp = document.querySelector(`#obBody tr[data-i="${obUI.sel}"] [data-cyc="${n}"]`); if(inp) inp.value = r.cyc[n];
+    obMarkDirty(); obRecalc();
+  };
+  $('obSwReset').onclick = ()=>{ obSwReset(); $('obSwTime').textContent = '00:00.0'; $('obSwStart').innerHTML = '▶ Start'; };
+}
+const obSw = { t0:null, acc:0, timer:null, lapStart:0 };
+function obSwNow(){ return obSw.acc + (obSw.t0 ? Date.now()-obSw.t0 : 0); }
+function obSwFmt(ms){ const s = ms/1000; return String(Math.floor(s/60)).padStart(2,'0')+':'+(s%60).toFixed(1).padStart(4,'0'); }
+function obSwReset(){ clearInterval(obSw.timer); obSw.t0 = null; obSw.acc = 0; obSw.lapStart = 0; }
+function obSwInfo(){
+  const op = document.getElementById('obSwOp'); if(!op) return;
+  const r = obUI.rows[obUI.sel];
+  if(!r){ op.textContent = '—'; document.getElementById('obSwChips').innerHTML = ''; document.getElementById('obSwLap').innerHTML = 'Lap'; return; }
+  const n = r.cyc.findIndex(x=>x==null);
+  op.textContent = (obUI.sel+1)+' · '+(String(r.op||'').split('+')[0].trim() || 'Operation');
+  document.getElementById('obSwChips').innerHTML = r.cyc.map((x,k)=>x!=null?`<span>C${k+1} ${x}</span>`:'').join('');
+  document.getElementById('obSwLap').innerHTML = n<0 ? 'All 5 done' : 'Lap → C'+(n+1);
+}
+// Save = a NEW version (append-only). Returns the version number, or null.
+async function obSaveVersion(btn){
+  if(!obUI.readOk){ alert('The saved OB could not be read from the server, so saving now could hide it. Close and open the OB again.'); return null; }
+  obReadPlan();
+  const rows = obUI.rows.filter(r=>String(r.op||'').trim() || obRowSmv(r)>0);
+  if(!rows.length){ alert('Add at least one operation with an SMV before saving.'); return null; }
+  const unnamed = rows.findIndex(r=>!String(r.op||'').trim());
+  if(unnamed>=0){ alert(`Operation ${unnamed+1} has no name.`); return null; }
+  const R = obCompute(rows, obUI.plan);
+  const by = (session && (session.username||session.role)) || '';
+  const ver = {
+    savedAt: Date.now(), by, line: obUI.line, layoutNo: obUI.art.layoutNo, shopOrder: obUI.art.shopOrderNo||'', date: currentDate,
+    basedOn: obUI.baseVer || null, copiedFrom: obUI.copiedFrom || undefined,
+    hdr: { item: obUI.hdr.item||'', last: obUI.hdr.last||'' },
+    plan: Object.assign({}, obUI.plan),
+    rows: rows.map(r=>({ op: String(r.op).trim(), mc: r.mc, smv: (r.smv===''||r.smv==null)?'':Number(r.smv), cyc: r.cyc.slice(0,5), rating: r.rating, allow: r.allow, allowOv: !!r.allowOv })),
+    totalSmv: Math.round(R.S*1000)/1000,
+    summary: R.ok ? { bnOp: R.bnI+1, bnOE: Math.round(R.bnOE*10)/10, tLine: Math.round(R.tLine*10)/10, balance: Math.round(R.balance*1000)/10, takt: Math.round(R.takt*1000)/1000, pitch: Math.round(R.pitch*1000)/1000 } : null,
+    applied: []
+  };
+  if(btn) btn.disabled = true;
+  const photo = obUI.photoDirty ? obUI.photo : null;
+  const res = await obMutate(obUI.key, cur=>{
+    const doc = cur && Array.isArray(cur.versions) ? cur : { article: obUI.art.articleNo, versions: [] };
+    if(!doc.article) doc.article = obUI.art.articleNo;
+    const n = doc.versions.reduce((m,v)=>Math.max(m, Number(v.ver)||0), 0) + 1;
+    doc.versions.push(Object.assign({ ver:n }, ver));
+    if(photo) doc.photo = photo;
+    return { ok:true, doc, ver:n };
+  });
+  if(btn) btn.disabled = false;
+  if(!res.ok){ alert(res.error); return null; }
+  obUI.doc = res.doc; obUI.baseVer = res.ver; obUI.dirty = false; obUI.photoDirty = false; obUI.copiedFrom = null;
+  obUI.rows = obUI.doc.versions[obUI.doc.versions.length-1].rows.map(r=>Object.assign({}, r, { cyc: r.cyc.slice() }));
+  obRenderShell();
+  return res.ver;
+}
+async function obApply(){
+  obReadPlan();
+  const R = obCompute(obUI.rows, obUI.plan);
+  const smv = Math.round(R.S*100)/100, tgt = Math.round((Number(obUI.plan.lineEff)||0)*10)/10;
+  if(!(smv>0)){ alert('The OB has no SMV yet.'); return; }
+  if(!(tgt>0)){ alert('Enter the Line target efficiency %.'); return; }
+  if(typeof obUI.applyFn!=='function'){ alert('Open the IE panel and try again.'); return; }
+  const pre = await obUI.applyFn(obUI.art.layoutNo, smv, tgt, null, true);   // lock / category check before anything is saved
+  if(!pre || !pre.ok){ alert((pre && pre.error) || 'Not applied.'); return; }
+  const cur = shiftIEValues(obUI.line, currentDate, currentShift, obUI.art.layoutNo);
+  const msg = `Apply this OB to L-${obUI.art.layoutNo} ${obUI.art.articleNo}?\n\n`
+    + `SMV  ${cur.smv||'not set'}  →  ${smv}\nTarget %  ${cur.targetPercent||'not set'}  →  ${tgt}\n\n`
+    + `From ${currentDate} · ${SHIFT_LABELS[currentShift]||currentShift} onward (same as IE Save).`
+    + (obUI.dirty ? `\n\nThe OB has unsaved changes — it will be saved as a new version first.` : '');
+  if(!confirm(msg)) return;
+  let ver = obUI.baseVer;
+  if(obUI.dirty || !ver){ ver = await obSaveVersion(null); if(!ver) return; }
+  if(typeof obUI.applyFn!=='function'){ alert('Open the IE panel and try again.'); return; }
+  const btn = document.getElementById('obApplyBtn'); if(btn) btn.disabled = true;
+  const r = await obUI.applyFn(obUI.art.layoutNo, smv, tgt, { article: obUI.art.articleNo, ver });
+  if(btn) btn.disabled = false;
+  if(!r || !r.ok){ alert((r && r.error) || 'Not applied.'); return; }
+  // Note the apply on the version (history only; the article's own SMV log is the record that counts).
+  const by = (session && (session.username||session.role)) || '';
+  const mres = await obMutate(obUI.key, doc=>{
+    const v = doc && (doc.versions||[]).find(x=>x.ver===ver); if(!v) return { ok:false, error:'' };
+    v.applied = (v.applied||[]).concat([{ at: Date.now(), by, line: obUI.line, layoutNo: obUI.art.layoutNo, date: currentDate, shift: currentShift, smv, target: tgt }]);
+    return { ok:true, doc, ver };
+  });
+  if(mres && mres.ok){ obUI.doc = mres.doc; const s = document.getElementById('obVerSel'); if(s) s.innerHTML = obVersionOptions(); }
+  toast(`Applied OB v${ver}: SMV ${smv} · Target ${tgt}%`);
 }
 
 function qualityPanelHTML(){
@@ -10957,6 +11600,12 @@ function attachPanelEvents(key){
         if(rq!==null) return oq ? `Order Qty: ${oq} \u00b7 Received: ${rq} (from receive)` : `Order Qty not available \u00b7 Received: ${rq}`;
         return oq ? `Order Qty: ${oq} (entered on the line)` : 'Order Qty not entered on the line yet';
       })();
+      document.getElementById('ieObNote').textContent = (()=>{
+        if(!l || !iv.smv) return '';
+        // The newest save for this article that is still the value in force here, if it came from an OB.
+        const hit = smvLogOf(l).slice().reverse().find(e=>(e.kind==='set'||e.kind==='backdated') && Number(e.smv)===Number(iv.smv) && Number(e.targetPercent)===Number(iv.targetPercent));
+        return (hit && hit.ob) ? `\ud83d\udccb From OB v${hit.ob.ver}` : '';
+      })();
       const saveBtn = document.getElementById('ieSaveBtn');
       if(l && iv.smv){ flashSaved(saveBtn); } else { saveBtn.style.background=''; saveBtn.textContent='Save'; }
     };
@@ -11002,13 +11651,13 @@ function attachPanelEvents(key){
       l.smvLog = smvLogOf(l).slice();
       if(st.lockedNormally && st.grant){
         // HR-opened back-dated fill: this one date/shift only, never carried forward.
-        l.smvLog.push({ kind:'backdated', smv: smvVal, targetPercent: tgtVal, fromDate: currentDate, fromShift: currentShift,
-                        epoch, prevSmv: prev.smv, prevTarget: prev.targetPercent, unlockId: st.grant.id });
+        l.smvLog.push(Object.assign({ kind:'backdated', smv: smvVal, targetPercent: tgtVal, fromDate: currentDate, fromShift: currentShift,
+                        epoch, prevSmv: prev.smv, prevTarget: prev.targetPercent, unlockId: st.grant.id }, ieObRefPending ? { ob: ieObRefPending } : {}));
       } else {
         // Normal save: carries forward from this date/shift until the next save, a reopen or close.
         // Earlier dates (and same-date shifts already over) are untouched — see carryEntryReaches().
-        l.smvLog.push({ kind:'set', smv: smvVal, targetPercent: tgtVal, fromDate: currentDate, fromShift: currentShift,
-                        epoch, prevSmv: prev.smv, prevTarget: prev.targetPercent });
+        l.smvLog.push(Object.assign({ kind:'set', smv: smvVal, targetPercent: tgtVal, fromDate: currentDate, fromShift: currentShift,
+                        epoch, prevSmv: prev.smv, prevTarget: prev.targetPercent }, ieObRefPending ? { ob: ieObRefPending } : {}));
         l.smv = smvVal;               // base mirrors the latest carry-forward value (display/Excel only)
         l.targetPercent = tgtVal;
       }
@@ -11019,6 +11668,41 @@ function attachPanelEvents(key){
       await saveStore(); buildPanel('ie'); renderAll();
       flashSaved(document.getElementById('ieSaveBtn'));
     };
+
+    // Build 10-04a: OB (Operation Breakdown). Apply goes through the Save above, so the lock, the
+    // category rule and the carry-forward log are exactly the same as a hand-typed SMV/Target%.
+    const ieSaveHandler = document.getElementById('ieSaveBtn').onclick;
+    const ieApplyFromOb = async (layoutNo, smvVal, tgtVal, obRef, dryRun)=>{
+      if(!document.getElementById('ieLayoutSel')) return { ok:false, error:'Open the IE panel and try again.' };
+      const l = findArticle(selectedLine, Number(layoutNo));
+      if(!l) return { ok:false, error:'This article is no longer on the line.' };
+      if(!Array.from(sel.options).some(o=>o.value===String(layoutNo))) return { ok:false, error:'This article is not open for '+currentDate+'.' };
+      const st = ieLockState();
+      if(st.locked) return { ok:false, error:'Locked \u2014 10:00 AM of the next day has passed for this date/shift. Ask HR to open this Line/Date/Shift.' };
+      if(!(l.category||'')) return { ok:false, error:'This article has no Category yet. Select the Category in the IE panel and press Save once, then Apply the OB.' };
+      if(dryRun) return { ok:true };
+      sel.value = String(layoutNo); sel.onchange();
+      if(!catSel.value) return { ok:false, error:'This article has no Category yet. Select the Category in the IE panel and press Save once, then Apply the OB.' };
+      document.getElementById('ieSmv').value = smvVal;
+      document.getElementById('ieTarget').value = tgtVal;
+      ieObRefPending = obRef || null;
+      try{ await ieSaveHandler(); } finally { ieObRefPending = null; }
+      return { ok:true };
+    };
+    (function wireObMenu(){
+      const btn = document.getElementById('ieObMenuBtn'), menu = document.getElementById('ieObMenu');
+      btn.onclick = (e)=>{ e.stopPropagation(); menu.classList.toggle('open'); };
+      document.addEventListener('click', function closeMenu(ev){ if(!document.body.contains(menu)){ document.removeEventListener('click', closeMenu); return; } if(!menu.contains(ev.target)) menu.classList.remove('open'); });
+      document.getElementById('ieObOpen').onclick = async ()=>{
+        menu.classList.remove('open');
+        const layoutNo = Number(sel.value);
+        if(!layoutNo){ toast('Select an article first'); return; }
+        const iv = shiftIEValues(selectedLine, currentDate, currentShift, layoutNo);
+        await openObModal(selectedLine, layoutNo, ieApplyFromOb, iv);
+      };
+      // a rebuilt panel hands the open OB the fresh apply function
+      if(typeof obUI!=='undefined' && obUI) obUI.applyFn = ieApplyFromOb;
+    })();
 
     const tb = document.getElementById('ieTableBody');
     tb.innerHTML = ieVisibleArticles(selectedLine, currentDate).map(l=>{
