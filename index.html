@@ -754,6 +754,12 @@
   #obLibModal .oltab td{padding:8px 6px;border-bottom:1px solid var(--border);} #obLibModal .oltab td.n{text-align:right;font-weight:800;}
   #obLibModal .oltab tr[data-view]{cursor:pointer;} #obLibModal .oltab tr[data-view]:hover td{background:#F7FBFA;}
   #obLibModal mark{background:#FEF3C7;padding:0 1px;}
+  #obLibModal .olierow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 10px;}
+  #obLibModal .olierow select{width:auto;min-width:200px;padding:10px;font-size:14px;border:2px solid var(--accent2);border-radius:10px;background:#fff;}
+  #obLibModal tr[data-ie]{cursor:pointer;} #obLibModal tr[data-ie]:hover td{background:#F7FBFA;}
+  #obLibModal tr.oldet td{background:#FAFCFB;} #obLibModal .olart{padding:7px 4px;border-bottom:1px dashed var(--border);cursor:pointer;font-size:12.5px;}
+  #obLibModal .oltab tfoot td{font-weight:800;background:#F1F4F3;}
+  #obModal .prep select{max-width:420px;font-weight:800;font-size:15px;padding:10px;}
   #obLibModal .alert{border:2px solid var(--danger);background:#FFF5F5;border-radius:12px;padding:10px 12px;color:#7F1D1D;font-weight:700;}
   #obModal.ro #obCopyBtn,#obModal.ro #obSaveBtn,#obModal.ro #obApplyBtn,#obModal.ro #obAddBtn,#obModal.ro #obPasteBtn,#obModal.ro #obMcBtn,#obModal.ro .allall,#obModal.ro .rb,#obModal.ro .stop,#obModal.ro .pic-btns,#obModal.ro .swb{display:none !important;}
   #obModal.ro .prep{border-color:var(--border);background:#fff;}
@@ -930,7 +936,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04e-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04g-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1249,7 +1255,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-04e-supabase';
+const APP_BUILD = '2026-10-04g-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -1900,12 +1906,29 @@ function paintFlipFace(el, f){
 // SAME instant (one shared interval/tick), so the whole KPI row flips together rather than
 // looking scattered. Each card can have a different number of faces.
 // cards: [{ elId, faces:[{label,value,sub,color}, ...] }, ...]
+let flipResizeHandler = null;
 function startSyncedFlip(cards){
   if(flipInterval){ clearInterval(flipInterval); flipInterval = null; }
   const active = cards.filter(c=>document.getElementById(c.elId) && c.faces.length);
   if(!active.length) return;
   let tick = 0;
-  active.forEach(c=> paintFlipFace(document.getElementById(c.elId), c.faces[0]));
+  // Build 10-04f: every face is painted once and the card keeps the height of its TALLEST face,
+  // so turning to a shorter or longer face never makes the card (and the row under it) jump.
+  const lockHeights = ()=>{
+    active.forEach(c=>{
+      const el = document.getElementById(c.elId); if(!el) return;
+      el.style.minHeight = '';
+      let max = 0;
+      c.faces.forEach(f=>{ paintFlipFace(el, f); max = Math.max(max, el.offsetHeight); });
+      el.style.minHeight = max + 'px';
+      paintFlipFace(el, c.faces[tick % c.faces.length]);
+    });
+  };
+  lockHeights();
+  if(flipResizeHandler) window.removeEventListener('resize', flipResizeHandler);
+  let rT = null;
+  flipResizeHandler = ()=>{ clearTimeout(rT); rT = setTimeout(()=>{ if(active.some(c=>document.getElementById(c.elId))) lockHeights(); }, 200); };
+  window.addEventListener('resize', flipResizeHandler);
   const anyMultiFace = active.some(c=>c.faces.length>1);
   if(!anyMultiFace) return; // nothing to cycle to
   flipInterval = setInterval(()=>{
@@ -7971,6 +7994,16 @@ function iePanelHTML(){
     <button class="btn-ghost hidden" id="ieMonthMoreBtn" style="width:100%;text-align:left;margin-top:6px;color:var(--accent2);"></button>
   </div>
   <div class="card">
+    <h2><span class="dot"></span>IE Members</h2>
+    <div class="note" style="margin-bottom:8px;">The Lasting IE share one login. Each OB is signed by picking a name from this list.</div>
+    <div class="row2">
+      <div class="field"><label>ID No.</label><input id="ieMemId" type="text" placeholder="e.g. 10234" autocomplete="off"></div>
+      <div class="field"><label>Name</label><input id="ieMemName" type="text" placeholder="Full name" autocomplete="off"></div>
+    </div>
+    <button class="btn-primary" id="ieMemAddBtn">Add member</button>
+    <div class="table-scroll"><table><thead><tr><th>ID No.</th><th>Name</th><th></th></tr></thead><tbody id="ieMemBody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody></table></div>
+  </div>
+  <div class="card">
     <h2><span class="dot"></span>Product Categories</h2>
     <p class="note" id="ieCatActiveHeading" style="text-transform:uppercase;font-size:11px;letter-spacing:.5px;margin:2px 0 8px;"></p>
     <div id="ieCatActiveRows"></div>
@@ -8131,6 +8164,7 @@ let obUI = null;
 let ieObRefPending = null;   // set only while an OB Apply runs the IE Save   // { art, line, doc, rows, plan, hdr, photo, baseVer, dirty, sel, readOk }
 function obBlankRow(){ const mc = obMcNames()[0]; return { op:'', mc, smv:'', cyc:[null,null,null,null,null], rating:100, allow: obMcAllow(mc), allowOv:false }; }
 const OB_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const OB_MON_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function obFmtWhen(ep){ try{ const d = new Date(ep); if(!ep || isNaN(d)) return ''; return String(d.getDate()).padStart(2,'0')+' '+OB_MON[d.getMonth()]+' '+d.toTimeString().slice(0,5); }catch(e){ return ''; } }
 function obLoadVersion(v){
   obUI.rows = JSON.parse(JSON.stringify(v.rows||[]));
@@ -8144,7 +8178,7 @@ async function openObModal(lineName, layoutNo, applyFn, currentIe){
   const art = findArticle(lineName, layoutNo);
   if(!art){ toast('Select an article first'); return; }
   const k = obKey(art.articleNo);
-  const [r] = await Promise.all([ readKeyStrict(k), obLoadCfg() ]);
+  const [r] = await Promise.all([ readKeyStrict(k), obLoadCfg(), loadIeMembers() ]);
   obUI = { art, line: lineName, key: k, doc: r.value || null, readOk: r.ok, applyFn, sel: 0, dirty: false, baseVer: null,
            rows: [], photo: (r.value && r.value.photo) || '', photoDirty: false,
            plan: { mp:'', opEff:80, lineEff: Number(currentIe && currentIe.targetPercent) || 70, mins:60, leaders:1 },
@@ -8162,8 +8196,19 @@ function obClose(force){
 function obVersionOptions(){
   const vs = (obUI.doc && obUI.doc.versions) || [];
   if(!vs.length) return '<option value="">No saved version yet</option>';
-  return vs.slice().reverse().map(v=>`<option value="${v.ver}" ${v.ver===obUI.baseVer?'selected':''}>v${v.ver} · ${obFmtWhen(v.savedAt)} · ${esc(v.preparedBy||v.by||'')}${(v.applied&&v.applied.length)?' · applied':''}</option>`).join('');
+  return vs.slice().reverse().map(v=>`<option value="${v.ver}" ${v.ver===obUI.baseVer?'selected':''}>v${v.ver} · ${obFmtWhen(v.savedAt)} · ${esc(v.preparedBy||v.by||'')}${v.preparedById?' ('+esc(v.preparedById)+')':''}${(v.applied&&v.applied.length)?' · applied':''}</option>`).join('');
 }
+function obPrepHtml(){
+  if(obUI.readOnly){
+    const v = ((obUI.doc&&obUI.doc.versions)||[]).find(x=>x.ver===obUI.baseVer) || {};
+    return `<div class="v" style="font-weight:800;font-size:15px;">${esc(v.preparedBy||v.by||'—')}${v.preparedById?' <span class="note">ID '+esc(v.preparedById)+'</span>':''}</div>`;
+  }
+  const act = ieMembers.filter(m=>m.active!==false);
+  if(!act.length) return '<div class="alert" style="margin:0">No IE members yet. Add them in the IE panel → <b>IE Members</b> (ID No. + name), then open the OB again.</div>';
+  return `<select id="obPrepSel"><option value="">— Select your ID —</option>${act.map(m=>`<option value="${esc(m.id)}" ${String(m.id)===String(obUI.preparedById||'')?'selected':''}>${esc(ieMemberLabel(m))}</option>`).join('')}</select>`;
+}
+function obPrepPicked(){ const m = obUI.preparedById ? ieMemberById(obUI.preparedById) : null; return (m && m.active!==false) ? m : null; }
+function obPrepComplain(msg){ const el = document.getElementById('obPrepSel'); if(el){ el.style.borderColor = 'var(--danger)'; el.scrollIntoView({block:'center'}); el.focus(); } alert(msg); }
 function obRenderShell(){
   let m = document.getElementById('obModal');
   const study = m ? m.classList.contains('study') : false;
@@ -8225,8 +8270,8 @@ function obRenderShell(){
        <div class="btns"><button class="b-start" id="obSwStart">▶ Start</button><button class="b-lap" id="obSwLap">Lap → C1</button><button class="b-reset" id="obSwReset">Reset</button></div></div>
    </div>
    <div class="card" id="obChartCard"><h3>Line balance — work per operator (min) against line target</h3><div id="obChart"></div><div class="leg" id="obChartLeg"></div></div>
-   <div class="card prep"><div class="f"><label>Prepared by (IE name) <span style="color:var(--danger)">*</span></label><input id="obPrepBy" value="${esc(obUI.readOnly ? (((obUI.doc.versions||[]).find(x=>x.ver===obUI.baseVer)||{}).preparedBy||'') : (obUI.preparedBy||''))}" placeholder="Write your name — needed to save" maxlength="60"></div>
-     <div class="note">${obUI.readOnly ? 'The IE who saved this version.' : 'Lasting IE share one login, so the name written here is what the version list and the PDF show.'}</div></div>
+   <div class="card prep"><div class="f"><label>Prepared by (IE) <span style="color:var(--danger)">*</span></label>${obPrepHtml()}</div>
+     <div class="note">${obUI.readOnly ? 'The IE who saved this version.' : 'Pick your own ID — the version list, the PDF and the IE Summary use it.'}</div></div>
    </div>`;
   obRenderRows();
   obWireShell();
@@ -8420,7 +8465,7 @@ function obWireShell(){
   const $ = id=>document.getElementById(id);
   ['obMp','obOe','obLe','obMins','obLl'].forEach(id=>$(id).addEventListener('input', ()=>{ obReadPlan(); obMarkDirty(); obRecalc(); }));
   $('obCloseBtn').onclick = ()=>obClose(false);
-  $('obPrepBy').addEventListener('input', ()=>{ obUI.preparedBy = $('obPrepBy').value; $('obPrepBy').style.borderColor=''; });
+  if($('obPrepSel')) $('obPrepSel').onchange = ()=>{ obUI.preparedById = $('obPrepSel').value; $('obPrepSel').style.borderColor=''; };
   $('obPdfBtn').onclick = ()=>obExportPdf();
   $('obTog').onclick = ()=>{ const m = $('obModal'); m.classList.toggle('study'); $('obTogTxt').textContent = m.classList.contains('study') ? 'Open' : 'Hidden'; };
   $('obAllBtn').onclick = ()=>{ const v = parseFloat($('obAllAll').value); if(isNaN(v)) return; obUI.rows.forEach(r=>{ r.allow = v; r.allowOv = true; }); obMarkDirty(); obRenderRows(); };
@@ -8548,8 +8593,9 @@ function obSwInfo(){
 async function obSaveVersion(btn){
   if(!obUI.readOk){ alert('The saved OB could not be read from the server, so saving now could hide it. Close and open the OB again.'); return null; }
   obReadPlan();
-  const prepBy = String(obUI.preparedBy||'').trim();
-  if(prepBy.length<2){ const el = document.getElementById('obPrepBy'); if(el){ el.style.borderColor = 'var(--danger)'; el.scrollIntoView({block:'center'}); el.focus(); } alert('Write your name in "Prepared by" (bottom of the OB) before saving.'); return null; }
+  const prepM = obPrepPicked();
+  if(!prepM){ obPrepComplain(ieMembers.some(m=>m.active!==false) ? 'Select your ID in "Prepared by" (bottom of the OB) before saving.' : 'No IE members yet. Add them in the IE panel → IE Members first.'); return null; }
+  const prepBy = prepM.name;
   const rows = obUI.rows.filter(r=>String(r.op||'').trim() || obRowSmv(r)>0);
   if(!rows.length){ alert('Add at least one operation with an SMV before saving.'); return null; }
   const unnamed = rows.findIndex(r=>!String(r.op||'').trim());
@@ -8557,7 +8603,7 @@ async function obSaveVersion(btn){
   const R = obCompute(rows, obUI.plan);
   const by = (session && (session.username||session.role)) || '';
   const ver = {
-    savedAt: Date.now(), by, preparedBy: prepBy, line: obUI.line, layoutNo: obUI.art.layoutNo, shopOrder: obUI.art.shopOrderNo||'', date: currentDate,
+    savedAt: Date.now(), by, preparedBy: prepBy, preparedById: String(prepM.id), line: obUI.line, layoutNo: obUI.art.layoutNo, shopOrder: obUI.art.shopOrderNo||'', date: currentDate,
     basedOn: obUI.baseVer || null, copiedFrom: obUI.copiedFrom || undefined,
     hdr: { category: obUI.art.category||'', project: prepProjectFor(obUI.art)||'' },
     plan: Object.assign({}, obUI.plan),
@@ -8731,7 +8777,7 @@ async function obBuildPdf(){
   // footer
   const foot = (pw, ph)=>{
     doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(0);
-    const by = v ? (v.preparedBy||v.by||'') : '';
+    const by = v ? ((v.preparedBy||v.by||'') + (v.preparedById ? ' (ID '+v.preparedById+')' : '')) : '';
     doc.text(T(`Prepared by: ${by}`), M, ph-M-0.5);
     doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(70);
     doc.text(T(`Saved ${v?obFmtDateLong(v.savedAt):''} | OB v${obUI.baseVer}${v&&v.applied&&v.applied.length?' | applied to L-'+v.applied[v.applied.length-1].layoutNo+' from '+v.applied[v.applied.length-1].date+' '+(SHIFT_LABELS[v.applied[v.applied.length-1].shift]||''):''}`), M+doc.getTextWidth(T(`Prepared by: ${by}`))*8/7+4, ph-M-0.5);
@@ -8839,7 +8885,9 @@ async function obIndexItemFromDoc(key, doc, keyAt){
   vs.forEach(x=>(x.applied||[]).forEach(ap=>{ const lb = lineLabel(ap.line); if(!applied.includes(lb)) applied.push(lb); }));
   return {
     key, keyAt: keyAt||null, article: doc.article||'', shopOrder: v.shopOrder||'', category: (v.hdr&&v.hdr.category)||'', project: (v.hdr&&v.hdr.project)||'',
-    line: v.line||'', ver: v.ver, versions: vs.length, vTimes: vs.map(x=>x.savedAt||0), savedAt: v.savedAt||0, preparedBy: v.preparedBy||v.by||'',
+    line: v.line||'', ver: v.ver, versions: vs.length, vTimes: vs.map(x=>x.savedAt||0), savedAt: v.savedAt||0, preparedBy: v.preparedBy||v.by||'', iv: 2,
+    vh: vs.map(x=>({ t: x.savedAt||0, ver: x.ver, by: x.preparedBy||x.by||'', id: x.preparedById||'' })),
+    ap: [].concat(...vs.map(x=>(x.applied||[]).map(e=>({ t: e.at||0, by: e.by||'', id: e.byId||'', line: e.line||'' })))),
     totalSmv: obRound(R.S,2), mp: R.ok ? R.N : (Number(v.plan&&v.plan.mp)||0), bnOE: R.ok ? obRound(R.bnOE,0) : null, balance: R.ok ? obRound(R.balance*100,2) : null,
     applied, thumb: await obThumb(doc.photo, 72),
     ops: (v.rows||[]).map(r=>[String(r.op||''), r.mc||'', obRound(obRowSmv(r),2)]).filter(o=>o[0] && o[2]>0)
@@ -8864,7 +8912,7 @@ async function obLibraryLoad(onStep){
   const [r, keys] = await Promise.all([ readKeyStrict(K_OBINDEX), obListKeys() ]);
   if(!r.ok || !keys) return { ok:false };
   const items = Object.assign({}, (r.value && r.value.items) || {});
-  const need = keys.filter(x=>!items[x.k] || (x.updated_at && items[x.k].keyAt!==x.updated_at));
+  const need = keys.filter(x=>!items[x.k] || !(items[x.k].iv>=2) || (x.updated_at && items[x.k].keyAt!==x.updated_at));
   const fresh = [];
   for(let i=0;i<need.length;i+=4){
     const slice = need.slice(i,i+4);
@@ -8885,6 +8933,7 @@ async function openObLibrary(){
   m.innerHTML = `<div class="olw"><div class="oltop"><div><h1>📚 OB Library</h1><div class="sub">All lines · view only — no editing here</div></div><button class="olx" id="olClose">✕</button></div>
     <div class="card" id="olBody"><div class="note" id="olLoad">Loading the OB list…</div></div></div>`;
   document.getElementById('olClose').onclick = ()=>{ m.remove(); obLib = null; };
+  loadIeMembers();
   const res = await obLibraryLoad((i,n)=>{ const el = document.getElementById('olLoad'); if(el) el.textContent = `Adding saved OB to the list… ${i}/${n}`; });
   if(!document.getElementById('obLibModal')) return;
   if(!res.ok){ document.getElementById('olBody').innerHTML = '<div class="alert">Could not reach the server. Close and try again.</div>'; return; }
@@ -8905,8 +8954,8 @@ function obLibRender(){
   m.querySelector('.olw').innerHTML = `<div class="oltop"><div><h1>📚 OB Library</h1><div class="sub">All lines · view only — no editing here</div></div><button class="olx" id="olClose">✕</button></div>
     <div class="olcnt">${cnt}</div>
     <div class="card">
-      <div class="oltabs"><button data-tab="ap" class="${obLib.tab==='ap'?'on':''}">Article / Project</button><button data-tab="op" class="${obLib.tab==='op'?'on':''}">Process SMV</button></div>
-      <div class="olsb"><input id="olQ" autocomplete="off" value="${esc(obLib.q)}" placeholder="${obLib.tab==='ap'?'Type an article no. or a project name':'Type a process name, e.g. sole roughing'}"><button id="olClr" title="Clear" style="${obLib.q?'':'display:none'}">✕</button><div class="olsug" id="olSug" style="display:none"></div></div>
+      <div class="oltabs"><button data-tab="ap" class="${obLib.tab==='ap'?'on':''}">Article / Project</button><button data-tab="op" class="${obLib.tab==='op'?'on':''}">Process SMV</button><button data-tab="ie" class="${obLib.tab==='ie'?'on':''}">👤 IE Summary</button></div>
+      <div class="olsb" style="${obLib.tab==='ie'?'display:none':''}"><input id="olQ" autocomplete="off" value="${esc(obLib.q)}" placeholder="${obLib.tab==='ap'?'Type an article no. or a project name':'Type a process name, e.g. sole roughing'}"><button id="olClr" title="Clear" style="${obLib.q?'':'display:none'}">✕</button><div class="olsug" id="olSug" style="display:none"></div></div>
       <div id="olRes"></div>
     </div>`;
   m.querySelector('#olClose').onclick = ()=>{ m.remove(); obLib = null; };
@@ -8951,6 +9000,7 @@ function obLibRow(it){
 }
 function obLibResults(){
   const box = document.getElementById('olRes'); if(!box || !obLib) return;
+  if(obLib.tab==='ie'){ obLibRenderIe(box); return; }
   const items = obLib.items, t = String(obLib.q||'').trim().toLowerCase();
   if(obLib.tab==='ap'){
     let list = items, head = '';
@@ -8983,6 +9033,61 @@ function obLibResults(){
   }
 }
 // Read-only OB from the library: works for any article, on a line or not.
+// ---- IE Summary (Library tab): per IE, per month — new OB, revisions, saves, articles, applied ----
+function obLibMonthOptions(){
+  const list = (store.monthRanges||[]).filter(m=>m.from && m.to).slice().sort((a,b)=>(b.from||'').localeCompare(a.from||''));
+  if(list.length){
+    const out = list.map(m=>({ name:m.name, from:m.from, to:m.to }));
+    const t = todayStr();
+    if(!out.some(m=>m.from<=t && t<=m.to)){            // this month not set by IE yet: calendar month on top
+      const [y,mm] = t.split('-').map(Number), last = new Date(y, mm, 0).getDate(), ym = t.slice(0,7);
+      out.unshift({ name: OB_MON_FULL[mm-1]+' '+y+' (calendar)', from: ym+'-01', to: ym+'-'+String(last).padStart(2,'0') });
+    }
+    return out;
+  }
+  // no fiscal months set: calendar months that have OB activity, newest first
+  const seen = new Set();
+  (obLib.items||[]).forEach(it=>(it.vh||[]).forEach(v=>{ const d = new Date(v.t); if(!isNaN(d)) seen.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }));
+  seen.add(String(todayStr()).slice(0,7));
+  return [...seen].sort().reverse().map(ym=>{ const [y,m] = ym.split('-').map(Number); const last = new Date(y, m, 0).getDate();
+    return { name: OB_MON_FULL[m-1]+' '+y, from: ym+'-01', to: ym+'-'+String(last).padStart(2,'0') }; });
+}
+function obLibIeSummary(range){
+  const t0 = new Date(range.from+'T00:00:00').getTime(), t1 = new Date(range.to+'T23:59:59.999').getTime();
+  const inR = t=>t>=t0 && t<=t1;
+  const rows = {};
+  const keyOf = (id, name)=> id ? 'id:'+id : 'nm:'+String(name||'').trim().toLowerCase();
+  const rowFor = (id, name)=>{ const k = keyOf(id, name); if(!rows[k]){ const mem = id ? ieMemberById(id) : null;
+      rows[k] = { k, id: id||'', name: mem ? mem.name : (String(name||'').trim() || '—'), newOb:0, rev:0, saves:0, arts:{}, applied:0 }; } return rows[k]; };
+  (obLib.items||[]).forEach(it=>{
+    (it.vh||[]).forEach(v=>{ if(!inR(v.t)) return; const r = rowFor(v.id, v.by); r.saves++; if(v.ver===1) r.newOb++; else r.rev++;
+      const a = r.arts[it.key] = r.arts[it.key] || { article: it.article, project: it.project, vers: [], applied: 0 }; a.vers.push(v.ver); });
+    (it.ap||[]).forEach(e=>{ if(!inR(e.t)) return; const r = rowFor(e.id, e.by); r.applied++;
+      const a = r.arts[it.key] = r.arts[it.key] || { article: it.article, project: it.project, vers: [], applied: 0 }; a.applied++; });
+  });
+  return Object.values(rows).sort((a,b)=>b.saves-a.saves || b.applied-a.applied || a.name.localeCompare(b.name));
+}
+function obLibRenderIe(box){
+  const months = obLibMonthOptions();
+  if(!obLib.ieMonth || !months.find(m=>m.name===obLib.ieMonth)){
+    const cur = currentMonthRange(); obLib.ieMonth = (cur && months.find(m=>m.name===cur.name)) ? cur.name : months[0].name;
+  }
+  const range = months.find(m=>m.name===obLib.ieMonth);
+  const rows = obLibIeSummary(range);
+  const tot = rows.reduce((s,r)=>({ newOb:s.newOb+r.newOb, rev:s.rev+r.rev, saves:s.saves+r.saves, applied:s.applied+r.applied }), { newOb:0, rev:0, saves:0, applied:0 });
+  box.innerHTML = `<div class="olierow"><select id="olIeMonth">${months.map(m=>`<option ${m.name===obLib.ieMonth?'selected':''}>${esc(m.name)}</option>`).join('')}</select>
+      <span class="note">${esc(range.from)} to ${esc(range.to)} · tap an IE to see the articles</span></div>
+    ${rows.length ? `<div class="scroll"><table class="oltab"><thead><tr><th>IE</th><th style="text-align:right">New OB (v1)</th><th style="text-align:right">Revision (v2+)</th><th style="text-align:right">Total saves</th><th style="text-align:right">Articles</th><th style="text-align:right">Applied</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr data-ie="${esc(r.k)}"><td><b>${esc(r.name)}</b>${r.id?` <span class="note">ID ${esc(r.id)}</span>`:' <span class="note">(no ID — before IE Members)</span>'}</td><td class="n">${r.newOb}</td><td class="n">${r.rev}</td><td class="n">${r.saves}</td><td class="n">${Object.keys(r.arts).length}</td><td class="n">${r.applied}</td></tr>
+        <tr class="oldet hidden" data-det="${esc(r.k)}"><td colspan="6">${Object.entries(r.arts).map(([k,a])=>`<div class="olart" data-view="${esc(k)}"><b>${esc(a.article)}</b> · ${esc(a.project||'—')} · ${a.vers.length?'saved '+a.vers.sort((x,y)=>x-y).map(v=>'v'+v).join(', '):'no save this month'}${a.applied?' · applied '+a.applied+'×':''} <span class="note">› view</span></div>`).join('')}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td><b>Total</b></td><td class="n">${tot.newOb}</td><td class="n">${tot.rev}</td><td class="n">${tot.saves}</td><td></td><td class="n">${tot.applied}</td></tr></tfoot></table></div>`
+      : '<div class="note" style="padding:14px 0">No OB saved or applied in this month.</div>'}
+    <div class="note" style="margin-top:8px">New OB = first version of an article · Revision = v2, v3 … · Applied = OB put on a running article (✓ Apply), counted for the IE who applied it.</div>`;
+  box.querySelector('#olIeMonth').onchange = (e)=>{ obLib.ieMonth = e.target.value; obLibRenderIe(box); };
+  box.querySelectorAll('tr[data-ie]').forEach(tr=>tr.onclick = ()=>{ const d = box.querySelector(`tr[data-det="${CSS.escape(tr.dataset.ie)}"]`); if(d) d.classList.toggle('hidden'); });
+  box.querySelectorAll('.olart[data-view]').forEach(el=>el.onclick = ()=>openObReadOnly(el.dataset.view, false));
+}
+
 async function openObReadOnly(key, thenPdf){
   const r = await readKeyStrict(key);
   if(!r.ok || !r.value || !(r.value.versions||[]).length){ toast(r.ok ? 'This OB has no saved version' : 'Could not reach the server — try again'); return; }
@@ -9009,7 +9114,7 @@ function obApplyReadOnly(){
 
 async function obApply(){
   obReadPlan();
-  if(String(obUI.preparedBy||'').trim().length<2){ const el = document.getElementById('obPrepBy'); if(el){ el.style.borderColor = 'var(--danger)'; el.scrollIntoView({block:'center'}); el.focus(); } alert('Write your name in "Prepared by" (bottom of the OB) first.'); return; }
+  if(!obPrepPicked()){ obPrepComplain('Select your ID in "Prepared by" (bottom of the OB) first.'); return; }
   const R = obCompute(obUI.rows, obUI.plan);
   const smv = obRound(R.S,2), tgt = obRound(Number(obUI.plan.lineEff)||0,2);
   if(!(smv>0)){ alert('The OB has no SMV yet.'); return; }
@@ -9034,12 +9139,38 @@ async function obApply(){
   const by = (session && (session.username||session.role)) || '';
   const mres = await obMutate(obUI.key, doc=>{
     const v = doc && (doc.versions||[]).find(x=>x.ver===ver); if(!v) return { ok:false, error:'' };
-    v.applied = (v.applied||[]).concat([{ at: Date.now(), by: String(obUI.preparedBy||'').trim() || by, line: obUI.line, layoutNo: obUI.art.layoutNo, date: currentDate, shift: currentShift, smv, target: tgt }]);
+    const pm = obPrepPicked();
+    v.applied = (v.applied||[]).concat([{ at: Date.now(), by: pm ? pm.name : by, byId: pm ? String(pm.id) : '', line: obUI.line, layoutNo: obUI.art.layoutNo, date: currentDate, shift: currentShift, smv, target: tgt }]);
     return { ok:true, doc, ver };
   });
   if(mres && mres.ok){ obIndexRefresh(obUI.key, mres.doc); obUI.doc = mres.doc; const s = document.getElementById('obVerSel'); if(s) s.innerHTML = obVersionOptions(); }
   toast(`Applied OB v${ver}: SMV ${smv} · Target ${tgt}%`);
 }
+
+// ===================================================================================================
+// Build 10-04g: IE Members — the Lasting IE share one login, so each OB is signed with an IE picked
+// from this list (ID No. + name), never a typed name. Its own key; read-before-write like the OB keys.
+// ===================================================================================================
+const K_IEMEM = K_PREFIX + ':iemembers';
+let ieMembers = [];          // [{ id, name, active, addedAt }]
+async function loadIeMembers(){
+  const r = await readKeyStrict(K_IEMEM);
+  if(r.ok) ieMembers = (r.value && Array.isArray(r.value.members)) ? r.value.members : [];
+  return r.ok;
+}
+async function ieMembersMutate(fn){
+  const r = await readKeyStrict(K_IEMEM);
+  if(!r.ok) return { ok:false, error:'Could not reach the server — nothing saved. Try again.' };
+  const doc = (r.value && Array.isArray(r.value.members)) ? r.value : { members: [] };
+  const out = fn(doc.members);
+  if(out && out.ok===false) return out;
+  doc.updatedAt = Date.now();
+  if(!(await writeKey(K_IEMEM, doc))) return { ok:false, error:'Save failed — press the button again.' };
+  ieMembers = doc.members;
+  return { ok:true };
+}
+function ieMemberById(id){ return ieMembers.find(m=>String(m.id)===String(id)) || null; }
+function ieMemberLabel(m){ return m ? `${m.id} — ${m.name}` : ''; }
 
 function qualityPanelHTML(){
   return `
@@ -12009,6 +12140,37 @@ function attachPanelEvents(key){
       document.getElementById('ieMonthTo').value='';
       await saveStore(); renderMonthRanges();
       flashSaved(e.target);
+    };
+
+    // ---- IE Members (Build 10-04g) ----
+    function renderIeMembers(){
+      const tb = document.getElementById('ieMemBody'); if(!tb) return;
+      const list = ieMembers.slice().sort((a,b)=>(b.active!==false)-(a.active!==false) || String(a.name).localeCompare(String(b.name)));
+      tb.innerHTML = list.length ? list.map(m=>`<tr style="${m.active===false?'opacity:.5':''}"><td class="num">${esc(m.id)}</td><td>${esc(m.name)}${m.active===false?' <span class="note">(removed)</span>':''}</td>`+
+        `<td class="num">${m.active===false?`<button class="link-danger" style="color:var(--accent2)" data-mem-on="${esc(m.id)}">Add back</button>`:`<button class="link-danger" data-mem-off="${esc(m.id)}">Remove</button>`}</td></tr>`).join('')
+        : '<tr><td colspan="3" class="empty">No IE members yet — add each IE once.</td></tr>';
+      const flip = (id, on)=>async ()=>{
+        const m = ieMemberById(id);
+        if(!on && !confirm(`Remove ${m?m.name:id} from the list?\n\nTheir saved OB keep their name; they just cannot be picked for new saves.`)) return;
+        const r = await ieMembersMutate(list=>{ const x = list.find(q=>String(q.id)===String(id)); if(x) x.active = on; });
+        if(!r.ok){ alert(r.error); return; } renderIeMembers();
+      };
+      tb.querySelectorAll('[data-mem-off]').forEach(b=>b.onclick = flip(b.dataset.memOff, false));
+      tb.querySelectorAll('[data-mem-on]').forEach(b=>b.onclick = flip(b.dataset.memOn, true));
+    }
+    loadIeMembers().then(ok=>{ if(!ok){ const tb = document.getElementById('ieMemBody'); if(tb) tb.innerHTML = '<tr><td colspan="3" class="empty">Could not load — press ↻ Refresh.</td></tr>'; } else renderIeMembers(); });
+    document.getElementById('ieMemAddBtn').onclick = async (e)=>{
+      const id = document.getElementById('ieMemId').value.trim(), name = document.getElementById('ieMemName').value.trim().replace(/\s+/g,' ');
+      if(!id){ alert('Write the ID No.'); return; }
+      if(name.length<2){ alert('Write the name'); return; }
+      const r = await ieMembersMutate(list=>{
+        const x = list.find(q=>String(q.id).toLowerCase()===id.toLowerCase());
+        if(x){ if(x.active!==false) return { ok:false, error:`ID ${id} is already in the list (${x.name}).` }; x.active = true; x.name = name; return; }
+        list.push({ id, name, active:true, addedAt: Date.now() });
+      });
+      if(!r.ok){ alert(r.error); return; }
+      document.getElementById('ieMemId').value = ''; document.getElementById('ieMemName').value = '';
+      renderIeMembers(); flashSaved(e.target);
     };
 
     // ---- Product Categories (IE-managed; Line 1-6 articles pick from this) ----
