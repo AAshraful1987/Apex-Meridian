@@ -614,6 +614,31 @@
     .qs-grid{grid-template-columns:repeat(2,1fr);}
     .qs-bottom-grid{grid-template-columns:1fr;}
   }
+  /* ===== Build 10-05a: Product Categories & Freezing ===== */
+  .cf-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .cf-msel{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--steel);font-weight:600;margin:0;}
+  .cf-msel select{width:auto;padding:8px 10px;border:1.5px solid var(--accent2);border-radius:9px;font-weight:700;font-size:13px;background:#fff;}
+  .cf-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+  .cf-s{border:1px solid var(--border);border-radius:11px;padding:9px 11px;} .cf-s .t{font-size:10.5px;font-weight:800;color:var(--steel);text-transform:uppercase;} .cf-s .n{font-size:21px;font-weight:800;} .cf-s .x{font-size:11px;color:var(--steel);}
+  .cf-tab{width:100%;border-collapse:collapse;font-size:13px;min-width:940px;}
+  .cf-tab th{background:#F1F4F3;color:var(--steel);font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;padding:9px 8px;text-align:left;white-space:nowrap;}
+  .cf-tab td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
+  .cf-tab .r{text-align:right;} .cf-tab td.cf-cat{font-weight:800;font-size:14px;}
+  .cf-tab tfoot td{font-weight:800;background:#F7F9F8;border-top:1.5px solid var(--border);}
+  .cf-tab tr.cf-offrow td{color:#9AA5A1;}
+  .cf-tab tr.cf-hist td{background:#F7F9F8;font-size:12px;color:var(--steel);white-space:normal;}
+  .cf-sw{position:relative;display:inline-block;width:42px;height:24px;margin:0;cursor:pointer;}
+  .cf-sw input{position:absolute;opacity:0;width:0;height:0;}
+  .cf-sw span{position:absolute;inset:0;background:#CBD5D1;border-radius:24px;transition:.2s;}
+  .cf-sw span:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.2s;}
+  .cf-sw input:checked+span{background:var(--accent2);} .cf-sw input:checked+span:before{transform:translateX(18px);}
+  .cf-qin{display:flex;align-items:center;gap:6px;} .cf-qin input{width:100px;padding:7px 9px;border:1.5px solid #F3D08A;background:#FFF8E6;border-radius:8px;font-weight:800;font-size:14px;text-align:right;}
+  .cf-pill{border:0;border-radius:999px;padding:7px 14px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .cf-save{background:var(--accent2);color:#fff;} .cf-ghost{background:#fff;border:1.5px solid var(--border);color:var(--steel);} .cf-del{background:#fff;border:1.5px solid #F3B4B4;color:var(--danger);}
+  .cf-rev{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--steel);} .cf-rev b{background:#E0E7FF;color:#3730A3;border-radius:6px;padding:1px 7px;font-size:11px;}
+  .cf-bar{height:7px;border-radius:7px;background:#EEF1EF;overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-left:8px;} .cf-bar i{display:block;height:100%;background:var(--success);}
+  .cf-st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800;} .cf-use{background:#DCFCE7;color:#166534;} .cf-free{background:#F1F4F3;color:var(--steel);} .cf-off{background:#FEF3C7;color:#92400E;}
+  @media(max-width:700px){ .cf-sum{grid-template-columns:1fr 1fr;} }
   /* ===== Build 10-04a: OB (Operation Breakdown) ===== */
   .ie-art-row{display:flex;gap:6px;align-items:stretch;}
   .ie-art-row select{flex:1;min-width:0;}
@@ -936,7 +961,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-04i-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-05a-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1255,7 +1280,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-04i-supabase';
+const APP_BUILD = '2026-10-05a-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -8037,16 +8062,15 @@ function iePanelHTML(){
     <div class="table-scroll"><table><thead><tr><th>ID No.</th><th>Name</th><th></th></tr></thead><tbody id="ieMemBody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody></table></div>
   </div>
   <div class="card">
-    <h2><span class="dot"></span>Product Categories</h2>
-    <p class="note" id="ieCatActiveHeading" style="text-transform:uppercase;font-size:11px;letter-spacing:.5px;margin:2px 0 8px;"></p>
-    <div id="ieCatActiveRows"></div>
-    <button class="btn-ghost" id="ieCatToggleInactive" style="width:100%;text-align:left;margin-top:10px;"></button>
-    <div id="ieCatInactiveWrap" class="hidden" style="margin-top:8px;">
-      <div id="ieCatInactiveRows"></div>
-    </div>
+    <div class="cf-top"><h2 style="margin:0"><span class="dot"></span>Product Categories &amp; Freezing</h2>
+      <label class="cf-msel">Freezing month <select id="ieCatMonth"></select></label></div>
+    <div class="cf-sum" id="ieCatSum"></div>
+    <div class="table-scroll"><table class="cf-tab"><thead><tr><th>Active</th><th>Category</th><th>Freezing Qty (enter)</th><th>Revision</th><th class="r">Freezing Qty</th><th class="r">Lasting Qty</th><th class="r">Balance</th><th>Achieved</th><th class="r">Articles</th><th>Status</th><th></th></tr></thead>
+      <tbody id="ieCatBody"></tbody><tfoot id="ieCatFoot"></tfoot></table></div>
+    <div class="note" style="margin-top:8px;">Lasting Qty = pairs made on Line 1–6 in this month for articles of that category · Balance = Freezing − Lasting · Switch off = hidden from new articles · Total counts every category with freezing or lasting in this month.</div>
     <div class="row2" style="max-width:420px;margin-top:14px;">
-      <div class="field"><label>Category name</label><input id="ieCatName" type="text" placeholder="e.g. Boot"></div>
-      <div class="field"><label>&nbsp;</label><button class="btn-primary" id="ieCatAddBtn" style="width:100%;">Add</button></div>
+      <div class="field"><label>New category</label><input id="ieCatName" type="text" placeholder="e.g. Boot"></div>
+      <div class="field"><label>&nbsp;</label><button class="cf-pill cf-save" id="ieCatAddBtn" style="width:100%;padding:10px;">＋ Add</button></div>
     </div>
   </div>
   <div class="card">
@@ -12230,97 +12254,114 @@ function attachPanelEvents(key){
       });
       return n;
     }
-    // ---- Freezing Qty (current-month planned qty per category, tied to Preparation's own
-    // "Freezing Month & Year" concept) — every Save appends a new revision rather than
-    // overwriting, so nothing is ever lost to a correction; only the latest for THIS month
-    // is shown or used. Manual number, no calculation — purely for later comparison against
-    // what actually got received/produced under that same category + freezing month.
+    // ---- Product Categories & Freezing (Build 10-05a) ----
+    // Freezing Qty is kept per IE month (Month Range). Every Save adds a revision; nothing is
+    // overwritten. Lasting Qty = pairs made on Line 1-6 inside that month for the category's articles.
     store.categoryFreezing = store.categoryFreezing || {};
-    function currentFreezeMonthYear(){
-      const d = new Date();
-      return { month: d.getMonth()+1, year: d.getFullYear() };
+    const catMonths = (store.monthRanges||[]).filter(m=>m.from && m.to).slice().sort((a,b)=>(b.from||'').localeCompare(a.from||''));
+    if(!window._catFrMonth || !catMonths.find(m=>m.name===window._catFrMonth)){
+      const cur = currentMonthRange(); window._catFrMonth = cur ? cur.name : (catMonths[0] ? catMonths[0].name : '');
     }
-    function latestFreezing(name){
-      const { month, year } = currentFreezeMonthYear();
-      const arr = (store.categoryFreezing[name]||[]).filter(r=>r.month===month && r.year===year);
-      return arr.length ? arr[arr.length-1] : null;
+    // a revision belongs to a month by its saved month name, or (older saves) by calendar month/year
+    function freezeRevsFor(name, mr){
+      if(!mr) return [];
+      const d = new Date(mr.from+'T00:00:00'); d.setDate(d.getDate()+14);       // middle of the IE month
+      const cm = d.getMonth()+1, cy = d.getFullYear();
+      return (store.categoryFreezing[name]||[]).filter(r=> r.fm ? r.fm===mr.name : (r.month===cm && r.year===cy));
     }
-    function catRowHtml(name, isActive){
-      const used = countArticlesUsing(name);
-      // Deleting a used category would blank it on every article that still carries it,
-      // silently corrupting that article's Executive Summary target — so it's locked to
-      // "In use" and can only be deactivated (hidden from new-article picks), never removed.
-      const actionHtml = used>0
-        ? '<span class="note">In use</span>'
-        : `<button class="btn-ghost" data-del-cat="${name}">Delete</button>`;
-      let freezeHtml = '';
-      if(isActive){
-        const latest = latestFreezing(name);
-        freezeHtml = `<div style="display:flex;align-items:center;gap:8px;padding:0 0 9px;">
-          <span style="font-size:12px;color:var(--steel);min-width:78px;">Freezing Qty</span>
-          <input type="number" class="cat-freeze-qty" data-freeze-cat="${name}" placeholder="0" value="${latest?latest.qty:''}" style="width:90px;">
-          <button class="btn-ghost" data-freeze-save="${name}" style="flex-shrink:0;">Save</button>
-          <span class="note" style="font-size:11px;">${latest ? `rev ${latest.rev} \u00b7 ${latest.dateLabel}` : 'not set this month'}</span>
-        </div>`;
-      }
-      return `<div style="border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;gap:10px;padding:9px 0;">
-          <input type="checkbox" data-toggle-cat="${name}" ${isActive?'checked':''} style="width:16px;height:16px;flex-shrink:0;">
-          <span style="flex:1;font-size:14px;${isActive?'':'color:var(--steel);'}">${name}</span>
-          <span style="font-size:13px;color:var(--steel);min-width:26px;text-align:right;">${used}</span>
-          <span style="min-width:64px;text-align:right;">${actionHtml}</span>
-        </div>
-        ${freezeHtml}
-      </div>`;
-    }
-    let ieCatInactiveOpen = false;
+    function latestFreezing(name, mr){ const a = freezeRevsFor(name, mr); return a.length ? a[a.length-1] : null; }
+    let ieCatHistOpen = null;
+    // refreshed with every data load (Lasting Qty, articles in use) unless a qty is half-typed
+    window._ieRenderCats = ()=>{
+      const tb = document.getElementById('ieCatBody'); if(!tb) return;
+      if([...tb.querySelectorAll('input[data-freeze-cat]')].some(i=>i.value!==i.dataset.saved || document.activeElement===i)) return;
+      renderCategories();
+    };
     function renderCategories(){
+      const mr = catMonths.find(m=>m.name===window._catFrMonth) || null;
+      const sel = document.getElementById('ieCatMonth');
+      sel.innerHTML = catMonths.length ? catMonths.map(m=>`<option value="${esc(m.name)}" ${m.name===window._catFrMonth?'selected':''}>${esc(m.name)} · ${esc(m.from.slice(8))} ${esc(OB_MON[Number(m.from.slice(5,7))-1])} – ${esc(m.to.slice(8))} ${esc(OB_MON[Number(m.to.slice(5,7))-1])}</option>`).join('') : '<option value="">Add a month in Month Range</option>';
+      sel.onchange = ()=>{ window._catFrMonth = sel.value; ieCatHistOpen = null; renderCategories(); };
+      // lasting per category in this month (Line 1-6), up to today
+      const lastQ = {};
+      if(mr){
+        const toD = mr.to < todayStr() ? mr.to : todayStr();
+        if(mr.from <= toD){ try{ dashMetricsRange(mr.from, toD, 'C').catRows.forEach(r=>{ lastQ[r.name] = r.qty; }); }catch(e){ console.warn('lasting qty', e); } }
+      }
       const all = articleCategories();
-      const activeCats = all.filter(isCategoryActive);
-      const inactiveCats = all.filter(c=>!isCategoryActive(c));
-      const monthLabel = new Date().toLocaleDateString('en-US', { month:'long', year:'numeric' });
-      document.getElementById('ieCatActiveHeading').textContent = `Active (${activeCats.length}) \u2014 ${monthLabel}`;
-      document.getElementById('ieCatActiveRows').innerHTML = activeCats.map(c=>catRowHtml(c,true)).join('')
-        || '<p class="note">Nothing active yet.</p>';
-      const toggleBtn = document.getElementById('ieCatToggleInactive');
-      toggleBtn.innerHTML = `<span style="display:inline-block;transition:transform .15s;${ieCatInactiveOpen?'transform:rotate(180deg);':''}">\u25be</span> ${ieCatInactiveOpen?'Hide':'Show'} inactive categories (${inactiveCats.length})`;
-      document.getElementById('ieCatInactiveWrap').classList.toggle('hidden', !ieCatInactiveOpen);
-      document.getElementById('ieCatInactiveRows').innerHTML = inactiveCats.map(c=>catRowHtml(c,false)).join('');
+      const rows = all.filter(isCategoryActive).concat(all.filter(c=>!isCategoryActive(c)));
+      let tF = 0, tL = 0, tA = 0;
+      const nf = v=>Number(v||0).toLocaleString('en-US');
+      const body = rows.map(name=>{
+        const on = isCategoryActive(name), used = countArticlesUsing(name);
+        const lt = mr ? latestFreezing(name, mr) : null, revs = mr ? freezeRevsFor(name, mr) : [];
+        const fq = lt ? Number(lt.qty)||0 : 0, lq = Math.round(lastQ[name]||0);
+        const bal = fq - lq, ach = fq>0 ? lq/fq*100 : 0;
+        if(on || fq>0 || lq>0){ tF += fq; tL += lq; tA += used; }   // a hidden category that ran this month still counts
+        const st = !on ? '<span class="cf-st cf-off">Hidden</span>' : used>0 ? '<span class="cf-st cf-use">In use</span>' : '<span class="cf-st cf-free">Not in use</span>';
+        const act = used>0 ? `<button class="cf-pill cf-ghost" data-cat-hist="${esc(name)}">History</button>` : `<button class="cf-pill cf-del" data-del-cat="${esc(name)}">Delete</button>${revs.length?` <button class="cf-pill cf-ghost" data-cat-hist="${esc(name)}">History</button>`:''}`;
+        const histRow = (ieCatHistOpen===name) ? `<tr class="cf-hist"><td></td><td colspan="10">${revs.length ? 'History · '+esc(name)+': '+revs.map(r=>`rev ${r.rev} · ${esc(String(r.dateLabel||'').slice(8,10)+' '+(OB_MON[Number(String(r.dateLabel||'').slice(5,7))-1]||'')+' '+String(r.dateLabel||'').slice(2,4))} · ${nf(r.qty)}`).join(' → ') : 'No freezing saved for '+esc(name)+' in '+esc(mr?mr.name:'this month')+'.'}</td></tr>` : '';
+        return `<tr class="${on?'':'cf-offrow'}">
+          <td><label class="cf-sw" title="${on?'Active — tap to hide':'Hidden — tap to activate'}"><input type="checkbox" data-toggle-cat="${esc(name)}" ${on?'checked':''}><span></span></label></td>
+          <td class="cf-cat">${esc(name)}</td>
+          <td>${on && mr ? `<div class="cf-qin"><input type="number" min="0" data-freeze-cat="${esc(name)}" data-saved="${lt?lt.qty:''}" value="${lt?lt.qty:''}" placeholder="qty"><button class="cf-pill cf-save" data-freeze-save="${esc(name)}">Save</button></div>` : `<span class="note">${on?'Add the month first':'Hidden'}</span>`}</td>
+          <td>${lt ? `<span class="cf-rev"><b>rev ${lt.rev}</b> ${esc(String(lt.dateLabel||'').slice(8,10)+' '+(OB_MON[Number(String(lt.dateLabel||'').slice(5,7))-1]||'')+' '+String(lt.dateLabel||'').slice(2,4))}</span>` : '<span class="note">not set</span>'}</td>
+          <td class="r"><b>${lt?nf(fq):'—'}</b></td>
+          <td class="r">${nf(lq)}</td>
+          <td class="r">${lt?nf(bal):'—'}</td>
+          <td>${lt ? `${ach.toFixed(1)}%<span class="cf-bar"><i style="width:${Math.min(100,ach).toFixed(1)}%;${ach<25?'background:var(--accent)':''}"></i></span>` : '—'}</td>
+          <td class="r">${used}</td>
+          <td>${st}</td>
+          <td>${act}</td></tr>${histRow}`;
+      }).join('');
+      document.getElementById('ieCatBody').innerHTML = body || '<tr><td colspan="11" class="empty">No categories</td></tr>';
+      document.getElementById('ieCatFoot').innerHTML = `<tr><td></td><td>Total</td><td></td><td></td><td class="r">${nf(tF)}</td><td class="r">${nf(tL)}</td><td class="r">${nf(tF-tL)}</td><td>${tF>0?(tL/tF*100).toFixed(1)+'%':'—'}</td><td class="r">${tA}</td><td></td><td></td></tr>`;
+      // summary tiles
+      let gone = '';
+      if(mr){ const d0 = new Date(mr.from+'T00:00:00'), d1 = new Date(mr.to+'T00:00:00'), dt = new Date(todayStr()+'T00:00:00');
+        const tot = Math.round((d1-d0)/864e5)+1, past = Math.max(0, Math.min(tot, Math.round((dt-d0)/864e5)+1)); gone = ` · ${Math.round(past/tot*100)}% of month gone`; }
+      const nAct = all.filter(isCategoryActive).length;
+      document.getElementById('ieCatSum').innerHTML = `
+        <div class="cf-s"><div class="t">Freezing</div><div class="n">${nf(tF)}</div><div class="x">pairs · ${nAct} categor${nAct===1?'y':'ies'}</div></div>
+        <div class="cf-s"><div class="t">Lasting so far</div><div class="n">${nf(tL)}</div><div class="x">pairs · Line 1–6${mr?' · to '+esc((mr.to<todayStr()?mr.to:todayStr()).slice(8))+' '+esc(OB_MON[Number((mr.to<todayStr()?mr.to:todayStr()).slice(5,7))-1]):''}</div></div>
+        <div class="cf-s"><div class="t">Balance</div><div class="n">${nf(tF-tL)}</div><div class="x">pairs still to last</div></div>
+        <div class="cf-s"><div class="t">Achieved</div><div class="n">${tF>0?(tL/tF*100).toFixed(1)+'%':'—'}</div><div class="x">of freezing${gone}</div></div>`;
 
-      document.querySelectorAll('[data-toggle-cat]').forEach(cb=>{
-        cb.onclick = async (e)=>{
-          e.preventDefault();
+      document.querySelectorAll('#ieCatBody [data-toggle-cat]').forEach(cb=>{
+        cb.onchange = async ()=>{
           const name = cb.dataset.toggleCat;
           if(isCategoryActive(name)) store.inactiveCategories = (store.inactiveCategories||[]).concat([name]);
           else store.inactiveCategories = (store.inactiveCategories||[]).filter(c=>c!==name);
           await saveStore(); buildPanel('ie'); renderAll();
         };
       });
-      document.querySelectorAll('[data-del-cat]').forEach(b=>b.onclick=async()=>{
+      document.querySelectorAll('#ieCatBody [data-cat-hist]').forEach(b=>b.onclick = ()=>{ ieCatHistOpen = ieCatHistOpen===b.dataset.catHist ? null : b.dataset.catHist; renderCategories(); });
+      document.querySelectorAll('#ieCatBody [data-del-cat]').forEach(b=>b.onclick=async()=>{
         const name = b.dataset.delCat;
+        if(!confirm(`Delete the category "${name}"? No article uses it.`)) return;
         store.categories = articleCategories().filter(c=>c!==name);
         store.inactiveCategories = (store.inactiveCategories||[]).filter(c=>c!==name);
         delete (store.categoryTargets||{})[name];
         await saveStore(); buildPanel('ie'); renderAll();
       });
-      document.querySelectorAll('[data-freeze-save]').forEach(b=>b.onclick=async()=>{
+      document.querySelectorAll('#ieCatBody [data-freeze-save]').forEach(b=>b.onclick=async()=>{
+        if(!mr){ alert('Add the month in Month Range first.'); return; }
         const name = b.dataset.freezeSave;
-        const input = document.querySelector(`[data-freeze-cat="${name}"]`);
+        const input = document.querySelector(`#ieCatBody [data-freeze-cat="${CSS.escape(name)}"]`);
+        if(input.value===''){ toast('Enter the freezing qty'); return; }
         const qty = Number(input.value)||0;
-        const latest = latestFreezing(name);
-        if(latest && latest.qty===qty){ toast('No change — already saved at this qty'); return; }
-        const { month, year } = currentFreezeMonthYear();
+        const latest = latestFreezing(name, mr);
+        if(latest && Number(latest.qty)===qty){ toast('No change — already saved at this qty'); return; }
+        const d = new Date(mr.from+'T00:00:00'); d.setDate(d.getDate()+14);
         const history = store.categoryFreezing[name] || [];
-        const revThisMonth = history.filter(r=>r.month===month && r.year===year).length + 1;
-        history.push({ qty, month, year, rev: revThisMonth,
-          dateLabel: todayStr(), epoch: savedNowEpoch() });
+        const rev = freezeRevsFor(name, mr).length + 1;
+        history.push({ qty, fm: mr.name, month: d.getMonth()+1, year: d.getFullYear(), rev, dateLabel: todayStr(), epoch: savedNowEpoch() });
         store.categoryFreezing[name] = history;
         await saveStore(); renderCategories();
-        toast(`Freezing Qty saved (rev ${revThisMonth})`, 'ok');
+        toast(`${name}: freezing ${qty.toLocaleString('en-US')} saved (rev ${rev}, ${mr.name})`, 'ok');
       });
     }
     renderCategories();
-    document.getElementById('ieCatToggleInactive').onclick = ()=>{ ieCatInactiveOpen = !ieCatInactiveOpen; renderCategories(); };
     document.getElementById('ieCatAddBtn').onclick = async (e)=>{
       const name = document.getElementById('ieCatName').value.trim();
       if(!name){ toast('Enter a category name'); return; }
@@ -14364,6 +14405,7 @@ function renderAll(){
   // Re-read Preparation's per-size balances into any open size grid. This is what makes a
   // mid-shift receipt show up on the line without rebuilding the panel underneath someone.
   sizeGridRefreshers.forEach(h=>{ try{ h.run(); }catch(e){ /* panel already gone */ } });
+  if(typeof window._ieRenderCats==='function'){ try{ window._ieRenderCats(); }catch(e){} }
   const dateStr = (session.role==='management') ? summaryDate : currentDate;
   const ln = session.role==='supervisor' ? session.line : selectedLine;
   const shift = currentShift;
@@ -14787,7 +14829,7 @@ function doExport(){
   const freezeRows = [];
   Object.keys(store.categoryFreezing||{}).forEach(catName=>{
     (store.categoryFreezing[catName]||[]).forEach(r=>{
-      freezeRows.push({ Category:catName, Month:r.month, Year:r.year, Revision:r.rev, 'Freezing Qty':r.qty, 'Saved Date':r.dateLabel });
+      freezeRows.push({ Category:catName, 'Freezing Month':r.fm||'', Month:r.month, Year:r.year, Revision:r.rev, 'Freezing Qty':r.qty, 'Saved Date':r.dateLabel });
     });
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(freezeRows.length?freezeRows:[{Category:'—'}]), 'Category Freezing');
