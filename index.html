@@ -721,7 +721,7 @@
   #obModal:not(.study) .stop{display:none;}
   #obModal .stop .op{font-size:12px;color:#9FB3AE;} #obModal .stop .op b{color:#fff;font-size:15px;display:block;}
   #obModal .stop .time{font-family:Consolas,'SFMono-Regular',monospace;font-size:40px;font-weight:800;letter-spacing:1px;text-align:center;}
-  #obModal .stop .btns{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;}
+  #obModal .stop .btns{display:grid;grid-template-columns:1fr 1.4fr 1.2fr 1fr;gap:8px;}
   #obModal .stop button{border:none;border-radius:12px;padding:14px 6px;font-size:15px;font-weight:800;}
   #obModal .b-start{background:#15803D;color:#fff;} #obModal .b-lap{background:var(--accent);color:#111;} #obModal .b-reset{background:#2A3431;color:#fff;}
   #obModal .chips span{display:inline-block;background:#2A3431;color:#fff;border-radius:6px;padding:2px 7px;margin:3px 3px 0 0;font-size:11.5px;}
@@ -963,7 +963,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-05c-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-05d-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1282,7 +1282,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-05c-supabase';
+const APP_BUILD = '2026-10-05d-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -8207,9 +8207,10 @@ async function obMutate(k, fn){
   if(!r.ok) return { ok:false, error:'Could not reach the server — nothing saved. Try again.' };
   const out = fn(r.value);
   if(!out || out.ok===false) return out || { ok:false, error:'Nothing to save' };
+  if(out.noWrite) return { ok:true, doc: out.doc, ver: out.ver, same: !!out.same };   // nothing changed: nothing written
   const ok = await writeKey(k, out.doc);
   if(!ok) return { ok:false, error:'Save failed — press the button again.' };
-  return { ok:true, doc: out.doc, ver: out.ver };
+  return { ok:true, doc: out.doc, ver: out.ver, same: !!out.same };
 }
 
 // ---- calculation (pure: rows + plan in, numbers out) ----
@@ -8286,10 +8287,38 @@ function obBlankRow(){ const mc = obMcNames()[0]; return { op:'', mc, smv:'', cy
 const OB_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const OB_MON_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function obFmtWhen(ep){ try{ const d = new Date(ep); if(!ep || isNaN(d)) return ''; return String(d.getDate()).padStart(2,'0')+' '+OB_MON[d.getMonth()]+' '+d.toTimeString().slice(0,5); }catch(e){ return ''; } }
+// Build 10-05d: what makes a NEW version. Only the operation list and the figures behind SMV:
+// name, order, machine, the cycle times, rating, allowance, SMV. Target / M-P / efficiency never do.
+function obSig(rows){
+  return JSON.stringify((rows||[]).map(r=>[
+    String(r.op||'').trim(), r.mc||'',
+    obRowHasStudy(r) ? '' : ((r.smv===''||r.smv==null) ? '' : Number(r.smv)),
+    (r.cyc||[]).slice(0,5).map(x=>(x==null||x==='') ? null : Number(x)),
+    (r.rating===''||r.rating==null) ? 100 : Number(r.rating),
+    (r.allow===''||r.allow==null) ? 0 : Number(r.allow),
+    !!r.allowOv ]));
+}
+function obCleanRows(){ return obUI.rows.filter(r=>String(r.op||'').trim() || obRowSmv(r)>0); }
+function obChanged(){
+  if(!obUI.baseVer) return true;
+  const b = ((obUI.doc&&obUI.doc.versions)||[]).find(x=>x.ver===obUI.baseVer);
+  return !b || obSig(obCleanRows())!==obSig(b.rows);
+}
+// The plan (M/P, efficiencies, minutes, leaders) is remembered only through Apply. The editor opens
+// with the latest Apply's plan from any version; a read-only view uses that version's own latest Apply.
+// Nothing applied yet (or an older record) falls back to the plan stored with the version.
+function obAppliedPlan(doc, v, overall){
+  let list = [];
+  if(overall) ((doc&&doc.versions)||[]).forEach(x=>{ list = list.concat(x.applied||[]); });
+  else list = (v&&v.applied)||[];
+  let best = null;
+  list.forEach(a=>{ if(a && a.plan && (!best || (a.at||0) > (best.at||0))) best = a; });
+  return best ? best.plan : ((v&&v.plan)||{});
+}
 function obLoadVersion(v){
   obUI.rows = JSON.parse(JSON.stringify(v.rows||[]));
   obUI.rows.forEach(r=>{ r.cyc = (r.cyc||[]).slice(0,5); while(r.cyc.length<5) r.cyc.push(null); });
-  obUI.plan = Object.assign({}, obUI.plan, v.plan||{});
+  obUI.plan = Object.assign({}, obUI.plan, obAppliedPlan(obUI.doc, v, !obUI.readOnly));
   delete obUI.plan.hrs; if(!(Number(obUI.plan.mins)>0)) obUI.plan.mins = 60;   // older drafts had working hours
 
   obUI.baseVer = v.ver; obUI.dirty = false; obUI.sel = 0;
@@ -8341,7 +8370,7 @@ function obRenderShell(){
      <div class="acts">
        <select id="obVerSel" title="Saved versions">${obVersionOptions()}</select>
        <button class="b-w" id="obCopyBtn">⧉ Copy from…</button>
-       <button class="b-w" id="obSaveBtn">💾 Save new version</button>
+       <button class="b-w" id="obSaveBtn">💾 Save</button>
        <button class="b-w" id="obPdfBtn">📄 PDF / Share</button>
        <button class="b-a" id="obApplyBtn">✓ Apply to article</button>
        <button class="b-x" id="obCloseBtn" title="Close">✕</button>
@@ -8387,7 +8416,7 @@ function obRenderShell(){
        <th>SMV</th><th>Target<br>100%</th><th>Theo.<br>M/P</th><th>Actual<br>M/P</th><th>Work /<br>operator</th><th>Capacity/hr<br>@ op. effi</th><th>Effi needed<br>for target</th><th>Minute loss<br>/ hr</th><th>Status</th><th></th>
      </tr></thead><tbody id="obBody"></tbody><tfoot id="obFoot"></tfoot></table></div>
      <div class="stop"><div class="op">Timing now<b id="obSwOp">—</b><div class="chips" id="obSwChips"></div></div><div class="time" id="obSwTime">00:00.0</div>
-       <div class="btns"><button class="b-start" id="obSwStart">▶ Start</button><button class="b-lap" id="obSwLap">Lap → C1</button><button class="b-reset" id="obSwReset">Reset</button></div></div>
+       <div class="btns"><button class="b-start" id="obSwStart">▶ Start</button><button class="b-lap" id="obSwLap">Lap → C1</button><button class="b-reset" id="obSwUndo">↶ Undo last lap</button><button class="b-reset" id="obSwReset">Reset</button></div></div>
    </div>
    <div class="card" id="obChartCard"><h3>Line balance — work per operator (min) against line target</h3><div id="obChart"></div><div class="leg" id="obChartLeg"></div></div>
    <div class="card prep"><div class="f"><label>Prepared by (IE) <span style="color:var(--danger)">*</span></label>${obPrepHtml()}</div>
@@ -8405,14 +8434,14 @@ function obRowHtml(r, i){
    <td class="l"><input data-f="op" value="${esc(r.op||'')}" placeholder="Operation name"></td>
    <td><select data-f="mc">${mcOpts.map(n=>`<option ${n===r.mc?'selected':''}>${esc(n)}</option>`).join('')}</select></td>
    <td class="ts"><button class="swb" data-swsel="${i}" title="Time this operation">⏱</button></td>
-   ${[0,1,2,3,4].map(c=>`<td class="ts"><input data-cyc="${c}" type="number" step="0.1" value="${r.cyc[c]!=null?r.cyc[c]:''}"></td>`).join('')}
+   ${[0,1,2,3,4].map(c=>`<td class="ts"><input data-cyc="${c}" type="text" readonly inputmode="none" tabindex="-1" title="Filled by the stopwatch only" value="${r.cyc[c]!=null?r.cyc[c]:''}"></td>`).join('')}
    <td class="ts c" data-k="avg"></td>
    <td class="ts"><input data-f="rating" type="number" step="1" value="${obEv(r.rating)}"></td>
    <td class="ts c" data-k="basic"></td>
    <td class="ts"><input data-f="allow" type="number" step="0.5" value="${obEv(r.allow)}" title="${r.allowOv?'Set by hand for this row':'From the M/C allowance table'}" style="${r.allowOv?'font-weight:800':''}"></td>
    <td><input class="smv" data-f="smv" type="number" step="0.001" ${studied?'readonly title="From the time study"':''} value="${studied?'':obEv(r.smv)}"></td>
    <td class="c" data-k="t100"></td><td class="c" data-k="theo"></td><td data-k="mp" style="font-weight:800"></td><td class="c" data-k="load"></td><td class="c" data-k="cap"></td><td class="c" data-k="eff"></td><td class="c" data-k="loss"></td><td data-k="st"></td>
-   <td><button class="rb" data-mv="-1" title="Move up">↑</button><button class="rb" data-mv="1" title="Move down">↓</button><button class="rb del" data-del="1" title="Remove">✕</button></td>
+   <td><button class="rb" data-mv="-1" title="Move up">↑</button><button class="rb" data-mv="1" title="Move down">↓</button><button class="rb" data-ins="1" title="Insert an operation below" style="color:var(--accent2);font-weight:800">＋</button><button class="rb del" data-del="1" title="Remove">✕</button></td>
   </tr>`;
 }
 function obRenderRows(){
@@ -8563,6 +8592,11 @@ function obWireRows(){
       const t = obUI.rows[i]; obUI.rows[i] = obUI.rows[j]; obUI.rows[j] = t; if(obUI.sel===i) obUI.sel = j;
       obMarkDirty(); obRenderRows();
     });
+    const insB = tr.querySelector('[data-ins]'); if(insB) insB.onclick = ()=>{
+      obUI.rows.splice(i+1, 0, obBlankRow()); if(obUI.sel>i) obUI.sel++;
+      obMarkDirty(); obRenderRows();
+      const ins = document.querySelectorAll('#obBody input[data-f="op"]'); if(ins[i+1]) ins[i+1].focus();
+    };
     const del = tr.querySelector('[data-del]'); if(del) del.onclick = ()=>{
       const r = obUI.rows[i];
       if((r.op || r.smv || obRowHasStudy(r)) && !confirm(`Remove operation ${i+1}${r.op?' — '+r.op:''}?`)) return;
@@ -8583,7 +8617,7 @@ function obSub(html){
 }
 function obWireShell(){
   const $ = id=>document.getElementById(id);
-  ['obMp','obOe','obLe','obMins','obLl'].forEach(id=>$(id).addEventListener('input', ()=>{ obReadPlan(); obMarkDirty(); obRecalc(); }));
+  ['obMp','obOe','obLe','obMins','obLl'].forEach(id=>$(id).addEventListener('input', ()=>{ obReadPlan(); obRecalc(); }));   // plan is kept only by Apply, so it is not an unsaved change
   $('obCloseBtn').onclick = ()=>obClose(false);
   if($('obPrepSel')) $('obPrepSel').onchange = ()=>{ obUI.preparedById = $('obPrepSel').value; $('obPrepSel').style.borderColor=''; };
   $('obPdfBtn').onclick = ()=>obExportPdf();
@@ -8678,7 +8712,7 @@ function obWireShell(){
       toast(`Copied ${v.rows.length} operations from ${r.value.article||''} v${v.ver} — Save to keep them`);
     });
   };
-  $('obSaveBtn').onclick = async (e)=>{ const r = await obSaveVersion(e.target); if(r) toast(`Saved as v${r}`); };
+  $('obSaveBtn').onclick = async (e)=>{ const r = await obSaveVersion(e.target); if(r) toast(obUI && obUI.lastSame ? (obUI.lastPhoto ? `Picture saved \u2014 operations unchanged, still v${r}` : `No change \u2014 v${r} is already saved`) : `Saved as v${r}`); };
   $('obApplyBtn').onclick = ()=>obApply();
   // stopwatch
   $('obSwStart').onclick = ()=>{
@@ -8693,6 +8727,16 @@ function obWireShell(){
     const t = obSwNow(); r.cyc[n] = +((t-obSw.lapStart)/1000).toFixed(1); obSw.lapStart = t;
     const inp = document.querySelector(`#obBody tr[data-i="${obUI.sel}"] [data-cyc="${n}"]`); if(inp) inp.value = r.cyc[n];
     obMarkDirty(); obRecalc();
+  };
+  $('obSwUndo').onclick = ()=>{
+    const r = obUI.rows[obUI.sel]; if(!r) return;
+    let n = -1; for(let c=4;c>=0;c--){ if(r.cyc[c]!=null){ n = c; break; } }
+    if(n<0){ toast('No lap to undo'); return; }
+    r.cyc[n] = null;
+    obSw.lapStart = obSwNow();                      // the next Lap measures that cycle again, from this moment
+    const inp = document.querySelector(`#obBody tr[data-i="${obUI.sel}"] [data-cyc="${n}"]`); if(inp) inp.value = '';
+    obMarkDirty(); obRecalc();
+    toast(`C${n+1} removed \u2014 time it again`);
   };
   $('obSwReset').onclick = ()=>{ obSwReset(); $('obSwTime').textContent = '00:00.0'; $('obSwStart').innerHTML = '▶ Start'; };
 }
@@ -8737,6 +8781,13 @@ async function obSaveVersion(btn){
   const res = await obMutate(obUI.key, cur=>{
     const doc = cur && Array.isArray(cur.versions) ? cur : { article: obUI.art.articleNo, versions: [] };
     if(!doc.article) doc.article = obUI.art.articleNo;
+    // Same operations and figures as the version being edited -> no new version (checked on the server copy).
+    const base = obUI.baseVer ? doc.versions.find(x=>x.ver===obUI.baseVer) : null;
+    if(base && obSig(base.rows)===obSig(ver.rows)){
+      if(!photo) return { ok:true, doc, ver: base.ver, same:true, noWrite:true };
+      doc.photo = photo;                                   // only the picture changed: saved, still no new version
+      return { ok:true, doc, ver: base.ver, same:true };
+    }
     const n = doc.versions.reduce((m,v)=>Math.max(m, Number(v.ver)||0), 0) + 1;
     doc.versions.push(Object.assign({ ver:n }, ver));
     if(photo) doc.photo = photo;
@@ -8744,9 +8795,12 @@ async function obSaveVersion(btn){
   });
   if(btn) btn.disabled = false;
   if(!res.ok){ alert(res.error); return null; }
+  const sameKept = !!res.same, hadPhoto = !!photo;
   obUI.doc = res.doc; obUI.baseVer = res.ver; obUI.dirty = false; obUI.photoDirty = false; obUI.copiedFrom = null;
-  obIndexRefresh(obUI.key, res.doc);
-  obUI.rows = obUI.doc.versions[obUI.doc.versions.length-1].rows.map(r=>Object.assign({}, r, { cyc: r.cyc.slice() }));
+  obUI.lastSame = sameKept; obUI.lastPhoto = hadPhoto;
+  if(!sameKept || hadPhoto) obIndexRefresh(obUI.key, res.doc);
+  const sv = obUI.doc.versions.find(x=>x.ver===res.ver) || obUI.doc.versions[obUI.doc.versions.length-1];
+  obUI.rows = sv.rows.map(r=>Object.assign({}, r, { cyc: r.cyc.slice() }));
   obRenderShell();
   return res.ver;
 }
@@ -8936,7 +8990,7 @@ async function obBuildPdf(){
 }
 async function obExportPdf(){
   if(!obUI.rows.length){ alert('Add the operations first.'); return; }
-  if(obUI.dirty || !obUI.baseVer){
+  if(obChanged()){
     if(!confirm('The PDF is made from a saved version. Save these changes as a new version now?')) return;
     const v = await obSaveVersion(null); if(!v) return;
   }
@@ -9000,7 +9054,8 @@ function obThumb(dataUrl, max){
 async function obIndexItemFromDoc(key, doc, keyAt){
   const vs = (doc && doc.versions) || []; if(!vs.length) return null;
   const v = vs[vs.length-1];
-  const R = obCompute(v.rows||[], v.plan||{});
+  const vPlan = obAppliedPlan(doc, v, true);
+  const R = obCompute(v.rows||[], vPlan);
   const applied = [];
   vs.forEach(x=>(x.applied||[]).forEach(ap=>{ const lb = lineLabel(ap.line); if(!applied.includes(lb)) applied.push(lb); }));
   return {
@@ -9008,7 +9063,7 @@ async function obIndexItemFromDoc(key, doc, keyAt){
     line: v.line||'', ver: v.ver, versions: vs.length, vTimes: vs.map(x=>x.savedAt||0), savedAt: v.savedAt||0, preparedBy: v.preparedBy||v.by||'', iv: 2,
     vh: vs.map(x=>({ t: x.savedAt||0, ver: x.ver, by: x.preparedBy||x.by||'', id: x.preparedById||'' })),
     ap: [].concat(...vs.map(x=>(x.applied||[]).map(e=>({ t: e.at||0, by: e.by||'', id: e.byId||'', line: e.line||'' })))),
-    totalSmv: obRound(R.S,2), mp: R.ok ? R.N : (Number(v.plan&&v.plan.mp)||0), bnOE: R.ok ? obRound(R.bnOE,0) : null, balance: R.ok ? obRound(R.balance*100,2) : null,
+    totalSmv: obRound(R.S,2), mp: R.ok ? R.N : (Number(vPlan&&vPlan.mp)||0), bnOE: R.ok ? obRound(R.bnOE,0) : null, balance: R.ok ? obRound(R.balance*100,2) : null,
     applied, thumb: await obThumb(doc.photo, 72),
     ops: (v.rows||[]).map(r=>[String(r.op||''), r.mc||'', obRound(obRowSmv(r),2)]).filter(o=>o[0] && o[2]>0)
   };
@@ -9243,10 +9298,10 @@ async function obApply(){
   const msg = `Apply this OB to L-${obUI.art.layoutNo} ${obUI.art.articleNo}?\n\n`
     + `SMV  ${cur.smv||'not set'}  →  ${smv}\nTarget %  ${cur.targetPercent||'not set'}  →  ${tgt}\n\n`
     + `From ${currentDate} · ${SHIFT_LABELS[currentShift]||currentShift} onward (same as IE Save).`
-    + (obUI.dirty ? `\n\nThe OB has unsaved changes — it will be saved as a new version first.` : '');
+    + (obChanged() ? `\n\nThe operations have changed — they will be saved as a new version first.` : `\n\nOperations unchanged — applied on v${obUI.baseVer}, no new version.`);
   if(!confirm(msg)) return;
   let ver = obUI.baseVer;
-  if(obUI.dirty || !ver){ ver = await obSaveVersion(null); if(!ver) return; }
+  if(obChanged()){ ver = await obSaveVersion(null); if(!ver) return; }
   if(typeof obUI.applyFn!=='function'){ alert('Open the IE panel and try again.'); return; }
   const btn = document.getElementById('obApplyBtn'); if(btn) btn.disabled = true;
   const r = await obUI.applyFn(obUI.art.layoutNo, smv, tgt, { article: obUI.art.articleNo, ver });
@@ -9257,7 +9312,16 @@ async function obApply(){
   const mres = await obMutate(obUI.key, doc=>{
     const v = doc && (doc.versions||[]).find(x=>x.ver===ver); if(!v) return { ok:false, error:'' };
     const pm = obPrepPicked();
-    v.applied = (v.applied||[]).concat([{ at: Date.now(), by: pm ? pm.name : by, byId: pm ? String(pm.id) : '', line: obUI.line, layoutNo: obUI.art.layoutNo, date: currentDate, shift: currentShift, smv, target: tgt }]);
+    // Append-only record of exactly what was applied, by whom, from what, and under which plan.
+    const RR = obCompute(obCleanRows(), obUI.plan);
+    v.applied = (v.applied||[]).concat([{
+      at: Date.now(), by: pm ? pm.name : by, byId: pm ? String(pm.id) : '', user: by,
+      line: obUI.line, layoutNo: obUI.art.layoutNo, article: obUI.art.articleNo, shopOrder: obUI.art.shopOrderNo||'',
+      date: currentDate, shift: currentShift, ver,
+      smv, target: tgt, was: { smv: Number(cur.smv)||0, target: Number(cur.targetPercent)||0 },
+      plan: Object.assign({}, obUI.plan),
+      result: RR.ok ? { bnOp: RR.bnI+1, bnOE: obRound(RR.bnOE,0), tLine: obRound(RR.tLine,0), takt: obRound(RR.takt,2), pitch: obRound(RR.pitch,2), balance: obRound(RR.balance*100,2) } : null
+    }]);
     return { ok:true, doc, ver };
   });
   if(mres && mres.ok){ obIndexRefresh(obUI.key, mres.doc); obUI.doc = mres.doc; const s = document.getElementById('obVerSel'); if(s) s.innerHTML = obVersionOptions(); }
