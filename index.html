@@ -963,7 +963,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-05b-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-05c-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1282,7 +1282,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-05b-supabase';
+const APP_BUILD = '2026-10-05c-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -7297,13 +7297,88 @@ function renderLineSelector(){
   refreshLineSmvFlags();
 }
 
+// ---- Build 10-05c: ready-made WhatsApp messages (one per section; each only its own figures) ----
+function waDateLabel(dateStr){
+  const m = String(dateStr).split('-').map(Number);
+  if(m.length<3 || !m[0]) return String(dateStr);
+  return String(m[2]).padStart(2,'0') + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m[1]-1] + ' ' + m[0];
+}
+// Production line. Total Production is the app's own figure (hourly pass + repair released),
+// Average hourly = Total / hours worked so far, "Shift Hour End" = number of distinct hours with
+// an entry (the same count the efficiency work-window uses), M/P = direct now + indirect.
+function waBuildProduction(ln, dateStr, shift){
+  const day = liveDay(ln, dateStr, shift);
+  const supName = day.supervisorName || '\u2014';
+  const supMobile = day.supervisorMobile || '\u2014';
+  const lostByCategory = {};
+  (day.lostTime||[]).forEach(lt=>{
+    const cat = lt.category || 'Other';
+    lostByCategory[cat] = (lostByCategory[cat]||0) + (Number(lt.lostMinutes)||0);
+  });
+  let pass = 0, major = 0;
+  (day.hourlyProd||[]).forEach(p=>{ pass += rmOutQty(ln, p); });
+  (day.quality||[]).forEach(q=>{ major += rmRepOut(ln, q); });
+  const total = pass + major;                       // = computeMetrics().totalAchieve
+  const minorQ = minorAllocFor(ln, dateStr, shift).placed; // already inside the pass
+  const firstTimePass = pass - minorQ;
+  const hrs = new Set();
+  (day.hourlyProd||[]).concat(day.sideLine||[]).forEach(p=>{ const h = String(p.hour).trim(); if(HOUR_LABELS.indexOf(h)>=0) hrs.add(h); });
+  const hours = hrs.size;
+  const avg = hours>0 ? Math.round(total/hours) : 0;
+  const now = new Date();
+  const nowStr = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const direct = Math.round(dateStr===todayStr() ? getMpAtTime(ln, dateStr, shift, nowStr) : (Number(day.baseDirectMP)||0));
+  const indirect = Math.round(Number(day.indirectMP)||0);
+  let msg = `Line: ${lineLabel(ln)}\nSupervisor: ${supName} (${supMobile})\n\n`;
+  msg += `Shift Hour End: ${hours}\nTotal Production: ${total}\nAverage Hourly Production: ${avg}\nM/P: ${direct}+${indirect}\n\nLost Time:\n`;
+  const catKeys = Object.keys(lostByCategory);
+  msg += catKeys.length ? catKeys.map(cat=>`- ${cat}: ${lostByCategory[cat]} min`).join('\n') : '- None';
+  msg += `\n\n1st Time Pass: ${firstTimePass}\nRepair Minor: ${minorQ}\nRepair Major: ${major}\nSent to QC Qty: ${total}`;
+  return msg;
+}
+// Preparation: what was received today (all shifts, deleted receives excluded), grouped by
+// Article + Shop Order, with each one's live balance = received so far minus every line's use.
+function waBuildPreparation(dateStr){
+  const groups = {};
+  getAllUpperReceipts().filter(en=>en.date===dateStr).forEach(en=>{
+    const k = en.article+'\u23d0'+en.shopOrder;
+    if(!groups[k]) groups[k] = { article:en.article, shopOrder:en.shopOrder, qty:0 };
+    groups[k].qty += Number(en.totalQty)||0;
+  });
+  const list = Object.keys(groups).map(k=>groups[k]);
+  let msg = `Preparation \u2014 Received Today (${waDateLabel(dateStr)})\n\n`;
+  if(!list.length) return msg + '- No article received today';
+  let tot = 0;
+  list.forEach((g,i)=>{
+    const bal = computePrepSizeBalance(g.article, g.shopOrder).reduce((t,r)=>t+r.balance, 0);
+    tot += g.qty;
+    msg += `${i+1}. ${g.article} (SO ${g.shopOrder})\n   Received today: ${g.qty}\n   Balance: ${bal}\n`;
+  });
+  msg += `\nTotal received today: ${tot}`;
+  return msg;
+}
+// Quality (selected line + date + shift): Minor = fixed on the table; Major = flagged pairs,
+// split into what QC Mgmt already decided (Reject / Repair / D-grade) and what is still pending.
+function waBuildQuality(ln, dateStr, shift){
+  const day = liveDay(ln, dateStr, shift);
+  let rej = 0, rep = 0, dg = 0;
+  (day.quality||[]).forEach(q=>{ rej += Number(q.reject)||0; rep += Number(q.repair)||0; dg += Number(q.dgrade)||0; });
+  let pending = 0;
+  (store.qualityFlags||[]).forEach(f=>{ if(f.line===ln && f.date===dateStr && f.shift===shift && f.status==='pending') pending += Number(f.qty)||0; });
+  const minor = minorFor(ln, dateStr, shift).reduce((t,r)=>t+(Number(r.qty)||0), 0);
+  const major = rej + rep + dg + pending;
+  let msg = `Quality \u2014 ${lineLabel(ln)}\n${waDateLabel(dateStr)} \u00b7 ${SHIFT_LABELS[shift]||shift}\n\n`;
+  msg += `Minor (fixed on table): ${minor}\n\nMajor flagged: ${major}\n- Reject: ${rej}\n- Repair: ${rep}\n- D-grade: ${dg}\n- Pending with QC Mgmt: ${pending}\n\nTotal defect pairs: ${minor + major}`;
+  return msg;
+}
+
 function renderTabs(){
   const tabsEl = document.getElementById('tabs');
   tabsEl.innerHTML = '';
   let tabList = [];
   if(session.role==='supervisor') tabList = [['entry','Supervisor Entry']];
   if(session.role==='ie') tabList = [['ie','IE Entry'],['summary','All Lines Summary']];
-  if(session.role==='quality') tabList = [['quality','Quality Entry'],['summary','All Lines Summary']];
+  if(session.role==='quality') tabList = [['quality','Quality Entry']];
   if(session.role==='hr') tabList = [['hr','HR Entry']];
   if(session.role==='qualitymgmt') tabList = [['qualitymgmt','Quality Management']];
   // Deliberately a single tab: this login exists so MIS can pull the daily report without
@@ -7325,7 +7400,7 @@ function renderTabs(){
       // The cross-line Summary is the only place an IE/Quality user needs every other line,
       // so those keys are fetched here rather than on every login — that's 13 fewer storage
       // messages each time someone signs in, and they only pay it if they open this tab.
-      if(t[0]==='summary' && !allLinesLoaded && (session.role==='ie' || session.role==='quality')){
+      if(t[0]==='summary' && !allLinesLoaded && session.role==='ie'){
         allLinesLoaded = true;
         try{ await loadStore(ALL_LINES, { skipHr:true }); buildPanel('summary'); renderAll(); }
         catch(e){ allLinesLoaded = false; /* keep showing what we have */ }
@@ -7334,39 +7409,23 @@ function renderTabs(){
     tabsEl.appendChild(d);
   });
 
-  // Central "Share to WhatsApp" button — supervisors only, sits in the same tab-bar row,
-  // pushed to the right by the flex layout so it's always visible alongside the tab(s)
-  // rather than in its own separate row. Pre-fills a quick status message (Lost Time by
-  // category in raw minutes — not man-minutes, Line + Supervisor identity, and today's
-  // 1st Time Pass / Repair / total sent to QC) that the supervisor can send as-is or clear
-  // and write their own message before sending, straight into their factory WhatsApp group.
-  if(session.role==='supervisor'){
+  // Build 10-05c: "Share to WhatsApp" for three roles, each with its own ready-made message that
+  // carries only that section's own figures (the person can edit it in WhatsApp before sending).
+  //   Production supervisor -> shift-hour / output / M-P / lost time / pass / repair / sent to QC
+  //   Preparation supervisor -> today's receives by article, with each article's balance
+  //   Quality               -> the selected line + shift: minor repairs, major decisions, pending
+  // IE has no WhatsApp button. The message builders are plain functions (waBuild*) just above.
+  if(session.role==='supervisor' || session.role==='quality'){
     const waBtn = document.createElement('button');
     waBtn.id = 'shareWaBtn';
     waBtn.type = 'button';
     waBtn.style.cssText = 'margin-left:auto;flex-shrink:0;white-space:nowrap;background:#25D366;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:600;font-size:13px;';
     waBtn.textContent = 'Share to WhatsApp';
     waBtn.onclick = ()=>{
-      const lnHere = session.line;
-      const dateStr = todayStr();
-      const day = liveDay(lnHere, dateStr, currentShift);
-      const supName = day.supervisorName || '\u2014';
-      const supMobile = day.supervisorMobile || '\u2014';
-      const lostByCategory = {};
-      (day.lostTime||[]).forEach(lt=>{
-        const cat = lt.category || 'Other';
-        lostByCategory[cat] = (lostByCategory[cat]||0) + (Number(lt.lostMinutes)||0);
-      });
-      let firstTimePass = 0, totalRepair = 0;
-      (day.hourlyProd||[]).forEach(p=>{ firstTimePass += rmOutQty(lnHere, p); });
-      (day.quality||[]).forEach(q=>{ totalRepair += rmRepOut(lnHere, q); });
-      const qcQty = firstTimePass + totalRepair;
-      const minorQ = minorAllocFor(lnHere, dateStr, currentShift).placed; // Build 29c: already inside the pass
-      firstTimePass -= minorQ;
-      let msg = `Line: ${lineLabel(lnHere)}\nSupervisor: ${supName} (${supMobile})\n\nLost Time:\n`;
-      const catKeys = Object.keys(lostByCategory);
-      msg += catKeys.length ? catKeys.map(cat=>`- ${cat}: ${lostByCategory[cat]} min`).join('\n') : '- None';
-      msg += `\n\n1st Time Pass: ${firstTimePass}\nRepair Minor: ${minorQ}\nRepair Major: ${totalRepair}\nSent to QC Qty: ${qcQty}`;
+      let msg = '';
+      if(session.role==='quality') msg = waBuildQuality(selectedLine, currentDate || todayStr(), currentShift);
+      else if(session.line==='Preparation') msg = waBuildPreparation(todayStr());
+      else msg = waBuildProduction(session.line, todayStr(), currentShift);
       window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
     };
     tabsEl.appendChild(waBtn);
