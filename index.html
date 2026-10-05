@@ -614,30 +614,32 @@
     .qs-grid{grid-template-columns:repeat(2,1fr);}
     .qs-bottom-grid{grid-template-columns:1fr;}
   }
-  /* ===== Build 10-05a: Product Categories & Freezing ===== */
+  /* ===== Build 10-05a/b: Product Categories & Freezing — same type scale as the rest of the IE panel ===== */
   .cf-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
-  .cf-msel{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--steel);font-weight:600;margin:0;}
-  .cf-msel select{width:auto;padding:8px 10px;border:1.5px solid var(--accent2);border-radius:9px;font-weight:700;font-size:13px;background:#fff;}
-  .cf-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
-  .cf-s{border:1px solid var(--border);border-radius:11px;padding:9px 11px;} .cf-s .t{font-size:10.5px;font-weight:800;color:var(--steel);text-transform:uppercase;} .cf-s .n{font-size:21px;font-weight:800;} .cf-s .x{font-size:11px;color:var(--steel);}
-  .cf-tab{width:100%;border-collapse:collapse;font-size:13px;min-width:940px;}
-  .cf-tab th{background:#F1F4F3;color:var(--steel);font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;padding:9px 8px;text-align:left;white-space:nowrap;}
-  .cf-tab td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
-  .cf-tab .r{text-align:right;} .cf-tab td.cf-cat{font-weight:800;font-size:14px;}
-  .cf-tab tfoot td{font-weight:800;background:#F7F9F8;border-top:1.5px solid var(--border);}
+  .cf-msel{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--steel);font-weight:600;margin:0;}
+  .cf-msel select{width:auto;padding:7px 9px;border:1px solid var(--accent2);border-radius:8px;font-size:13px;background:#fff;}
+  .cf-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;}
+  .cf-s{border:1px solid var(--border);border-radius:10px;padding:8px 10px;}
+  .cf-s .t{font-size:10.5px;font-weight:700;color:var(--steel);text-transform:uppercase;letter-spacing:.05em;}
+  .cf-s .n{font-size:18px;font-weight:700;margin-top:1px;} .cf-s .x{font-size:11px;color:var(--steel);}
+  .cf-tab{min-width:900px;}
+  .cf-tab th{white-space:nowrap;}
+  .cf-tab td{vertical-align:middle;white-space:nowrap;}
+  .cf-tab .r{text-align:right;} .cf-tab td.cf-cat{font-weight:600;}
+  .cf-tab tfoot td{font-weight:700;background:#F7F9F8;}
   .cf-tab tr.cf-offrow td{color:#9AA5A1;}
   .cf-tab tr.cf-hist td{background:#F7F9F8;font-size:12px;color:var(--steel);white-space:normal;}
-  .cf-sw{position:relative;display:inline-block;width:42px;height:24px;margin:0;cursor:pointer;}
+  .cf-sw{position:relative;display:inline-block;width:38px;height:22px;margin:0;cursor:pointer;vertical-align:middle;}
   .cf-sw input{position:absolute;opacity:0;width:0;height:0;}
-  .cf-sw span{position:absolute;inset:0;background:#CBD5D1;border-radius:24px;transition:.2s;}
-  .cf-sw span:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.2s;}
-  .cf-sw input:checked+span{background:var(--accent2);} .cf-sw input:checked+span:before{transform:translateX(18px);}
-  .cf-qin{display:flex;align-items:center;gap:6px;} .cf-qin input{width:100px;padding:7px 9px;border:1.5px solid #F3D08A;background:#FFF8E6;border-radius:8px;font-weight:800;font-size:14px;text-align:right;}
-  .cf-pill{border:0;border-radius:999px;padding:7px 14px;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;}
-  .cf-save{background:var(--accent2);color:#fff;} .cf-ghost{background:#fff;border:1.5px solid var(--border);color:var(--steel);} .cf-del{background:#fff;border:1.5px solid #F3B4B4;color:var(--danger);}
-  .cf-rev{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--steel);} .cf-rev b{background:#E0E7FF;color:#3730A3;border-radius:6px;padding:1px 7px;font-size:11px;}
-  .cf-bar{height:7px;border-radius:7px;background:#EEF1EF;overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-left:8px;} .cf-bar i{display:block;height:100%;background:var(--success);}
-  .cf-st{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800;} .cf-use{background:#DCFCE7;color:#166534;} .cf-free{background:#F1F4F3;color:var(--steel);} .cf-off{background:#FEF3C7;color:#92400E;}
+  .cf-sw span{position:absolute;inset:0;background:#CBD5D1;border-radius:22px;transition:.2s;}
+  .cf-sw span:before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.2s;}
+  .cf-sw input:checked+span{background:var(--accent2);} .cf-sw input:checked+span:before{transform:translateX(16px);}
+  .cf-qin{display:flex;align-items:center;gap:6px;} .cf-qin input{width:90px;padding:6px 8px;font-size:13px;text-align:right;}
+  .cf-pill{border:0;border-radius:999px;padding:6px 12px;font-weight:700;font-size:11.5px;cursor:pointer;white-space:nowrap;}
+  .cf-save{background:var(--accent2);color:#fff;} .cf-ghost{background:#fff;border:1px solid var(--border);color:var(--steel);} .cf-del{background:#fff;border:1px solid #F3B4B4;color:var(--danger);}
+  .cf-rev{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--steel);} .cf-rev b{background:#E0E7FF;color:#3730A3;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;}
+  .cf-bar{height:6px;border-radius:6px;background:#EEF1EF;overflow:hidden;width:70px;display:inline-block;vertical-align:middle;margin-left:8px;} .cf-bar i{display:block;height:100%;background:var(--success);}
+  .cf-st{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600;} .cf-use{background:#DCFCE7;color:#166534;} .cf-free{background:#F1F4F3;color:var(--steel);} .cf-off{background:#FEF3C7;color:#92400E;}
   @media(max-width:700px){ .cf-sum{grid-template-columns:1fr 1fr;} }
   /* ===== Build 10-04a: OB (Operation Breakdown) ===== */
   .ie-art-row{display:flex;gap:6px;align-items:stretch;}
@@ -961,7 +963,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-05a-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-05b-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1280,7 +1282,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-05a-supabase';
+const APP_BUILD = '2026-10-05b-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -8062,7 +8064,7 @@ function iePanelHTML(){
     <div class="table-scroll"><table><thead><tr><th>ID No.</th><th>Name</th><th></th></tr></thead><tbody id="ieMemBody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody></table></div>
   </div>
   <div class="card">
-    <div class="cf-top"><h2 style="margin:0"><span class="dot"></span>Product Categories &amp; Freezing</h2>
+    <div class="cf-top"><h2 style="margin:0;"><span class="dot"></span>Product Categories &amp; Freezing</h2>
       <label class="cf-msel">Freezing month <select id="ieCatMonth"></select></label></div>
     <div class="cf-sum" id="ieCatSum"></div>
     <div class="table-scroll"><table class="cf-tab"><thead><tr><th>Active</th><th>Category</th><th>Freezing Qty (enter)</th><th>Revision</th><th class="r">Freezing Qty</th><th class="r">Lasting Qty</th><th class="r">Balance</th><th>Achieved</th><th class="r">Articles</th><th>Status</th><th></th></tr></thead>
@@ -8070,7 +8072,7 @@ function iePanelHTML(){
     <div class="note" style="margin-top:8px;">Lasting Qty = pairs made on Line 1–6 in this month for articles of that category · Balance = Freezing − Lasting · Switch off = hidden from new articles · Total counts every category with freezing or lasting in this month.</div>
     <div class="row2" style="max-width:420px;margin-top:14px;">
       <div class="field"><label>New category</label><input id="ieCatName" type="text" placeholder="e.g. Boot"></div>
-      <div class="field"><label>&nbsp;</label><button class="cf-pill cf-save" id="ieCatAddBtn" style="width:100%;padding:10px;">＋ Add</button></div>
+      <div class="field"><label>&nbsp;</label><button class="btn-primary" id="ieCatAddBtn" style="width:100%;">Add</button></div>
     </div>
   </div>
   <div class="card">
@@ -12306,16 +12308,16 @@ function attachPanelEvents(key){
           <td class="cf-cat">${esc(name)}</td>
           <td>${on && mr ? `<div class="cf-qin"><input type="number" min="0" data-freeze-cat="${esc(name)}" data-saved="${lt?lt.qty:''}" value="${lt?lt.qty:''}" placeholder="qty"><button class="cf-pill cf-save" data-freeze-save="${esc(name)}">Save</button></div>` : `<span class="note">${on?'Add the month first':'Hidden'}</span>`}</td>
           <td>${lt ? `<span class="cf-rev"><b>rev ${lt.rev}</b> ${esc(String(lt.dateLabel||'').slice(8,10)+' '+(OB_MON[Number(String(lt.dateLabel||'').slice(5,7))-1]||'')+' '+String(lt.dateLabel||'').slice(2,4))}</span>` : '<span class="note">not set</span>'}</td>
-          <td class="r"><b>${lt?nf(fq):'—'}</b></td>
-          <td class="r">${nf(lq)}</td>
-          <td class="r">${lt?nf(bal):'—'}</td>
-          <td>${lt ? `${ach.toFixed(1)}%<span class="cf-bar"><i style="width:${Math.min(100,ach).toFixed(1)}%;${ach<25?'background:var(--accent)':''}"></i></span>` : '—'}</td>
-          <td class="r">${used}</td>
+          <td class="r num">${lt?nf(fq):'—'}</td>
+          <td class="r num">${nf(lq)}</td>
+          <td class="r num">${lt?nf(bal):'—'}</td>
+          <td class="num">${lt ? `${ach.toFixed(1)}%<span class="cf-bar"><i style="width:${Math.min(100,ach).toFixed(1)}%;${ach<25?'background:var(--accent)':''}"></i></span>` : '—'}</td>
+          <td class="r num">${used}</td>
           <td>${st}</td>
           <td>${act}</td></tr>${histRow}`;
       }).join('');
       document.getElementById('ieCatBody').innerHTML = body || '<tr><td colspan="11" class="empty">No categories</td></tr>';
-      document.getElementById('ieCatFoot').innerHTML = `<tr><td></td><td>Total</td><td></td><td></td><td class="r">${nf(tF)}</td><td class="r">${nf(tL)}</td><td class="r">${nf(tF-tL)}</td><td>${tF>0?(tL/tF*100).toFixed(1)+'%':'—'}</td><td class="r">${tA}</td><td></td><td></td></tr>`;
+      document.getElementById('ieCatFoot').innerHTML = `<tr><td></td><td>Total</td><td></td><td></td><td class="r num">${nf(tF)}</td><td class="r num">${nf(tL)}</td><td class="r num">${nf(tF-tL)}</td><td class="num">${tF>0?(tL/tF*100).toFixed(1)+'%':'—'}</td><td class="r num">${tA}</td><td></td><td></td></tr>`;
       // summary tiles
       let gone = '';
       if(mr){ const d0 = new Date(mr.from+'T00:00:00'), d1 = new Date(mr.to+'T00:00:00'), dt = new Date(todayStr()+'T00:00:00');
