@@ -963,7 +963,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-07e-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-07f-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1282,7 +1282,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-07e-supabase';
+const APP_BUILD = '2026-10-07f-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -3907,7 +3907,7 @@ async function backendGet(k){
         const vrows = await vr.json();
         if(!vrows || !vrows.length){ delete _kvCache[k]; return null; }
         if(vrows[0].updated_at && vrows[0].updated_at === _kvCache[k].at){
-          return { value: JSON.parse(_kvCache[k].json) };
+          return { value: JSON.parse(_kvCache[k].json), ver: _kvCache[k].at };
         }
       } else if(vr.status===400){ _kvVersionsSupported = false; }
     }catch(e){ /* network hiccup: fall through to a normal read */ }
@@ -3924,7 +3924,22 @@ async function backendGet(k){
   if(_kvVersionsSupported && rows[0].updated_at){
     try{ _kvCache[k] = { at: rows[0].updated_at, json: JSON.stringify(rows[0].v) }; }catch(e){}
   }
-  return { value: rows[0].v };
+  return { value: rows[0].v, ver: (_kvVersionsSupported && rows[0].updated_at) ? rows[0].updated_at : undefined };
+}
+// Build 07f: compare-and-swap write. Succeeds only if nobody else changed the key since this device
+// read it (ver = the updated_at it read; null = it read the key as absent). Returns true, or false
+// when someone else wrote first. Throws on a real error so writeKey's retry/error handling still applies.
+async function backendSetCas(k, body, ver){
+  const hdrs = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
+  let res;
+  if(ver===null){
+    res = await fetch(KV_ENDPOINT + '?select=k', { method:'POST', headers: Object.assign({ Prefer:'resolution=ignore-duplicates,return=representation' }, hdrs), body: JSON.stringify([{ k, v: body }]) });
+  } else {
+    res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&updated_at=eq.' + encodeURIComponent(ver) + '&select=k', { method:'PATCH', headers: Object.assign({ Prefer:'return=representation' }, hdrs), body: JSON.stringify({ v: body }) });
+  }
+  if(!res.ok){ const err = new Error('Supabase CAS ' + res.status + ': ' + await res.text()); err.status = res.status; throw err; }
+  const rows = await res.json();
+  return Array.isArray(rows) && rows.length>0;
 }
 async function backendSet(k, body){
   const res = await fetch(KV_ENDPOINT, {
@@ -4152,12 +4167,18 @@ function warnDeadStorage(){
   if(btn) btn.onclick = ()=> el.remove();
 }
 
-async function writeKey(k, v){
+async function writeKey(k, v, cas){
   const body = JSON.stringify(v);
+  const useCas = !!cas && cas.ver!==undefined && _kvVersionsSupported;
   const delaysMs = [400, 900, 1600, 2600, 4000]; // retries are for transient blips only
   for(let attempt=0; attempt<=delaysMs.length; attempt++){
     try{
-      await backendSet(k, body);
+      if(useCas){
+        const won = await backendSetCas(k, body, cas.ver);
+        if(!won){ logStorageActivity('SET', k, false, body.length); return 'conflict'; }
+      } else {
+        await backendSet(k, body);
+      }
       logStorageActivity('SET', k, true, body.length);
       return true;
     }catch(e){
@@ -4184,11 +4205,13 @@ async function writeKey(k, v){
 // burst of writes that trips the storage "rate limit exceeded" error.
 async function writeKeysSequential(pairs){
   const results = [];
-  for(const [k, v] of pairs){
+  for(const [k, v, cas] of pairs){
     // Once the store has started refusing, pushing the remaining keys only deepens the hole.
     // Abandon the rest of the batch; touchedDays is left intact so the next save resends it.
     if(Date.now() < rateLimitedUntil){ results.push(false); continue; }
-    results.push(await writeKey(k, v));
+    const wr = await writeKey(k, v, cas);
+    results.push(wr);
+    if(wr==='conflict') break; // someone else wrote first; the whole save is redone from fresh reads
     await new Promise(r=>setTimeout(r, 180));
   }
   return results;
@@ -4247,7 +4270,7 @@ async function readKeyStrict(k){
     try{
       const r = await backendGet(k);
       logStorageActivity('GET', k, true);
-      return { ok:true, value: (r && r.value) ? JSON.parse(r.value) : null };
+      return { ok:true, value: (r && r.value) ? JSON.parse(r.value) : null, ver: r ? r.ver : null };
     }catch(e){
       if(attempt===0) await new Promise(res=>setTimeout(res, 400));
       else { logStorageActivity('GET', k, false); console.warn('strict read failed:', k, e && e.message ? e.message : e); }
@@ -4518,7 +4541,33 @@ function saveStore(){
 // and safe for concurrent use (separate storage keys), so this only matters
 // for the SAME line+shift being edited from multiple devices at once.
 // ============================================================================
+// Build 07f: a save is read -> merge -> write. If another device wrote the same key in between, the
+// conditional write is refused ('conflict'); the whole save is then redone from fresh reads, so one
+// device's save can never silently overwrite another's. Local state is put back first, so the merge
+// never mixes a stale copy of someone else's data into the retry.
+function takeSaveSnapshot(){
+  const lines = {}; ownedLineKeys().forEach(ln=>{ if(store.lines[ln]) lines[ln] = store.lines[ln]; });
+  return { lines, req:(store.handoverRequests||[]).slice(), qf:(store.qualityFlags||[]).slice(), notices:(store.notices||[]).slice(),
+           photos:Object.assign({}, store.personPhotos||{}), delLayouts:new Set(deletedLayouts) };
+}
+function restoreSaveSnapshot(sn){
+  Object.keys(sn.lines).forEach(ln=>{ store.lines[ln] = sn.lines[ln]; });
+  store.handoverRequests = sn.req; store.qualityFlags = sn.qf; store.notices = sn.notices; store.personPhotos = sn.photos;
+  deletedLayouts.clear(); sn.delLayouts.forEach(x=>deletedLayouts.add(x));
+}
 async function doSaveStore(){
+  const MAX_TRIES = 5;
+  for(let attempt=1; attempt<=MAX_TRIES; attempt++){
+    const sn = takeSaveSnapshot();
+    const r = await doSaveStoreOnce();
+    if(r!=='conflict') return;
+    restoreSaveSnapshot(sn);
+    console.warn('save conflict (another device wrote first) — redoing from fresh data, try', attempt);
+    await new Promise(res=>setTimeout(res, 120 + Math.random()*300*attempt));
+  }
+  showSaveError('Another device saved at the same moment and this save could not be completed safely. Your entry is still on screen \u2014 press Save again.');
+}
+async function doSaveStoreOnce(){
   {
     markCurrentDay();
     const pendingWrites = [];
@@ -4532,7 +4581,7 @@ async function doSaveStore(){
       if(!freshR.ok){ unreadKeys++; continue; }
       const fresh = freshR.value;
       if(!fresh){
-        pendingWrites.push([lineKey(ln), mine]);
+        pendingWrites.push([lineKey(ln), mine, {ver: freshR.ver}]);
         // `mine` already excludes deleted articles (the delete handler filters the array
         // directly), so any deletedLayouts entries for this line are moot now — clear them
         // so a REUSED layoutNo (freed on delete, handed to the next new article) doesn't
@@ -4576,7 +4625,7 @@ async function doSaveStore(){
       // all, so re-uploading the whole (possibly large) line record every single time was
       // pure waste and one of the things pushing us into the storage rate limit sooner.
       if(JSON.stringify(fresh) !== freshSigBeforeMerge){
-        pendingWrites.push([lineKey(ln), fresh]);
+        pendingWrites.push([lineKey(ln), fresh, {ver: freshR.ver}]);
       }
     }
 
@@ -4590,7 +4639,7 @@ async function doSaveStore(){
       deletedReqIds.forEach(id=>byId.delete(id));
       const merged = Array.from(byId.values());
       store.handoverRequests = merged;
-      pendingWrites.push([K_REQ, merged]);
+      pendingWrites.push([K_REQ, merged, {ver: freshReqR.ver}]);
     } }
     if(qfSig()!==baseQfSig || deletedFlagIds.size>0){
       const freshQfR = await readKeyStrict(K_QF);
@@ -4601,7 +4650,7 @@ async function doSaveStore(){
       deletedFlagIds.forEach(id=>byId.delete(id));
       store.qualityFlags = Array.from(byId.values());
       pruneOldQualityFlags(); // the server copy may still carry ones we already aged out
-      pendingWrites.push([K_QF, store.qualityFlags]);
+      pendingWrites.push([K_QF, store.qualityFlags, {ver: freshQfR.ver}]);
     } }
     if(session && session.role==='hr' && unlockSig()!==baseUnlockSig){
       const freshUR = await readKeyStrict(K_UNLOCK);
@@ -4610,7 +4659,7 @@ async function doSaveStore(){
       const byId = new Map((Array.isArray(freshU)?freshU:[]).map(u=>[u.id, u]));
       (store.unlocks||[]).forEach(u=>byId.set(u.id, u)); // HR is the only writer — its copy wins
       store.unlocks = Array.from(byId.values());
-      pendingWrites.push([K_UNLOCK, store.unlocks]);
+      pendingWrites.push([K_UNLOCK, store.unlocks, {ver: freshUR.ver}]);
     } }
     if(noticeSig()!==baseNoticeSig){
       const freshNR = await readKeyStrict(K_NOTICE);
@@ -4638,7 +4687,7 @@ async function doSaveStore(){
       });
       const merged = Array.from(byId.values());
       store.notices = merged;
-      pendingWrites.push([K_NOTICE, merged]);
+      pendingWrites.push([K_NOTICE, merged, {ver: freshNR.ver}]);
     } }
     if(session && (session.role==='hr' || session.role==='management' || session.role==='ie')){
       if(session.role!=='ie' && hrSig()!==baseHrSig) pendingWrites.push([K_HR, store.hr]);
@@ -4654,12 +4703,13 @@ async function doSaveStore(){
       if(freshPhotos===null) unreadKeys++; else {
       const merged = Object.assign({}, freshPhotos, store.personPhotos);
       store.personPhotos = merged;
-      pendingWrites.push([K_PHOTOS, merged]);
+      pendingWrites.push([K_PHOTOS, merged, {ver: freshPhotosR.ver}]);
     } }
     // Written ONE AT A TIME with a small gap (writeKeysSequential), not Promise.all \u2014 a
     // save that touches several keys at once (line + qualityFlags + notice + meta, say)
     // used to fire them all concurrently and trip the storage's rate limit.
     const results = await writeKeysSequential(pendingWrites);
+    if(results.includes('conflict')) return 'conflict';
     if(unreadKeys>0){
       // Some keys were written, but at least one was skipped because its current copy could not
       // be read. Keep everything marked as changed so the next save sends the rest.
