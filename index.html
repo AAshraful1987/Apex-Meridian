@@ -963,7 +963,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-05d-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-07e-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1282,7 +1282,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-05d-supabase';
+const APP_BUILD = '2026-10-07e-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -4355,14 +4355,17 @@ async function loadStore(lines, opts){
     const m = meta;
     store.globalUnlock = m.globalUnlock || {active:false, expiresAt:null};
     // Old password schema (including any restored old backup) → wipe to factory 1234 once.
-    if(m.pwSchema !== PW_SCHEMA){
+    // Build 05e: only an OLDER (or missing) schema wipes. A NEWER schema — a phone still on an
+    // older build, or a rollback — must never reset everyone's password, nor be written back lower.
+    const srvSchema = Number(m.pwSchema) || 0;
+    if(srvSchema < PW_SCHEMA){
       store.userPasswords = {};
       store.mgmtPassword = DEFAULT_PW;
       store.pwSchema = PW_SCHEMA;
     } else {
       store.userPasswords = m.userPasswords || {};
       store.mgmtPassword = m.mgmtPassword || DEFAULT_PW;
-      store.pwSchema = PW_SCHEMA;
+      store.pwSchema = srvSchema;
     }
     store.monthRanges = Array.isArray(m.monthRanges) ? m.monthRanges : [];
     store.categoryTargets = (m.categoryTargets && typeof m.categoryTargets==='object') ? m.categoryTargets : {};
@@ -6060,14 +6063,17 @@ async function importAllData(file){
   if(dump.meta){
     const m = dump.meta;
     store.globalUnlock = m.globalUnlock || {active:false, expiresAt:null};
-    if(m.pwSchema !== PW_SCHEMA){
+    // Build 05e: only an OLDER (or missing) schema wipes. A NEWER schema — a phone still on an
+    // older build, or a rollback — must never reset everyone's password, nor be written back lower.
+    const srvSchema = Number(m.pwSchema) || 0;
+    if(srvSchema < PW_SCHEMA){
       store.userPasswords = {};
       store.mgmtPassword = DEFAULT_PW;
       store.pwSchema = PW_SCHEMA;
     } else {
       store.userPasswords = m.userPasswords || {};
       store.mgmtPassword = m.mgmtPassword || DEFAULT_PW;
-      store.pwSchema = PW_SCHEMA;
+      store.pwSchema = srvSchema;
     }
     store.monthRanges = Array.isArray(m.monthRanges) ? m.monthRanges : [];
     store.categoryTargets = (m.categoryTargets && typeof m.categoryTargets==='object') ? m.categoryTargets : {};
@@ -9907,7 +9913,7 @@ function attachPanelEvents(key){
           ${list.map(n=>`
             <div class="pending-item">
               <div class="row">
-                <div>${n.message}</div>
+                <div>${esc(n.message)}</div>
                 <button class="btn-primary" style="width:auto;" data-ack-notice="${n.id}">OK, Understood</button>
               </div>
             </div>
@@ -10603,7 +10609,7 @@ function attachPanelEvents(key){
           const computed = byId[en.id];
           const balanceLabel = computed && computed.balanceAfter!==null ? computed.balanceAfter : '—';
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td class="num">${en.time}</td><td>${esc(en.project)}</td><td>${esc(en.shopOrder)}</td><td>${formatFreezingMonth(en.freezingMonth)}</td><td>${esc(en.article)}</td>
+          tr.innerHTML = `<td class="num">${en.time}</td><td>${esc(en.project)}</td><td>${esc(en.shopOrder)}</td><td>${esc(formatFreezingMonth(en.freezingMonth))}</td><td>${esc(en.article)}</td>
             <td class="num">${en.totalQty}</td><td class="num">${balanceLabel}</td><td><div class="size-chips">${chips}</div></td>
             <td><button class="btn-ghost" data-del-ur="${en.id}">Delete</button></td>`;
           body.appendChild(tr);
@@ -12760,7 +12766,7 @@ function attachPanelEvents(key){
         ${qcPendingNotices.map(n=>`
           <div class="pending-item">
             <div class="row">
-              <div>${n.message}</div>
+              <div>${esc(n.message)}</div>
               <button class="btn-primary" style="width:auto;" data-ack-qc-notice="${n.id}">OK, Understood</button>
             </div>
           </div>
@@ -14013,7 +14019,7 @@ function attachPanelEvents(key){
         const actionHtml = (n.status==='pending') ? `<button class="btn-ghost" data-cancel-pm-notice="${n.id}">Delete</button>` : '';
         const t = new Date(n.createdAtEpoch);
         const timeStr = String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
-        return `<tr><td>${timeStr}</td><td>${target}</td><td>${n.message}</td><td>${statusHtml}</td><td>${actionHtml}</td></tr>`;
+        return `<tr><td>${timeStr}</td><td>${target}</td><td>${esc(n.message)}</td><td>${statusHtml}</td><td>${actionHtml}</td></tr>`;
       }).join('');
       document.querySelectorAll('[data-cancel-pm-notice]').forEach(b=>{
         b.onclick = async ()=>{
@@ -14196,7 +14202,7 @@ function attachPanelEvents(key){
         });
         return `<div class="qm-group" data-group-key="${[g.line,g.date,g.shift,g.hour,g.layoutNo].join('|')}">
           <div class="qm-group-meta">
-            <b>${lineLabel(g.line)}</b> &middot; ${SHIFT_LABELS[g.shift]} &middot; ${g.date} &middot; ${g.hour} &middot; L-${g.layoutNo} : ${artLabel} &middot; SO: ${shopOrderLabel} &middot; Waiting: <b>${workingAgeLabel(g.line, g.oldest, g.date)}</b>
+            <b>${lineLabel(g.line)}</b> &middot; ${SHIFT_LABELS[g.shift]} &middot; ${g.date} &middot; ${g.hour} &middot; L-${g.layoutNo} : ${artLabel} &middot; SO: ${esc(shopOrderLabel)} &middot; Waiting: <b>${workingAgeLabel(g.line, g.oldest, g.date)}</b>
           </div>
           <div class="tally-grid" style="grid-template-columns:74px repeat(${cols.length},minmax(64px,1fr));">${gridHtml}</div>
           <div class="tally-scroll-hint">${cols.length>4?'&larr; Swipe to see more sizes &rarr;':''}</div>
@@ -14308,7 +14314,7 @@ function attachPanelEvents(key){
         // Resolution delay (flaggedAtEpoch \u2192 decidedAtEpoch) is intentionally NOT shown
         // here \u2014 it stays tracked in the data (formatQualityDelay/epoch fields untouched)
         // for a future report, it's just not part of Quality Management's own view.
-        return `<tr><td>${f.date}</td><td>${lineLabel(f.line)}</td><td>${SHIFT_LABELS[f.shift]}</td><td>${f.hour}</td><td>${artLabel}</td><td>${shopOrderLabel}</td><td>${codeChip}</td>
+        return `<tr><td>${f.date}</td><td>${lineLabel(f.line)}</td><td>${SHIFT_LABELS[f.shift]}</td><td>${f.hour}</td><td>${artLabel}</td><td>${esc(shopOrderLabel)}</td><td>${codeChip}</td>
           <td class="num">${f.qty}</td><td class="num">${d.reject}</td><td class="num">${d.repair}</td><td class="num">${d.dgrade}</td></tr>`;
       }).join('');
     }
@@ -14433,7 +14439,7 @@ function attachPanelEvents(key){
         const actionHtml = (n.status==='pending' && n.date===todayStr()) ? `<button class="btn-ghost" data-cancel-notice="${n.id}">Delete</button>` : '';
         const t = new Date(n.createdAtEpoch);
         const timeStr = String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
-        return `<tr><td>${n.date}</td><td>${timeStr}</td><td>${target}</td><td>${n.message}</td><td>${statusHtml}</td><td>${actionHtml}</td></tr>`;
+        return `<tr><td>${n.date}</td><td>${timeStr}</td><td>${target}</td><td>${esc(n.message)}</td><td>${statusHtml}</td><td>${actionHtml}</td></tr>`;
       }).join('');
       document.querySelectorAll('[data-cancel-notice]').forEach(b=>{
         b.onclick = async ()=>{
