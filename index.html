@@ -10087,7 +10087,7 @@ function attachPanelEvents(key){
           const artLabel = art ? esc(art.articleNo) : '\u2014';
           const codeMatch = DEFECT_CODES.find(([c,n])=>`${c} \u2014 ${n}`===f.reason);
           const codeChip = codeMatch ? codeMatch[0] : '\u2014';
-          const defectName = codeMatch ? codeMatch[1] : (f.reason||'\u2014');
+          const defectName = esc(codeMatch ? codeMatch[1] : (f.reason||'\u2014'));
           // Build 28m: by CALENDAR date (the flag's own shift date vs today), not by 24-hour blocks —
           // a flag raised yesterday at 11:00 read "flagged today" until 11:00 this morning.
           const ageLabel = workingAgeLabel(f.line, f.flaggedAtEpoch, f.date);
@@ -10605,7 +10605,7 @@ function attachPanelEvents(key){
         body.innerHTML = '';
         const { byId } = computeUpperReceiptProgress();
         list.slice().reverse().forEach(en=>{
-          const chips = en.sizes.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('');
+          const chips = en.sizes.map(s=>`<span class="size-chip">${esc(s.size)}<b>${esc(s.qty)}</b></span>`).join('');
           const computed = byId[en.id];
           const balanceLabel = computed && computed.balanceAfter!==null ? computed.balanceAfter : '—';
           const tr = document.createElement('tr');
@@ -10882,7 +10882,7 @@ function attachPanelEvents(key){
         empty.style.display = list.length ? 'none' : 'block';
         body.innerHTML = '';
         list.slice().reverse().forEach(en=>{
-          const chips = en.sizes.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('');
+          const chips = en.sizes.map(s=>`<span class="size-chip">${esc(s.size)}<b>${esc(s.qty)}</b></span>`).join('');
           const tr = document.createElement('tr');
           tr.innerHTML = `<td class="num">${en.time}</td><td>${esc(en.project)}</td><td>${esc(en.shopOrder)}</td><td>${esc(en.subcontractor)}</td><td>${esc(en.article)}</td>
             <td class="num">${en.orderQty||'—'}</td><td class="num">${en.totalQty}</td><td><div class="size-chips">${chips}</div></td>
@@ -11116,7 +11116,7 @@ function attachPanelEvents(key){
         empty.style.display = list.length ? 'none' : 'block';
         body.innerHTML = '';
         list.slice().reverse().forEach(en=>{
-          const chips = en.sizes.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('');
+          const chips = en.sizes.map(s=>`<span class="size-chip">${esc(s.size)}<b>${esc(s.qty)}</b></span>`).join('');
           const tr = document.createElement('tr');
           tr.innerHTML = `<td class="num">${en.time}</td><td>${esc(en.project)}</td><td>${esc(en.shopOrder)}</td><td>${esc(en.article)}</td>
             <td>${en.needsForming===false ? 'No' : 'Yes'}</td>
@@ -11963,7 +11963,7 @@ function attachPanelEvents(key){
           });
           const totalQ = (Number(p.qty)||0) + repairQ; // reject/D-grade are recorded, never added to output
           const sizesHtml = (p.sizesUsed && p.sizesUsed.length)
-            ? `<div class="size-chips">${p.sizesUsed.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>`
+            ? `<div class="size-chips">${p.sizesUsed.map(s=>`<span class="size-chip">${esc(s.size)}<b>${esc(s.qty)}</b></span>`).join('')}</div>`
             : '—';
           const tr=document.createElement('tr');
           tr.innerHTML = `<td>${p.hour}</td><td class="num">${p.qty}</td><td class="num">0</td><td class="num">${repairQ}</td><td class="num">${rejectQ}</td><td class="num">${dgradeQ}</td><td class="num"><b>${totalQ}</b></td><td>${esc(p.reason)||'—'}</td><td class="num">${artLabel}</td><td class="num">${p.breakMin||0}</td><td>${sizesHtml}</td><td><button class="btn-ghost" data-del-sideline="${p.id}">Delete</button></td>`;
@@ -12047,7 +12047,7 @@ function attachPanelEvents(key){
         const inTxt = Object.keys(szIn).map(k=>(k==='*'?'+':'+'+k+':')+szIn[k]).join(', ');
         const outTxt = Object.keys(szOut).map(k=>(k==='*'?'\u2212':'\u2212'+k+':')+szOut[k]).join(', ');
         const sizesHtml = szOrder.length
-          ? `<div class="size-chips">${szOrder.filter(k=>szMap[k]>0).map(k=>`<span class="size-chip">${k}<b>${szMap[k]}</b></span>`).join('')}</div>`
+          ? `<div class="size-chips">${szOrder.filter(k=>szMap[k]>0).map(k=>`<span class="size-chip">${esc(k)}<b>${szMap[k]}</b></span>`).join('')}</div>`
             + (inTxt ? `<div style="color:var(--danger);font-size:10.5px;font-weight:600;white-space:nowrap;">${inTxt} repair</div>` : '')
             + (outTxt ? `<div style="color:var(--danger);font-size:10.5px;font-weight:600;white-space:nowrap;">${outTxt} repair moved</div>` : '')
           : (inTxt ? `<div style="color:var(--danger);font-size:10.5px;font-weight:600;white-space:nowrap;">${inTxt} repair</div>` : '—');
@@ -13110,7 +13110,7 @@ function attachPanelEvents(key){
     }
     function sizeChipsHtml(sizes){
       return (sizes && sizes.length)
-        ? `<div class="size-chips">${sizes.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')}</div>` : '—';
+        ? `<div class="size-chips">${sizes.map(s=>`<span class="size-chip">${esc(s.size)}<b>${esc(s.qty)}</b></span>`).join('')}</div>` : '—';
     }
     function hhmm(ep){ const d = new Date(ep); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
 
@@ -13729,7 +13729,7 @@ function attachPanelEvents(key){
         const art = findArticle(en.line, en.layoutNo);
         const artLabel = art ? esc(art.articleNo) : en.layoutNo;
         const sizesHtml = (en.sizesUsed && en.sizesUsed.length)
-          ? en.sizesUsed.map(s=>`<span class="size-chip">${s.size}<b>${s.qty}</b></span>`).join('')
+          ? en.sizesUsed.map(s=>`<span class="size-chip">${esc(s.size)}<b>${esc(s.qty)}</b></span>`).join('')
           : '\u2014';
         return `<tr>
           <td>${en.date}</td><td>${en.shift}</td><td>${en.hour}</td><td>${artLabel}</td>
@@ -14124,7 +14124,7 @@ function attachPanelEvents(key){
     function qmEffRepair(pending, d){ return Math.max(0, pending - d.rj - d.dg - d.held); }
     function qmCodeChip(reason){
       const m = DEFECT_CODES.find(([c,n])=>`${c} \u2014 ${n}`===reason);
-      return m ? m[0] : (reason||'\u2014');
+      return m ? m[0] : esc(reason||'\u2014');
     }
     function qmGroupColumns(flags){
       const sizeSet = new Set();
