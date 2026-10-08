@@ -963,7 +963,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-07f-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-08a-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1282,7 +1282,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-07f-supabase';
+const APP_BUILD = '2026-10-08a-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -2050,7 +2050,30 @@ function uid(){ return Math.random().toString(36).slice(2,9); }
 // 2pm). NOTE FOR IT (production rebuild): this reads the TABLET's clock because there is no
 // server yet, so it can be faked by changing device time. Move this to a server-side
 // timestamp when the backend lands.
-function savedNowEpoch(){ return Date.now(); }
+// Build 08a: server-corrected time. The phone clock can be wrong (or changed on purpose), so the
+// app measures how far it is from the database's own clock (every write answer carries the row's
+// updated_at, stamped by the server) and adds that difference to the "saved at" stamps. Until the
+// first measurement arrives the offset is 0, i.e. exactly the old behaviour.
+let _srvOffset = 0, _srvOffsetRtt = Infinity, _srvSkewWarned = false;
+function nowSrv(){ return Date.now() + _srvOffset; }
+function noteServerTime(iso, t0, t1){
+  try{
+    if(!iso || typeof iso!=='string') return;
+    let str = iso.replace(/(\.\d{3})\d+/, '$1');              // Safari: keep 3 fraction digits
+    if(!/(Z|[+-]\d\d:?\d\d)$/.test(str)) str += 'Z';          // no zone given = UTC
+    const srv = Date.parse(str);
+    const rtt = t1 - t0;
+    if(!isFinite(srv) || rtt < 0 || rtt > 6000) return;           // a slow answer says little about "now"
+    if(rtt <= _srvOffsetRtt + 150){                               // keep the sharpest (fastest) measurement
+      _srvOffset = Math.round(srv - (t0 + rtt/2)); _srvOffsetRtt = Math.min(rtt, _srvOffsetRtt);
+    }
+    if(!_srvSkewWarned && Math.abs(_srvOffset) > 120000 && typeof toast==='function'){
+      _srvSkewWarned = true;
+      toast('This phone\u2019s clock is about ' + Math.round(Math.abs(_srvOffset)/60000) + ' min ' + (_srvOffset>0?'behind':'ahead') + '. Saved times are corrected, but please set the phone to automatic time.');
+    }
+  }catch(e){}
+}
+function savedNowEpoch(){ return nowSrv(); }
 // "Saved At" for Excel: local date+time, so it lines up with how the floor reads a clock.
 function fmtSavedAt(epoch){
   if(!epoch) return '';
@@ -2367,7 +2390,7 @@ function deleteDecidedQualityFlag(flagId, reason){
 // yet) — shared by Quality's flag-waiting display and Side Line's pending-release display,
 // since both are "how long has this been sitting here" indicators.
 function formatElapsed(startEpoch, endEpoch){
-  const end = endEpoch || Date.now();
+  const end = endEpoch || nowSrv();
   const ms = Math.max(0, end - startEpoch);
   const mins = Math.round(ms/60000);
   if(mins < 60) return mins + ' min';
@@ -3931,15 +3954,31 @@ async function backendGet(k){
 // when someone else wrote first. Throws on a real error so writeKey's retry/error handling still applies.
 async function backendSetCas(k, body, ver){
   const hdrs = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
-  let res;
+  let res; const _t0 = Date.now();
   if(ver===null){
-    res = await fetch(KV_ENDPOINT + '?select=k', { method:'POST', headers: Object.assign({ Prefer:'resolution=ignore-duplicates,return=representation' }, hdrs), body: JSON.stringify([{ k, v: body }]) });
+    res = await fetch(KV_ENDPOINT + '?select=k,updated_at', { method:'POST', headers: Object.assign({ Prefer:'resolution=ignore-duplicates,return=representation' }, hdrs), body: JSON.stringify([{ k, v: body }]) });
   } else {
-    res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&updated_at=eq.' + encodeURIComponent(ver) + '&select=k', { method:'PATCH', headers: Object.assign({ Prefer:'return=representation' }, hdrs), body: JSON.stringify({ v: body }) });
+    res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&updated_at=eq.' + encodeURIComponent(ver) + '&select=k,updated_at', { method:'PATCH', headers: Object.assign({ Prefer:'return=representation' }, hdrs), body: JSON.stringify({ v: body }) });
   }
   if(!res.ok){ const err = new Error('Supabase CAS ' + res.status + ': ' + await res.text()); err.status = res.status; throw err; }
-  const rows = await res.json();
-  return Array.isArray(rows) && rows.length>0;
+  const rows = await res.json(); const _t1 = Date.now();
+  if(Array.isArray(rows) && rows.length>0){ noteServerTime(rows[0] && rows[0].updated_at, _t0, _t1); return true; }
+  return false;
+}
+// Build 08a: a tiny write whose only job is to learn the server's time (see noteServerTime).
+// Never blocks the app and never throws; one key shared by every phone.
+async function probeServerClock(){
+  try{
+    if(!_kvVersionsSupported || Date.now() < rateLimitedUntil) return;
+    const t0 = Date.now();
+    const res = await fetch(KV_ENDPOINT + '?select=updated_at', { method:'POST',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify([{ k: K_PREFIX + ':clock', v: JSON.stringify({ probe: t0 }) }]) });
+    const t1 = Date.now();
+    if(!res.ok) return;
+    const rows = await res.json();
+    if(Array.isArray(rows) && rows[0]) noteServerTime(rows[0].updated_at, t0, t1);
+  }catch(e){ /* offline or refused: keep the last known offset */ }
 }
 async function backendSet(k, body){
   const res = await fetch(KV_ENDPOINT, {
@@ -6322,6 +6361,8 @@ async function initApp(){
   allLinesLoaded = (loginScope().length === ALL_LINES.length);
   await migrateOldStore();
   await loadStore(loginScope(), { skipHr: !(session.role==='hr' || session.role==='management') });
+  probeServerClock();                                   // Build 08a: learn the server's time (not awaited)
+  if(!window._clockTimer){ window._clockTimer = setInterval(probeServerClock, 20*60*1000); }
   // A rapid logout+relogin (or an impatient double-tap between login screens) can fire this
   // function twice with overlapping awaits. If a newer call has started since this one began,
   // let that one own the screen — an older call finishing late must never overwrite it with a
@@ -6544,7 +6585,7 @@ function epochDateStr(ep){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 function lineWorkingMinutesSince(lineName, fromEpoch, toEpoch){
-  toEpoch = toEpoch || Date.now();
+  toEpoch = toEpoch || nowSrv();
   fromEpoch = Number(fromEpoch)||0;
   if(!fromEpoch || toEpoch <= fromEpoch) return 0;
   const lo = store.lines[lineName];
