@@ -1009,7 +1009,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-14a-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-15c-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1366,7 +1366,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-14a-supabase';
+const APP_BUILD = '2026-10-15c-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -1740,20 +1740,51 @@ function openBoxScanner(ctx){
 }
 
 /* ---------------- CONFIG ---------------- */
-const PRODUCTION_LINES = ['Line 1','Line 2','Line 3','Line 4','Line 5','Line 6','Artisan','Socks','Insole','Mocassin','UV Primer','Roughing'];
-const LOGISTICS_LINES = ['Preparation'];
-const ALL_LINES = [...PRODUCTION_LINES, ...LOGISTICS_LINES];
+// =====================================================================================
+// LINE LIST — the ONE place where lines and sub-sections are defined (build 10-15b).
+// To add a line, add one row here; everything else (sign-in screen, HR access list, storage,
+// dashboards, PPP, efficiency, Preparation feed, sub-section targets, scan button) follows.
+//   name  : internal key. NEVER change or reuse once data exists — storage keys derive from it.
+//   label : optional display name (defaults to name).
+//   type  : 'line'        a main production line like Line 1–6 (fed by Preparation, size-wise,
+//                         box-label Scan, main dashboard, PPP, FG/SFG output choice)
+//           'sub'         an in-house sub-section like Socks / Insole (own articles, bulk output)
+//           'moccasin'    the Moccasin Job Work / Forming process (only one; special screens)
+//           'preparation' Preparation & Finishing (only one; Upper Receive, Freezing, logistics)
+//   fg    : 'sub' only — true when it may also produce FG drawn from Preparation (like Artisan).
+// The order here is the order everywhere on screen.
+// =====================================================================================
+const LINE_CONFIG = [
+  { name:'Line 1', type:'line' },
+  { name:'Line 2', type:'line' },
+  { name:'Line 3', type:'line' },
+  { name:'Line 4', type:'line' },
+  { name:'Line 5', type:'line' },
+  { name:'Line 6', type:'line' },
+  { name:'Artisan',   type:'sub', fg:true },
+  { name:'Socks',     type:'sub' },
+  { name:'Insole',    type:'sub' },
+  { name:'Mocassin',  type:'moccasin', label:'Moccasin' },
+  { name:'UV Primer', type:'sub' },
+  { name:'Roughing',  type:'sub' },
+  { name:'Preparation', type:'preparation', label:'Preparation & Finishing' },
+];
+const lineNamesOfType = (...types)=> LINE_CONFIG.filter(c=> types.includes(c.type)).map(c=>c.name);
+const PRODUCTION_LINES = lineNamesOfType('line','sub','moccasin');
+const LOGISTICS_LINES = lineNamesOfType('preparation');
+const ALL_LINES = LINE_CONFIG.map(c=>c.name);
+const MAIN_LINES = lineNamesOfType('line');                         // Line 1–6 (and any added main line)
+const FG_SUB_LINES = LINE_CONFIG.filter(c=>c.type==='sub' && c.fg).map(c=>c.name); // Artisan
+function isFgSub(ln){ return FG_SUB_LINES.includes(ln); }
 function isProduction(lineName){ return PRODUCTION_LINES.includes(lineName); }
 
 // Display names differ from the internal key in a few cases. The key stays fixed so logins,
 // saved data and all the ===' checks keep working; only what the user sees changes.
-// Display names only. Internal keys must never change: storage keys derive from them,
-// so renaming 'Mocassin' outright would orphan everything already saved under it.
-const LINE_LABELS = { 'Preparation':'Preparation & Finishing', 'Mocassin':'Moccasin' };
+const LINE_LABELS = Object.fromEntries(LINE_CONFIG.filter(c=>c.label).map(c=>[c.name, c.label]));
 // Only these lines are fed by Preparation. The other sub-sections (Artisan, Socks,
 // Insole, UV Primer, Roughing) prepare their own work and keep it in-house, so the
-// size-wise flow \u2014 size grids, per-size balances, consumption \u2014 must not apply to them.
-const PREP_FED_LINES = ['Line 1','Line 2','Line 3','Line 4','Line 5','Line 6','Mocassin'];
+// size-wise flow — size grids, per-size balances, consumption — must not apply to them.
+const PREP_FED_LINES = lineNamesOfType('line','moccasin');
 function isPrepFed(ln){ return PREP_FED_LINES.includes(ln); }
 function lineLabel(name){ return LINE_LABELS[name] || name; }
 // The in-house sub-sections have no Preparation receipt to suggest Article/Shop Order from,
@@ -2877,7 +2908,7 @@ function findArticle(lineName, layoutNo){ return getArticles(lineName).find(a=>a
 // so its Received Qty is what came back from Job Work. No matching receive at all = no work.
 function articleNeedsSupply(lineName, art){
   if(!art) return false;
-  if(lineName==='Artisan') return art.outputType==='FG';
+  if(isFgSub(lineName)) return art.outputType==='FG';
   return isPrepFed(lineName);
 }
 // A layout reopened from ANOTHER line carries a frozen remaining-qty snapshot as its Order Qty
@@ -3672,7 +3703,7 @@ function getAllLineSizeConsumption(){
   // draws from this exact same Preparation balance and records sizesUsed just like a
   // Prep-fed line does — so it has to be scanned here too, or its saves would never show
   // up as consumed and the balance (here and in Preparation's own view) would never move.
-  PREP_FED_LINES.concat(['Artisan']).forEach(ln=>{
+  PREP_FED_LINES.concat(FG_SUB_LINES).forEach(ln=>{
     const lineObj = store.lines[ln];
     if(!lineObj || !lineObj.days) return;
     Object.keys(lineObj.days).forEach(dt=>{
@@ -4039,90 +4070,91 @@ const KV_ENDPOINT = SUPABASE_URL + '/rest/v1/kv_store';
 // the app calls readKey()/writeKey() (below), so swapping backends later (e.g. IT's own
 // Node.js + Postgres server) means changing only these three functions and the two
 // constants above \u2014 no other line in this file needs to know where data actually lives.
-// Build 21v: "download only when changed". Every key's row carries a server-set updated_at
-// (see the SQL in the handover notes). Before downloading a key, ask for just its updated_at —
-// a few bytes. If it matches the copy this device already has, reuse that copy instead of
-// downloading the whole line history again. The copy is kept as a JSON string and re-parsed
-// each time, so the app's own unsaved edits can never leak into it. If the database doesn't
-// have the updated_at column yet, this quietly falls back to the old full download.
+// Build 10-15a: the data table is LOCKED on the server. These functions are still the ONLY place
+// that knows where data lives, but every read and write now goes through a signed-in server
+// function (am_kv_*) carrying this phone's sign-in token; the server checks the Employee ID,
+// stamps the time, and writes the audit log. "Download only when changed" and the
+// compare-and-swap save (two phones saving at once) work exactly as before.
 const _kvCache = {};           // k -> { at: updated_at, json: string }
 let _kvVersionsSupported = true;
-async function backendGet(k){
-  const hdrs = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY };
-  if(_kvVersionsSupported && _kvCache[k]){
-    try{
-      const vr = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&select=updated_at', { headers: hdrs });
-      if(vr.ok){
-        const vrows = await vr.json();
-        if(!vrows || !vrows.length){ delete _kvCache[k]; return null; }
-        if(vrows[0].updated_at && vrows[0].updated_at === _kvCache[k].at){
-          return { value: JSON.parse(_kvCache[k].json), ver: _kvCache[k].at };
-        }
-      } else if(vr.status===400){ _kvVersionsSupported = false; }
-    }catch(e){ /* network hiccup: fall through to a normal read */ }
-  }
-  const sel = _kvVersionsSupported ? 'v,updated_at' : 'v';
-  let res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&select=' + sel, { headers: hdrs });
-  if(!res.ok && res.status===400 && _kvVersionsSupported){
-    _kvVersionsSupported = false; // column not added yet: old behaviour
-    res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&select=v', { headers: hdrs });
-  }
-  if(!res.ok){ const err = new Error('Supabase GET ' + res.status + ': ' + await res.text()); err.status = res.status; throw err; }
-  const rows = await res.json();
-  if(!rows || !rows.length){ delete _kvCache[k]; return null; }
-  if(_kvVersionsSupported && rows[0].updated_at){
-    try{ _kvCache[k] = { at: rows[0].updated_at, json: JSON.stringify(rows[0].v) }; }catch(e){}
-  }
-  return { value: rows[0].v, ver: (_kvVersionsSupported && rows[0].updated_at) ? rows[0].updated_at : undefined };
+let amToken = null;            // set at sign-in, cleared at Logout
+let _authLostWarned = false;
+function warnAuthLost(){
+  if(_authLostWarned) return;
+  _authLostWarned = true;
+  try{ toast('⚠ Your sign-in has ended (password reset or access changed). Logout and sign in again — entries cannot be saved until then.', 'error'); }catch(e){}
 }
-// Build 07f: compare-and-swap write. Succeeds only if nobody else changed the key since this device
-// read it (ver = the updated_at it read; null = it read the key as absent). Returns true, or false
-// when someone else wrote first. Throws on a real error so writeKey's retry/error handling still applies.
-async function backendSetCas(k, body, ver){
-  const hdrs = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
-  let res; const _t0 = Date.now();
-  if(ver===null){
-    res = await fetch(KV_ENDPOINT + '?select=k,updated_at', { method:'POST', headers: Object.assign({ Prefer:'resolution=ignore-duplicates,return=representation' }, hdrs), body: JSON.stringify([{ k, v: body }]) });
-  } else {
-    res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&updated_at=eq.' + encodeURIComponent(ver) + '&select=k,updated_at', { method:'PATCH', headers: Object.assign({ Prefer:'return=representation' }, hdrs), body: JSON.stringify({ v: body }) });
+async function kvRpc(fn, args){
+  let res;
+  try{
+    res = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+      method:'POST',
+      headers:{ apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify(Object.assign({ p_token: amToken }, args))
+    });
+  }catch(e){ throw new Error('Failed to fetch'); }
+  if(!res.ok){ const err = new Error('Supabase RPC ' + res.status + ': ' + await res.text()); err.status = res.status; throw err; }
+  const j = await res.json();
+  if(!j || j.ok!==true){
+    const code = (j && j.code) || 'server';
+    if(code==='auth') warnAuthLost();
+    const err = new Error('Server refused (' + code + ')'); err.code = code; err.status = (code==='auth') ? 401 : 403; throw err;
   }
-  if(!res.ok){ const err = new Error('Supabase CAS ' + res.status + ': ' + await res.text()); err.status = res.status; throw err; }
-  const rows = await res.json(); const _t1 = Date.now();
-  if(Array.isArray(rows) && rows.length>0){ noteServerTime(rows[0] && rows[0].updated_at, _t0, _t1); return true; }
+  return j;
+}
+async function backendGet(k){
+  if(_kvCache[k]){
+    try{
+      const v = await kvRpc('am_kv_ver', { p_key: k });
+      if(!v.exists){ delete _kvCache[k]; return null; }
+      if(v.at && v.at === _kvCache[k].at) return { value: JSON.parse(_kvCache[k].json), ver: _kvCache[k].at };
+    }catch(e){ if(e && e.code) throw e; /* network hiccup: fall through to a normal read */ }
+  }
+  const r = await kvRpc('am_kv_get', { p_key: k });
+  if(!r.exists){ delete _kvCache[k]; return null; }
+  try{ _kvCache[k] = { at: r.at, json: JSON.stringify(r.v) }; }catch(e){}
+  return { value: r.v, ver: r.at };
+}
+// Compare-and-swap write: succeeds only if nobody else changed the key since this phone read it
+// (ver = the updated_at it read; null = it read the key as absent). Returns true, or false when
+// someone else wrote first. Throws on a real error so writeKey's retry/error handling still applies.
+async function backendSetCas(k, body, ver){
+  const _t0 = Date.now();
+  const r = await kvRpc('am_kv_put', { p_key: k, p_v: body, p_ver: ver===null ? null : ver, p_mode: 'cas', p_action: kvWriteAction });
+  const _t1 = Date.now();
+  if(r.won){ noteServerTime(r.at, _t0, _t1); return true; }
   return false;
 }
-// Build 08a: a tiny write whose only job is to learn the server's time (see noteServerTime).
-// Never blocks the app and never throws; one key shared by every phone.
+// Learn the server's time (see noteServerTime). Never blocks the app and never throws.
 async function probeServerClock(){
   try{
-    if(!_kvVersionsSupported || Date.now() < rateLimitedUntil) return;
+    if(Date.now() < rateLimitedUntil) return;
     const t0 = Date.now();
-    const res = await fetch(KV_ENDPOINT + '?select=updated_at', { method:'POST',
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=representation' },
-      body: JSON.stringify([{ k: K_PREFIX + ':clock', v: JSON.stringify({ probe: t0 }) }]) });
+    const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/am_now', { method:'POST',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type':'application/json' }, body: '{}' });
     const t1 = Date.now();
     if(!res.ok) return;
-    const rows = await res.json();
-    if(Array.isArray(rows) && rows[0]) noteServerTime(rows[0].updated_at, t0, t1);
+    const j = await res.json();
+    if(j && j.at) noteServerTime(j.at, t0, t1);
   }catch(e){ /* offline or refused: keep the last known offset */ }
 }
+// 'save' for normal entries; Restore sets it to 'restore' while it runs (the server then
+// requires the Backup / Restore / Wipe permission and logs it as a restore).
+let kvWriteAction = 'save';
 async function backendSet(k, body){
-  const res = await fetch(KV_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-      'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal'
-    },
-    body: JSON.stringify([{ k, v: body }])
-  });
-  if(!res.ok){ const err = new Error('Supabase SET ' + res.status + ': ' + await res.text()); err.status = res.status; throw err; }
+  await kvRpc('am_kv_put', { p_key: k, p_v: body, p_ver: null, p_mode: 'force', p_action: kvWriteAction });
 }
 async function backendDelete(k){
-  const res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k), {
-    method: 'DELETE',
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
-  });
-  if(!res.ok){ const err = new Error('Supabase DELETE ' + res.status + ': ' + await res.text()); err.status = res.status; throw err; }
+  await kvRpc('am_kv_delete', { p_key: k });
+}
+// Keys that start with a prefix, newest first: [{k, updated_at}] or null when the server can't be reached.
+async function kvListKeys(prefix, limit){
+  try{ const r = await kvRpc('am_kv_list', { p_prefix: prefix, p_limit: limit||200 }); return Array.isArray(r.rows) ? r.rows : []; }
+  catch(e){ return null; }
+}
+async function kvKeyUpdatedAt(k){
+  try{ const r = await kvRpc('am_kv_ver', { p_key: k }); return r.exists ? (r.at||null) : null; }
+  catch(e){ return null; }
 }
 
 /* ---------------- STORAGE ---------------- */
@@ -4222,6 +4254,50 @@ const touchedDays = new Set();      // `${line}|${date}|${shift}`
 const deletedLayouts = new Set();   // `${line}|${layoutNo}`
 let saveInFlight = 0;
 function markDay(line, date, shift){ if(line && date && shift) touchedDays.add(line+'|'+date+'|'+shift); }
+
+// ---- Build 15c: entry-by-entry merge of a day+shift record -------------------------------
+// Several people can work on the SAME line and shift (production, quality, lost time ...).
+// Replacing the whole record let the later save erase what the earlier one had just added.
+// Now the save compares three copies of the record: BASE (as this phone last got it from the
+// server), MINE (what this phone has now) and FRESH (what the server holds right now), and
+// keeps every entry (matched by its id) according to who changed it:
+//   added by me -> added          added by someone else -> kept      changed by me -> mine
+//   deleted by me -> deleted      untouched by me -> the server's copy
+const slotBase = new Map();   // `${line}|${date}|${shift}` -> JSON text of the record as last read from the server
+function _idOf(x){ return (x && typeof x==='object' && x.id!==undefined && x.id!==null) ? 'i:'+x.id : 'j:'+JSON.stringify(x); }
+function mergeEntryList(fresh, mine, base){
+  fresh = Array.isArray(fresh) ? fresh : []; mine = Array.isArray(mine) ? mine : []; base = Array.isArray(base) ? base : [];
+  const out = fresh.slice();
+  const pos = new Map(); out.forEach((x,i)=>pos.set(_idOf(x), i));
+  const baseMap = new Map(base.map(x=>[_idOf(x), JSON.stringify(x)]));
+  const mineIds = new Set();
+  mine.forEach(x=>{
+    const id = _idOf(x); mineIds.add(id);
+    if(baseMap.has(id) && baseMap.get(id)===JSON.stringify(x)) return;          // untouched by me: server's copy stands
+    if(pos.has(id)) out[pos.get(id)] = x; else { pos.set(id, out.length); out.push(x); }   // added or changed by me
+  });
+  const gone = new Set(); baseMap.forEach((j,id)=>{ if(!mineIds.has(id)) gone.add(id); });  // deleted by me
+  return gone.size ? out.filter(x=>!gone.has(_idOf(x))) : out;
+}
+function mergeDaySlot(freshRec, mine, baseJson){
+  if(!freshRec || typeof freshRec!=='object') return mine;
+  if(!mine || typeof mine!=='object') return freshRec;
+  let base = null; try{ base = baseJson ? JSON.parse(baseJson) : null; }catch(e){ base = null; }
+  const out = Object.assign({}, freshRec);
+  const keys = new Set([...Object.keys(freshRec), ...Object.keys(mine), ...(base ? Object.keys(base) : [])]);
+  keys.forEach(k=>{
+    const m = mine[k], f = freshRec[k], b = base ? base[k] : undefined;
+    if(Array.isArray(m) || Array.isArray(f) || Array.isArray(b)){
+      if(m===undefined) return;
+      out[k] = mergeEntryList(f, m, b);
+    } else if(!base){
+      if(m!==undefined) out[k] = m;
+    } else if(JSON.stringify(m)!==JSON.stringify(b)){      // a single field: mine only if I changed it
+      if(m===undefined) delete out[k]; else out[k] = m;
+    }
+  });
+  return out;
+}
 function markCurrentDay(){
   if(!session) return;
   if(session.role==='supervisor' && session.line){
@@ -4332,7 +4408,22 @@ function warnDeadStorage(){
   if(btn) btn.onclick = ()=> el.remove();
 }
 
+// Build 10-15a: "Saved By". Any entry this phone created (it carries savedAtEpoch but no savedBy yet)
+// gets the signed-in Employee ID + name the moment it is written. Entries from other phones already
+// carry their own author, so they are never overwritten.
+function stampSavedBy(node, depth){
+  if(!session || !session.empId || !node || typeof node!=='object' || depth>8) return;
+  if(Array.isArray(node)){ for(const x of node) stampSavedBy(x, depth+1); return; }
+  // Only entries made since this sign-in: older entries (e.g. from a restored backup) are never
+  // credited to whoever happens to save the record next.
+  if(node.savedAtEpoch && !node.savedBy && node.savedAtEpoch >= (session.signedInAt||0)){
+    node.savedBy = session.empId; node.savedByName = session.empName || '';
+  }
+  for(const key in node){ const x = node[key]; if(x && typeof x==='object') stampSavedBy(x, depth+1); }
+}
+function savedByLabel(en){ return (en && en.savedBy) ? (en.savedBy + (en.savedByName ? ' ' + en.savedByName : '')) : ''; }
 async function writeKey(k, v, cas){
+  stampSavedBy(v, 0);
   const body = JSON.stringify(v);
   const useCas = !!cas && cas.ver!==undefined && _kvVersionsSupported;
   const delaysMs = [400, 900, 1600, 2600, 4000]; // retries are for transient blips only
@@ -4347,6 +4438,8 @@ async function writeKey(k, v, cas){
       logStorageActivity('SET', k, true, body.length);
       return true;
     }catch(e){
+      // Build 10-15a: the server refused (sign-in ended / no permission) — retrying cannot help.
+      if(e && e.code){ logStorageActivity('SET', k, false, body.length); console.warn('write refused', k, e.code); return false; }
       if(isDeadStorageError(e)){ logStorageActivity('SET', k, false, body.length); console.error('storage unavailable', k, e); warnDeadStorage(); return false; }
       if(isRateLimitError(e)){
         logStorageActivity('SET', k, false, body.length);
@@ -4445,13 +4538,8 @@ async function readKeyStrict(k){
 }
 // true = at least one app key exists on the server, false = none at all, null = could not tell.
 async function anyAppKeyExists(){
-  try{
-    const res = await fetch(KV_ENDPOINT + '?k=like.' + encodeURIComponent(K_PREFIX + ':*') + '&select=k&limit=1',
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
-    if(!res.ok) return null;
-    const rows = await res.json();
-    return Array.isArray(rows) ? rows.length>0 : null;
-  }catch(e){ return null; }
+  const rows = await kvListKeys(K_PREFIX + ':', 1);
+  return Array.isArray(rows) ? rows.length>0 : null;
 }
 async function migrateOldStore(){
   // Rapid double/triple-clicking Sign In used to fire this function multiple times at once
@@ -4635,6 +4723,7 @@ function absorbLine(ln, inc){
           if(!Array.isArray(incRec[k])) incRec[k] = [];
         });
       }
+      try{ slotBase.set(ln+'|'+dt+'|'+sh, JSON.stringify(incRec)); }catch(e){}
       if(!cur.days[dt][sh]) cur.days[dt][sh] = incRec;
       else absorbInto(cur.days[dt][sh], incRec);
     });
@@ -4782,7 +4871,7 @@ async function doSaveStoreOnce(){
         const dt = parts[1], sh = parts[2];
         const rec = mine.days && mine.days[dt] ? mine.days[dt][sh] : null;
         if(!fresh.days[dt]) fresh.days[dt] = {};
-        if(rec) fresh.days[dt][sh] = rec; else delete fresh.days[dt][sh];
+        if(rec) fresh.days[dt][sh] = mergeDaySlot(fresh.days[dt][sh], rec, slotBase.get(k)); else delete fresh.days[dt][sh];
       });
       store.lines[ln] = fresh;
       // Skip the write entirely if nothing about this line actually changed this cycle —
@@ -4889,6 +4978,10 @@ async function doSaveStoreOnce(){
     } else {
       rebaseSigs();
       photosDirty = false;
+      touchedDays.forEach(k=>{            // what we just wrote is now the server's copy: the new BASE for the next merge
+        const q = k.split('|'); const rec = store.lines[q[0]] && store.lines[q[0]].days && store.lines[q[0]].days[q[1]] ? store.lines[q[0]].days[q[1]][q[2]] : null;
+        try{ if(rec) slotBase.set(k, JSON.stringify(rec)); }catch(e){}
+      });
       // Everything queued has now landed, so forget it. Without this the list only ever grew:
       // Quality Management decides on one line, then another, then another, and every later
       // save re-wrote every line it had ever touched this session — a handful of decisions
@@ -5437,7 +5530,7 @@ function computeMetrics(lineName, dateStr, shift){
 /* ---------------- MANAGEMENT DASHBOARD ---------------- */
 // One aggregation used by every tile, so no two tiles can disagree.
 // period 'D' = one date, 'M' = one month. shift 'A' / 'B' / 'C' (all shifts).
-const DASH_LINES = ['Line 1','Line 2','Line 3','Line 4','Line 5','Line 6'];
+const DASH_LINES = MAIN_LINES;
 
 // The IE-defined fiscal month whose window contains today (for Daily's "month to date").
 function currentMonthRange(){
@@ -5720,7 +5813,7 @@ function dashMetrics(period, key, shiftFilter){
    handovers mid-shift. Line 1-6 plus Artisan (the one sub-section that can also run a
    genuine size-wise FG article) are included; the other bulk-only sub-sections have no
    size-wise output to attribute this way. */
-const PPP_LINES = DASH_LINES.concat(['Artisan']);
+const PPP_LINES = DASH_LINES.concat(FG_SUB_LINES);
 
 function computeCategoryWisePPP(dates, shiftFilter){
   const wanted = s => shiftFilter==='C' || s===shiftFilter;
@@ -5875,7 +5968,7 @@ function computeFullSectionManMinutes(dates, shiftFilter){
    The support sub-sections (everything except Line 1-6): their own production, SMV, M/P,
    working minutes and efficiency, one row each. Preparation & Finishing keeps only a head
    count — it has no production or SMV — so its production/SMV/eff cells stay blank. */
-const SUBSECTION_LINES = ['Artisan','Socks','Insole','Mocassin','UV Primer','Roughing','Preparation'];
+const SUBSECTION_LINES = lineNamesOfType('sub','moccasin','preparation');
 
 function subSectionRows(period, key, shiftFilter){
   const dates = listPeriodDates(period, key);
@@ -6013,8 +6106,8 @@ const MRD_REMEMBER_KEY = 'mrd_remember';
   // sub-sections. Purely a display grouping for this screen — not the same split as
   // SUB_SECTION_LINES elsewhere (that one excludes Mocassin; this one keeps it, matching
   // how the floor actually talks about these lines).
-  const productionNames = PRODUCTION_LINES.slice(0,6);
-  const subNames = PRODUCTION_LINES.slice(6);
+  const productionNames = MAIN_LINES;
+  const subNames = lineNamesOfType('sub','moccasin');
 
   function makeTile(ln){
     const btn = document.createElement('button');
@@ -6281,6 +6374,7 @@ async function submitLogin(){
     // Signed in. Carry who it is + the server token (never the password).
     const signed = Object.assign({}, t, { token: r.token, empId: r.emp_id || null, empName: r.name || '',
                                           perms: Array.isArray(r.roles) ? r.roles : [] });
+    amToken = r.token; _authLostWarned = false;
     await migrateOldStore();
     await loadStore([]); // shared settings
     if(mrdRemember.checked){
@@ -6297,7 +6391,9 @@ async function submitLogin(){
 
 // Build the session from a login target and open the app
 function enterAppAs(t){
-  const who = { empId:t.empId||null, empName:t.empName||'', token:t.token||null, perms:Array.isArray(t.perms)?t.perms:[] };
+  if(t.token) amToken = t.token;
+  const who = { empId:t.empId||null, empName:t.empName||'', token:t.token||null, perms:Array.isArray(t.perms)?t.perms:[],
+                signedInAt: savedNowEpoch() - 5*60*1000 };
   if(t.kind==='line'){
     // Per-shift login: the supervisor is locked to the shift they signed in with.
     session = Object.assign({ username:slugify(t.line), role:'supervisor', line:t.line, shift:t.shift, shiftLocked:true }, who);
@@ -6331,6 +6427,7 @@ async function bootRemembered(){
     try{ localStorage.removeItem(MRD_REMEMBER_KEY); }catch(e){}
     return;
   }
+  amToken = t.token; _authLostWarned = false;
   if(chk.ok){
     if(chk.name) t.empName = chk.name;
     if(Array.isArray(chk.roles)) t.perms = chk.roles;
@@ -6412,6 +6509,10 @@ async function wipeAllData(){
 }
 
 async function importAllData(file){
+  kvWriteAction = 'restore';            // Build 10-15a: server checks the permission and logs a restore
+  try{ return await importAllDataInner(file); } finally { kvWriteAction = 'save'; }
+}
+async function importAllDataInner(file){
   if(!BACKEND_CONFIGURED){
     toast('Storage is not configured \u2014 fill in SUPABASE_URL / SUPABASE_ANON_KEY at the top of this file first.');
     return;
@@ -6526,6 +6627,7 @@ document.getElementById('logoutBtn').addEventListener('click', async ()=>{
   if(session && session.token) amRpc('am_logout', { p_token: session.token });
   initAppGeneration++;   // a sign-in that is still loading must not open the app after Logout
   session = null;
+  amToken = null; _authLostWarned = false;
   if(refreshInterval){ clearInterval(refreshInterval); refreshInterval = null; }
   if(visibilityRefreshHandler){ document.removeEventListener('visibilitychange', visibilityRefreshHandler); visibilityRefreshHandler = null; }
   // A deliberate logout also forgets "remember me" — the next person must sign in.
@@ -6619,7 +6721,7 @@ async function kickLateScopeLoad(){
   if(!ln) return;
   const needsPrepData = isPrepFed(ln)
     ? getActiveArticles(ln).some(a=>a.shopOrderNo)
-    : (ln==='Artisan' && getActiveArticles(ln).some(a=>a.shopOrderNo && a.outputType==='FG'));
+    : (isFgSub(ln) && getActiveArticles(ln).some(a=>a.shopOrderNo && a.outputType==='FG'));
   if(!needsPrepData) return;
   const missing = PREP_FED_LINES.filter(l=>l!==ln && !store.lines[l]);
   if(!missing.length) return;
@@ -8547,20 +8649,15 @@ function iePanelHTML(){
     <div style="font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--steel);margin:6px 0 4px;">By product category (Line 1–6)</div>
     <div class="table-scroll"><table><tbody id="ieCatTargetBody"></tbody></table></div>
     <div style="font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--steel);margin:12px 0 4px;">By sub-section</div>
-    <div class="table-scroll"><table><tbody>
-      <tr>
-        <td>Artisan</td><td><input class="cat-tgt" data-cat="Artisan" type="number" step="0.1" style="width:90px;"></td>
-        <td>Moccasin</td><td><input class="cat-tgt" data-cat="Mocassin" type="number" step="0.1" style="width:90px;"></td>
-      </tr>
-      <tr>
-        <td>Socks</td><td><input class="cat-tgt" data-cat="Socks" type="number" step="0.1" style="width:90px;"></td>
-        <td>UV Primer</td><td><input class="cat-tgt" data-cat="UV Primer" type="number" step="0.1" style="width:90px;"></td>
-      </tr>
-      <tr>
-        <td>Insole</td><td><input class="cat-tgt" data-cat="Insole" type="number" step="0.1" style="width:90px;"></td>
-        <td>Roughing</td><td><input class="cat-tgt" data-cat="Roughing" type="number" step="0.1" style="width:90px;"></td>
-      </tr>
-    </tbody></table></div>
+    <div class="table-scroll"><table><tbody>${(()=>{
+      // Built from LINE_CONFIG: every sub-section and Moccasin, two per row.
+      const subs = lineNamesOfType('sub','moccasin');
+      let h = '';
+      for(let i=0;i<subs.length;i+=2){
+        h += '<tr>' + subs.slice(i,i+2).map(n=>`<td>${esc(lineLabel(n))}</td><td><input class="cat-tgt" data-cat="${esc(n)}" type="number" step="0.1" style="width:90px;"></td>`).join('') + '</tr>';
+      }
+      return h;
+    })()}</tbody></table></div>
     <button class="btn-primary" id="catTgtSaveBtn" style="margin-top:12px;">Save Targets</button>
     <div class="note" id="catTgtNote"></div>
   </div>
@@ -9093,9 +9190,7 @@ function obWireShell(){
     w.querySelector('[data-x]').onclick = ()=>w.remove();
     let keys = null;
     try{
-      const res = await fetch(KV_ENDPOINT + '?k=like.' + encodeURIComponent(K_PREFIX + ':ob:*') + '&select=k,updated_at&order=updated_at.desc&limit=200',
-        { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
-      if(res.ok) keys = await res.json();
+      keys = await kvListKeys(K_PREFIX + ':ob:', 200);
     }catch(e){}
     const list = w.querySelector('#obCopyList');
     if(!Array.isArray(keys)){ list.textContent = 'Could not reach the server. Try again.'; return; }
@@ -9432,20 +9527,10 @@ async function obExportPdf(){
 // ===================================================================================================
 const K_OBINDEX = K_PREFIX + ':obindex';
 async function obListKeys(){
-  try{
-    const res = await fetch(KV_ENDPOINT + '?k=like.' + encodeURIComponent(K_PREFIX + ':ob:*') + '&select=k,updated_at&order=updated_at.desc&limit=2000',
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
-    if(!res.ok) return null;
-    const rows = await res.json();
-    return Array.isArray(rows) ? rows.filter(x=>x && x.k) : null;
-  }catch(e){ return null; }
+  const rows = await kvListKeys(K_PREFIX + ':ob:', 2000);
+  return Array.isArray(rows) ? rows.filter(x=>x && x.k) : null;
 }
-async function obKeyUpdatedAt(k){
-  try{
-    const res = await fetch(KV_ENDPOINT + '?k=eq.' + encodeURIComponent(k) + '&select=updated_at', { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY } });
-    if(!res.ok) return null; const rows = await res.json(); return rows && rows[0] ? (rows[0].updated_at||null) : null;
-  }catch(e){ return null; }
-}
+async function obKeyUpdatedAt(k){ return kvKeyUpdatedAt(k); }
 function obThumb(dataUrl, max){
   return new Promise(res=>{
     if(!dataUrl) return res('');
@@ -12081,8 +12166,8 @@ function attachPanelEvents(key){
     // actually switches on it) — it exists purely for monthly FG/SFG reporting.
     const artOutputTypeWrap = document.getElementById('artOutputTypeWrap');
     const artOutputTypeSel = document.getElementById('artOutputType');
-    const NUMBERED_LINES = PRODUCTION_LINES.slice(0,6); // Line 1 - Line 6
-    if(ln==='Artisan' || NUMBERED_LINES.includes(ln)){
+    const NUMBERED_LINES = MAIN_LINES; // Line 1 - Line 6 (and any added main line)
+    if(isFgSub(ln) || NUMBERED_LINES.includes(ln)){
       artOutputTypeWrap.classList.remove('hidden');
       if(NUMBERED_LINES.includes(ln)) artOutputTypeSel.value = 'FG';
     }
@@ -12090,7 +12175,7 @@ function attachPanelEvents(key){
     // (picked from the suggestion list, or typed letter-for-letter the same), and the Order Qty
     // is never typed here — it is shown read-only, straight from the receive record.
     function formUsesSupply(){
-      if(ln==='Artisan') return !!(artOutputTypeSel && artOutputTypeSel.value==='FG');
+      if(isFgSub(ln)) return !!(artOutputTypeSel && artOutputTypeSel.value==='FG');
       return isPrepFed(ln);
     }
     function supplyValidationPool(){
@@ -12146,7 +12231,7 @@ function attachPanelEvents(key){
       let shopOrderNo = document.getElementById('artShopOrder').value.trim();
       const chargeTime = document.getElementById('chargeTime').value;
       let orderQty = document.getElementById('orderQty').value;
-      const outputType = (ln==='Artisan' || NUMBERED_LINES.includes(ln)) ? artOutputTypeSel.value : 'SFG';
+      const outputType = (isFgSub(ln) || NUMBERED_LINES.includes(ln)) ? artOutputTypeSel.value : 'SFG';
       if(!artNo){ toast('Enter an Article No'); return; }
       if(!pendingReopen && formUsesSupply()){
         if(!shopOrderNo){ toast('⚠ Select the Shop Order from the suggestion list'); return; }
@@ -12215,7 +12300,7 @@ function attachPanelEvents(key){
       try{ await loadStore(missing, { skipHr:true, skipMeta:true }); }
       catch(e){ /* suggestions stay empty until the next try */ }
     }
-    if(ln==='Artisan') artOutputTypeSel.addEventListener('change', async ()=>{
+    if(isFgSub(ln)) artOutputTypeSel.addEventListener('change', async ()=>{
       document.getElementById('orderQty').value = ''; // let FG re-pull Preparation's qty, or SFG go back to manual
       applyOrderQtyLock();
       if(artOutputTypeSel.value==='FG') await ensureArtisanPrepDataLoaded();
@@ -12235,7 +12320,7 @@ function attachPanelEvents(key){
       // pairs must match an actual receipt. Checked live (not just once at panel-build time)
       // so flipping the toggle switches the pool immediately, no rebuild needed.
       function usesPrepPool(){
-        if(ln==='Artisan') return !!(artOutputTypeSel && artOutputTypeSel.value==='FG');
+        if(isFgSub(ln)) return !!(artOutputTypeSel && artOutputTypeSel.value==='FG');
         return isPrepFed(ln);
       }
       const shopOrderEl = document.getElementById('artShopOrder');
@@ -12320,7 +12405,7 @@ function attachPanelEvents(key){
       const actionHtml = `<button class="btn-ghost" data-close-article="${esc(l.layoutNo)}">Close</button>` +
         (canDelete ? ` <button class="btn-ghost" style="color:var(--danger);" data-delete-article="${esc(l.layoutNo)}">Delete</button>` : '');
       const tr=document.createElement('tr');
-      const outputTag = (ln==='Artisan' || NUMBERED_LINES.includes(ln))
+      const outputTag = (isFgSub(ln) || NUMBERED_LINES.includes(ln))
         ? ` <span class="note" style="color:var(--accent-dark);font-weight:700;">(${l.outputType==='FG'?'FG':'SFG'})</span>` : '';
       tr.innerHTML = `<td class="num">${esc(l.layoutNo)}</td><td>${esc(l.articleNo)}${outputTag}</td><td>${esc(l.shopOrderNo)||'—'}</td><td>${esc(l.category)||'—'}</td><td class="num">${effOrderQty||'—'}</td><td class="num">${rcvQty===null?'—':rcvQty}</td><td class="num">${achieved}</td><td class="num">${effOrderQty?progressPct.toFixed(0)+'%':'—'}</td><td class="num">${stampText(l.chargingDate, l.chargingTime)}</td><td class="num">${stampText(l.layoutReceiveDate, l.layoutReceiveTime)}</td><td>${actionHtml}</td>`;
       articleBody.appendChild(tr);
@@ -12520,7 +12605,7 @@ function attachPanelEvents(key){
     (function wireScanBtn(){
       const btn = document.getElementById('prodScanBtn');
       if(!btn) return;
-      if(!PRODUCTION_LINES.slice(0,6).includes(ln)){
+      if(!MAIN_LINES.includes(ln)){
         // Lines without box labels: no Scan cell — the rest keep the same two-column grid.
         const f = document.getElementById('prodScanField'); if(f) f.remove();
         return;
@@ -15402,8 +15487,19 @@ function renderManpowerSummary(dateStr){
 }
 
 /* ---------------- EXPORT ---------------- */
-function doExport(){
+async function doExport(){
   const dateStr = summaryDate;
+  // Build 10-15a: the server's audit log (who saved what, server time) — Backup/Restore/Wipe IDs only.
+  let auditRows = null;
+  if(session && Array.isArray(session.perms) && session.perms.includes('admin')){
+    try{
+      const to = todayStr(), from = addDays(to, -62);
+      const r = await kvRpc('am_audit_list', { p_from: from, p_to: to });
+      auditRows = (r.rows||[]).map(a=>({
+        'Server Time': fmtSavedAt(Date.parse(String(a.at).replace(/(\.\d{3})\d+/, '$1'))), 'Employee ID': a.emp_id||'', Name: a.name||'',
+        Role: a.role||'', Action: a.action||'', Data: String(a.k||'').replace(K_PREFIX+':',''), Size: a.bytes||'' }));
+    }catch(e){ auditRows = [{ Note: 'Audit log could not be read from the server' }]; }
+  }
   const wb = XLSX.utils.book_new();
 
   const summaryRows = [];
@@ -15476,7 +15572,7 @@ function doExport(){
         'Received Qty':(rq=>rq===null?'':rq)(getArticleReceivedQty(ln, l)),
         'Total Achieved':getArticleTotalAchieved(ln, l.layoutNo),
         'Start Date':l.startDate,
-        'Saved At': l.savedAtEpoch ? fmtSavedAt(l.savedAtEpoch) : '',
+        'Saved At': l.savedAtEpoch ? fmtSavedAt(l.savedAtEpoch) : '', 'Saved By': savedByLabel(l),
         'Last Reopened At': l.lastReopenedAtEpoch ? fmtSavedAt(l.lastReopenedAtEpoch) : '' });
     });
   });
@@ -15510,7 +15606,7 @@ function doExport(){
             'Break Min':p.breakMin||0,
             'Sizes': (p.sizesUsed||[]).map(s=>s.size+':'+s.qty).join(', '),
             'From Side Line': p.fromSideLine ? 'Yes' : '',
-            'Saved At': fmtSavedAt(p.savedAtEpoch),
+            'Saved At': fmtSavedAt(p.savedAtEpoch), 'Saved By': savedByLabel(p),
             'Saved Under HR Unlock': unlockReasonAt(ln, dt, shift, p.savedAtEpoch),
             'Repair Moved Out': (rmEntry(ln, p) ? rmEntry(ln, p).same + rmEntry(ln, p).cross : ''),
             'Repair Minor (inside Qty)': minorOfEntry(ln, dt, shift, p) || '',
@@ -15601,7 +15697,7 @@ function doExport(){
       const hIdx = day ? minorHourIdx(day, r.date, r.savedAtEpoch) : -1;
       const cp = DEFECT_CODES.find(([c,n])=>`${c} — ${n}`===r.code);
       minorRows.push({ Line:r.line, Shift:SHIFT_LABELS[r.shift]||r.shift, Date:r.date,
-        Hour: hIdx>=0 ? HOUR_LABELS[hIdx] : '', 'Saved At': fmtSavedAt(r.savedAtEpoch),
+        Hour: hIdx>=0 ? HOUR_LABELS[hIdx] : '', 'Saved At': fmtSavedAt(r.savedAtEpoch), 'Saved By': savedByLabel(r),
         Layout:r.layoutNo, Article: art ? art.articleNo : '', 'Shop Order': art && art.shopOrderNo ? art.shopOrderNo : '',
         Code: cp ? cp[0] : '', Defect: cp ? cp[1] : (r.code||''), Qty:r.qty,
         Sizes: (r.sizes||[]).map(z=>z.size+':'+z.qty).join(', ') });
@@ -15664,6 +15760,7 @@ function doExport(){
       row['Cumulative Received'] = computed ? computed.cumulativeReceived : '';
       row['Balance After'] = (computed && computed.balanceAfter!==null) ? computed.balanceAfter : '';
       row['Saved At'] = fmtSavedAt(en.savedAtEpoch);
+      row['Saved By'] = savedByLabel(en);
       return row;
     });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(upperRows), 'Upper Receive');
@@ -15701,7 +15798,7 @@ function doExport(){
             Status: en.status==='cleared' ? 'Cleared' : 'Pending',
             'Released Qty': en.status==='cleared' ? (Number(en.clearedQty)||0) : '',
             'Released Sizes': (en.clearedSizes||[]).map(s=>s.size+':'+s.qty).join(', '),
-            'Saved At': fmtSavedAt(en.savedAtEpoch),
+            'Saved At': fmtSavedAt(en.savedAtEpoch), 'Saved By': savedByLabel(en),
             'Cleared At': fmtSavedAt(en.clearedAtEpoch) });
         });
       });
@@ -15717,7 +15814,7 @@ function doExport(){
       Subcontractor:en.subcontractor||'', 'Order Qty':Number(en.orderQty)||0,
       'Sent Qty':Number(en.totalQty)||0,
       Sizes:(en.sizes||[]).map(s=>s.size+':'+s.qty).join(', '),
-      'Saved At': fmtSavedAt(en.savedAtEpoch) }));
+      'Saved At': fmtSavedAt(en.savedAtEpoch), 'Saved By': savedByLabel(en) }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(jwSendRows), 'Job Work Send');
 
   const jwRecvRows = getAllSubcontractReceives()
@@ -15727,9 +15824,10 @@ function doExport(){
       'Received Qty':Number(en.totalQty)||0,
       'Needs Forming': en.needsForming===false ? 'No' : 'Yes',
       Sizes:(en.sizes||[]).map(s=>s.size+':'+s.qty).join(', '),
-      'Saved At': fmtSavedAt(en.savedAtEpoch) }));
+      'Saved At': fmtSavedAt(en.savedAtEpoch), 'Saved By': savedByLabel(en) }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(jwRecvRows), 'Job Work Receive');
 
+  if(auditRows) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(auditRows.length ? auditRows : [{ Note:'No saves in the last 62 days' }]), 'Audit Log');
   XLSX.writeFile(wb, 'IE_Line_Tracker_'+dateStr+'.xlsx');
 }
 </script>
