@@ -797,6 +797,43 @@
     #obLibModal .olrow .olk,#obLibModal .olrow .olbtns{grid-column:1/-1;}
     #obLibModal .olph{width:52px;}
   }
+  /* Build 10-09a: HR → Password Management */
+  .pm-sec{display:flex;gap:6px;margin-bottom:12px;max-width:480px;}
+  .pm-sec-btn{flex:1 1 0;min-width:0;background:var(--panel);border:1px solid var(--border);color:var(--steel);font-weight:600;font-size:13px;padding:7px 8px;border-radius:8px;text-align:center;line-height:1.2;}
+  .pm-sec-btn small{font-size:9px;letter-spacing:0;}
+  .pm-sec-btn small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}
+  .pm-sec-btn.off{opacity:.5;}
+  .pm-sec-btn.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .pm-bar{display:flex;gap:8px;align-items:center;margin-bottom:4px;}
+  .pm-bar input{max-width:280px;}
+  .pm-bar .pm-add{width:auto;margin-left:auto;white-space:nowrap;}
+  .pm-table td{vertical-align:middle;}
+  .pm-table th, .pm-table td{white-space:nowrap;}
+  .pm-pill{display:inline-block;background:#EAF6F5;color:var(--accent2);font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:6px;margin:1px 3px 1px 0;}
+  .pm-pill.role{background:#EEF0FA;color:#3b4a9a;}
+  .pm-dash{color:var(--steel);}
+  .pm-dd-h{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--steel);padding:8px 6px 2px;}
+  .pm-ms:disabled{opacity:.5;border-color:var(--border);}
+  .pm-st{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;}
+  .pm-st.ok{background:#EAF6EE;color:var(--success);}
+  .pm-st.wait{background:#FFF3E0;color:var(--accent-dark);}
+  .pm-act{width:auto;font-size:12px;padding:6px 10px;background:#F1F4F2;color:var(--ink);border:1px solid var(--border);}
+  .pm-act.save{background:var(--accent2);color:#fff;border-color:var(--accent2);}
+  .pm-act.del{color:var(--danger);}
+  .pm-editing td{background:#F7FBFA;}
+  .pm-ms{width:auto;min-width:160px;text-align:left;font-weight:500;font-size:12.5px;background:#fff;color:var(--ink);border:1px solid var(--accent2);padding:7px 26px 7px 9px;position:relative;white-space:normal;}
+  .pm-ms::after{content:"\25BE";position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--steel);}
+  .pm-ms-sm{min-width:70px;}
+  .pm-dd{position:fixed;z-index:200;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.14);padding:6px;width:200px;max-height:300px;overflow:auto;}
+  .pm-opt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:500;padding:6px;margin:0;cursor:pointer;}
+  .pm-opt input{width:16px;height:16px;padding:0;margin:0;accent-color:var(--accent2);-webkit-appearance:auto;appearance:auto;}
+  .pm-empty{text-align:left;color:var(--steel);padding:14px;}
+  .pm-box{border-radius:9px;padding:9px 12px;font-size:12.5px;margin-top:10px;line-height:1.6;}
+  .pm-box.ok{background:#EAF6EE;border:1px solid #BFE3CB;}
+  .pm-box.err{background:#FDECEC;border:1px solid #F3C4C4;color:var(--danger);}
+  .pm-box span{color:var(--steel);font-size:11.5px;}
+  .pm-temp{font-family:'Consolas','SFMono-Regular','Roboto Mono',monospace;font-size:17px;color:var(--success);letter-spacing:1px;}
+  .pm-in{padding:7px 8px;font-size:13px;}
 </style>
 </head>
 <body>
@@ -922,7 +959,16 @@
   #mrdOverlay h2{ font-size:20px; font-weight:800; color:#12395e; margin:3px 0 2px; }
   #mrdOverlay .msub{ font-size:12px; color:#6b8199; margin-bottom:16px; }
   #mrdOverlay .fld{ display:block; font-size:11px; font-weight:600; color:#6b8199; margin-bottom:6px; letter-spacing:.4px; }
-  #mrdOverlay input[type=password]{ width:100%; font-family:inherit; font-size:15px; color:#12395e;
+  #mrdOverlay .mrd-modal{ max-height:calc(100vh - 40px); overflow-y:auto; }
+  #mrdOverlay .mrd-forgot{ display:block; margin:10px 0 0 auto; background:none; border:none; padding:2px 0;
+    font-family:inherit; font-size:12px; font-weight:600; color:#2b5580; cursor:pointer; }
+  #mrdOverlay .mnote.info{ color:#2b5580; }
+  #mrdOverlay .mrd-rules{ list-style:none; margin:10px 0 0; padding:0; font-size:11px; color:#6b8199; }
+  #mrdOverlay .mrd-rules li{ margin:3px 0; }
+  #mrdOverlay .mrd-rules li::before{ content:"○ "; }
+  #mrdOverlay .mrd-rules li.ok{ color:#1c7a4a; }
+  #mrdOverlay .mrd-rules li.ok::before{ content:"✓ "; }
+  #mrdOverlay input[type=password], #mrdOverlay input[type=text]{ width:100%; font-family:inherit; font-size:15px; color:#12395e;
     padding:12px 14px; border-radius:12px; border:1px solid rgba(43,85,128,0.24); background:rgba(255,255,255,0.85); }
   #mrdOverlay .rem{ display:flex; align-items:flex-start; gap:9px; margin:14px 0 4px; font-size:13px; color:#12395e; cursor:pointer; }
   #mrdOverlay .rem input{ width:17px; height:17px; margin-top:1px; accent-color:#12395e; cursor:pointer; }
@@ -963,7 +1009,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-08b-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-14a-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1006,17 +1052,55 @@
 <!-- Password modal -->
 <div id="mrdOverlay">
   <div class="mrd-modal" role="dialog" aria-modal="true" aria-labelledby="mrdModalTitle">
-    <div class="eyebrow">Sign in</div>
+    <div class="eyebrow" id="mrdEyebrow">Sign in</div>
     <h2 id="mrdModalTitle">Line 1</h2>
     <div class="msub" id="mrdModalSub">Shift A</div>
-    <label class="fld" for="mrdPwd">Password</label>
-    <input type="password" id="mrdPwd" placeholder="••••" autocomplete="off" inputmode="numeric">
-    <label class="rem">
-      <input type="checkbox" id="mrdRemember">
-      <span>Remember me on this phone
-        <span class="hint">Keep off on shared floor phones</span>
-      </span>
-    </label>
+    <div id="mrdViewSignin">
+      <div id="mrdIdWrap">
+        <label class="fld" for="mrdEmpId">Employee ID</label>
+        <input type="text" id="mrdEmpId" placeholder="Employee ID" autocomplete="off" inputmode="numeric">
+        <div style="height:12px;"></div>
+      </div>
+      <label class="fld" for="mrdPwd">Password</label>
+      <input type="password" id="mrdPwd" placeholder="••••" autocomplete="off">
+      <label class="rem">
+        <input type="checkbox" id="mrdRemember">
+        <span>Remember me on this phone
+          <span class="hint">Keep off on shared floor phones</span>
+        </span>
+      </label>
+      <button type="button" class="mrd-forgot" id="mrdForgot">Forgot password?</button>
+    </div>
+    <!-- Build 10-14a: HR recovery — 8-digit code kept by IE Audit (server-side hash only) -->
+    <div id="mrdViewRecover" style="display:none;">
+      <label class="fld" for="mrdRecId">Employee ID</label>
+      <input type="text" id="mrdRecId" autocomplete="off" inputmode="numeric">
+      <div style="height:12px;"></div>
+      <label class="fld" for="mrdRecName">Name <span style="font-weight:400;">(only for a new HR ID)</span></label>
+      <input type="text" id="mrdRecName" autocomplete="off">
+      <div style="height:12px;"></div>
+      <label class="fld" for="mrdRecCode">Recovery Code (8 digits)</label>
+      <input type="password" id="mrdRecCode" autocomplete="off" inputmode="numeric">
+      <div style="height:12px;"></div>
+      <label class="fld" for="mrdRecPw">New Password</label>
+      <input type="password" id="mrdRecPw" autocomplete="new-password">
+      <div style="height:12px;"></div>
+      <label class="fld" for="mrdRecPw2">Confirm Password</label>
+      <input type="password" id="mrdRecPw2" autocomplete="new-password">
+    </div>
+    <!-- Build 10-09a: first sign in with an HR temporary password → set own password -->
+    <div id="mrdViewSetPw" style="display:none;">
+      <label class="fld" for="mrdNewPw">New Password</label>
+      <input type="password" id="mrdNewPw" autocomplete="new-password">
+      <div style="height:12px;"></div>
+      <label class="fld" for="mrdNewPw2">Confirm Password</label>
+      <input type="password" id="mrdNewPw2" autocomplete="new-password">
+      <ul class="mrd-rules">
+        <li id="mrdRuleLen">At least 6 characters</li>
+        <li id="mrdRuleMix">Letters and numbers both</li>
+        <li id="mrdRuleSame">Both boxes match</li>
+      </ul>
+    </div>
     <div class="acts">
       <button class="mrd-ghost" id="mrdCancel">Cancel</button>
       <button class="mrd-primary" id="mrdSignin">Sign in</button>
@@ -1282,7 +1366,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-08b-supabase';
+const APP_BUILD = '2026-10-14a-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -3175,6 +3259,39 @@ function ensureLineDay(lineName, dateStr, shift){
 
 // Flatten every Upper (SFG) Receive entry for Preparation across all dates & shifts,
 // stamping each with its date/shift so cross-day progress/duration can be computed.
+// Build 10-11a: a Shop Order belongs to one Project. Once any Preparation receive or Moccasin
+// Job Work send has named it, both forms fill that Project in and lock it, so a misspelt
+// Project (e.g. "Eila" for "Elia") can no longer split one article into two progress cards.
+function projectForShopOrder(shopOrder){
+  const so = String(shopOrder||'').trim();
+  if(!so) return '';
+  // Earliest entry wins (by date, then save time), so the first spelling used stays the one used.
+  const hit = getAllUpperReceipts().concat(getAllSubcontractSends())
+    .filter(en=>en && !en.deleted && String(en.shopOrder||'').trim()===so && String(en.project||'').trim())
+    .sort((a,b)=> String(a.date||'').localeCompare(String(b.date||'')) || ((a.savedAtEpoch||0)-(b.savedAtEpoch||0)))[0];
+  return hit ? String(hit.project).trim() : '';
+}
+// Wires the lock onto one form's Shop Order + Project pair.
+function wireProjectLock(soInput, projInput, noteEl){
+  let auto = false;
+  function sync(){
+    const known = projectForShopOrder(soInput.value);
+    if(known){
+      projInput.value = known; projInput.disabled = true; auto = true;
+      noteEl.textContent = 'From earlier entry of this Shop Order'; noteEl.style.color = 'var(--steel)';
+    } else {
+      if(auto){ projInput.value = ''; auto = false; }
+      projInput.disabled = false;
+      noteEl.textContent = soInput.value.trim() ? 'New Shop Order — type the Project' : '';
+      noteEl.style.color = 'var(--steel)';
+    }
+  }
+  soInput.addEventListener('input', sync);
+  soInput.addEventListener('change', sync);
+  sync();
+  return sync;
+}
+
 function getAllUpperReceipts(){
   const out = [];
   const lineObj = store.lines['Preparation'];
@@ -5952,13 +6069,62 @@ document.querySelectorAll('#meridianLogin [data-section]').forEach(btn=>{
 document.getElementById('mrdBackBtn').addEventListener('click', showMrdSections);
 
 // ---- Password modal ----
+// Build 10-09a: Employee ID + own password, checked on the server.
+// Build 10-14a: every role signs in this way (Lines, sub-sections, Preparation, IE, Line QC,
+// QC Management, Production Management, HR, Executive Summary). The old shared role passwords
+// are switched off on the server. HR can be recovered with the 8-digit recovery code.
 let mrdTarget = null;
+let mrdPendingFirst = null;   // {empId, temp, name} while the "Set your password" view is open
+let mrdRecovering = false;    // HR "Forgot password?" view open
 const mrdOverlay  = document.getElementById('mrdOverlay');
 const mrdTitleEl  = document.getElementById('mrdModalTitle');
 const mrdSubEl    = document.getElementById('mrdModalSub');
+const mrdEyebrow  = document.getElementById('mrdEyebrow');
+const mrdEmpId    = document.getElementById('mrdEmpId');
+const mrdIdWrap   = document.getElementById('mrdIdWrap');
 const mrdPwd      = document.getElementById('mrdPwd');
+const mrdNewPw    = document.getElementById('mrdNewPw');
+const mrdNewPw2   = document.getElementById('mrdNewPw2');
 const mrdRemember = document.getElementById('mrdRemember');
 const mrdNote     = document.getElementById('mrdNote');
+const mrdSigninBtn = document.getElementById('mrdSignin');
+
+// Auto-focus a field only if the person has not already tapped into another one.
+function focusIfIdle(el){
+  const a = document.activeElement;
+  if(el && (!a || a===document.body || !(a.tagName==='INPUT' || a.tagName==='SELECT' || a.tagName==='TEXTAREA'))) el.focus();
+}
+// One door to every am_* server function. Never throws: always returns {ok:false, code} on trouble.
+async function amRpc(fn, args){
+  if(!BACKEND_CONFIGURED) return { ok:false, code:'offline' };
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+      method:'POST',
+      headers:{ apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify(args)
+    });
+    if(res.status===404) return { ok:false, code:'no_setup' };
+    if(!res.ok) return { ok:false, code:'server' };
+    const j = await res.json();
+    return (j && typeof j==='object') ? j : { ok:false, code:'server' };
+  }catch(e){ return { ok:false, code:'offline' }; }
+}
+function amErrText(r, t){
+  switch(r && r.code){
+    case 'bad':       return 'Wrong Employee ID or password';
+    case 'no_access': return 'ID ' + (mrdEmpId.value.trim()) + ' has no access to ' + targetLabel(t) + (t.kind==='line' ? ' · Shift ' + t.shift : '');
+    case 'locked':    return 'Too many wrong tries — try again in ' + (r.mins||5) + ' min' + (mrdRecovering ? '' : ', or ask HR to reset');
+    case 'weak':      return 'Password needs at least 6 characters, with letters and numbers';
+    case 'same':      return 'Choose a new password, not the temporary one';
+    case 'bad_code':  return 'Wrong recovery code';
+    case 'no_code':   return 'Recovery code is not set on the server yet';
+    case 'no_name':   return 'Enter the Name (this ID is new)';
+    case 'bad_id':    return 'Employee ID: use numbers/letters only';
+    case 'no_setup':  return 'Server setup not finished (ID login SQL not run yet)';
+    case 'offline':   return 'Cannot reach the server — check internet and try again';
+    default:          return 'Server error — try again';
+  }
+}
 
 function targetLabel(t){
   if(t.kind==='line') return lineLabel(t.line);
@@ -5970,69 +6136,178 @@ function targetLabel(t){
   if(t.role==='management') return 'Executive Summary';
   return '';
 }
+function showView(which){
+  document.getElementById('mrdViewSignin').style.display  = which==='signin'  ? '' : 'none';
+  document.getElementById('mrdViewSetPw').style.display   = which==='setpw'   ? '' : 'none';
+  document.getElementById('mrdViewRecover').style.display = which==='recover' ? '' : 'none';
+}
+function targetSubText(t){ return t.kind==='line' ? 'Shift ' + t.shift : ''; }
+function showSigninView(){
+  mrdPendingFirst = null; mrdRecovering = false;
+  showView('signin');
+  mrdEyebrow.textContent = 'Sign in';
+  mrdSigninBtn.textContent = 'Sign in';
+  if(mrdTarget){
+    mrdTitleEl.textContent = targetLabel(mrdTarget);
+    const sub = targetSubText(mrdTarget);
+    mrdSubEl.textContent = sub; mrdSubEl.style.display = sub ? '' : 'none';
+  }
+}
+function showSetPwView(empId, name){
+  showView('setpw');
+  mrdEyebrow.textContent = 'First sign in';
+  mrdTitleEl.textContent = 'Set your password';
+  mrdSubEl.textContent = (name ? name + ' · ' : '') + 'ID ' + empId + ' · ' + targetLabel(mrdTarget) +
+    (mrdTarget.kind==='line' ? ' · Shift ' + mrdTarget.shift : '');
+  mrdSubEl.style.display = '';
+  mrdSigninBtn.textContent = 'Save & Sign in';
+  mrdNewPw.value = ''; mrdNewPw2.value = ''; mrdNote.textContent = '';
+  updatePwRules();
+  setTimeout(()=>focusIfIdle(mrdNewPw), 60);
+}
+function showRecoverView(){
+  mrdRecovering = true;
+  showView('recover');
+  mrdEyebrow.textContent = 'HR recovery';
+  mrdTitleEl.textContent = 'Reset HR password';
+  mrdSubEl.textContent = 'Needs the 8-digit recovery code kept by IE Audit'; mrdSubEl.style.display = '';
+  mrdSigninBtn.textContent = 'Save & Sign in';
+  ['mrdRecId','mrdRecName','mrdRecCode','mrdRecPw','mrdRecPw2'].forEach(id=> document.getElementById(id).value = '');
+  document.getElementById('mrdRecId').value = mrdEmpId.value.trim();
+  mrdNote.textContent = ''; mrdNote.classList.remove('info');
+  setTimeout(()=>focusIfIdle(document.getElementById('mrdRecId')), 60);
+}
+function pwRuleState(){
+  const a = mrdNewPw.value, b = mrdNewPw2.value;
+  return { len: a.length>=6, mix: /[A-Za-z]/.test(a) && /[0-9]/.test(a), same: a.length>0 && a===b };
+}
+function updatePwRules(){
+  const s = pwRuleState();
+  mrdNote.textContent = '';
+  document.getElementById('mrdRuleLen').classList.toggle('ok', s.len);
+  document.getElementById('mrdRuleMix').classList.toggle('ok', s.mix);
+  document.getElementById('mrdRuleSame').classList.toggle('ok', s.same);
+}
+mrdNewPw.addEventListener('input', updatePwRules);
+mrdNewPw2.addEventListener('input', updatePwRules);
+
+document.getElementById('mrdForgot').addEventListener('click', ()=>{
+  if(!mrdTarget) return;
+  if(mrdTarget.kind==='role' && mrdTarget.role==='hr'){ showRecoverView(); return; }
+  mrdNote.classList.add('info');
+  mrdNote.textContent = 'Ask HR to reset your password. HR will give you a new temporary password.';
+});
+
 function openLoginModal(t){
   mrdTarget = t;
-  mrdTitleEl.textContent = targetLabel(t);
-  if(t.kind==='line'){ mrdSubEl.textContent = 'Shift '+t.shift; mrdSubEl.style.display=''; }
-  else { mrdSubEl.style.display='none'; }
-  mrdPwd.value=''; mrdNote.textContent=''; mrdRemember.checked=false;
+  showSigninView();
+  mrdIdWrap.style.display = '';
+  mrdEmpId.value=''; mrdPwd.value=''; mrdNote.textContent=''; mrdNote.classList.remove('info'); mrdRemember.checked=false;
   mrdOverlay.classList.add('show');
-  setTimeout(()=>mrdPwd.focus(), 60);
+  setTimeout(()=>focusIfIdle(mrdEmpId), 60);
 }
-function closeLoginModal(){ mrdOverlay.classList.remove('show'); mrdTarget=null; }
+function closeLoginModal(){ mrdOverlay.classList.remove('show'); mrdTarget=null; mrdPendingFirst=null; mrdRecovering=false; }
 
-document.getElementById('mrdCancel').addEventListener('click', closeLoginModal);
+document.getElementById('mrdCancel').addEventListener('click', ()=>{
+  if(mrdRecovering){ showSigninView(); mrdNote.textContent=''; return; }  // back to sign in, not closed
+  closeLoginModal();
+});
 mrdOverlay.addEventListener('click', e=>{ if(e.target===mrdOverlay) closeLoginModal(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && mrdOverlay.classList.contains('show')) closeLoginModal(); });
-document.getElementById('mrdSignin').addEventListener('click', submitLogin);
+mrdSigninBtn.addEventListener('click', submitLogin);
+mrdEmpId.addEventListener('keydown', e=>{ if(e.key==='Enter') mrdPwd.focus(); });
 mrdPwd.addEventListener('keydown', e=>{ if(e.key==='Enter') submitLogin(); });
+mrdNewPw.addEventListener('keydown', e=>{ if(e.key==='Enter') mrdNewPw2.focus(); });
+mrdNewPw2.addEventListener('keydown', e=>{ if(e.key==='Enter') submitLogin(); });
+document.getElementById('mrdRecPw2').addEventListener('keydown', e=>{ if(e.key==='Enter') submitLogin(); });
 
-// Which password does this target require?
-function passwordFor(t){
-  if(t.kind==='line') return getLinePassword(t.line, t.shift);
-  if(t.role==='management') return (store.mgmtPassword||DEFAULT_PW);
-  return getRolePassword(t.role); // ie / quality / hr
+function amTargetArgs(t){
+  return { p_kind: t.kind, p_line: t.kind==='line' ? t.line : null, p_shift: t.kind==='line' ? t.shift : null,
+           p_role: t.kind==='role' ? t.role : null };
 }
 
 let loginInFlight = false;
 async function submitLogin(){
   if(!mrdTarget || loginInFlight) return; // a rapid double/triple tap on Sign In must not
-                                            // fire this twice \u2014 each call independently
+                                            // fire this twice — each call independently
                                             // hits migrateOldStore/loadStore, and doing that
                                             // concurrently is what was tripping the storage
                                             // rate limit.
   loginInFlight = true;
+  const btnText = mrdSigninBtn.textContent;
+  mrdSigninBtn.disabled = true; mrdSigninBtn.textContent = '...';
+  mrdNote.classList.remove('info');
   try{
-    const entered = mrdPwd.value;
-    await migrateOldStore();
-    await loadStore([]); // shared settings only, enough to verify a password
-    if(entered !== passwordFor(mrdTarget)){
-      mrdNote.textContent = 'Wrong password';
-      return;
-    }
-    if(mrdRemember.checked){
-      try{ localStorage.setItem(MRD_REMEMBER_KEY, JSON.stringify(mrdTarget)); }catch(e){ /* best-effort */ }
-    }
     const t = mrdTarget;
+    let r;
+    if(mrdRecovering){
+      const v = id=> document.getElementById(id).value;
+      const empId = v('mrdRecId').trim();
+      if(!empId){ mrdNote.textContent = 'Enter the Employee ID'; return; }
+      if(!/^[0-9]{8}$/.test(v('mrdRecCode'))){ mrdNote.textContent = 'Recovery code is 8 digits'; return; }
+      const a = v('mrdRecPw');
+      if(a.length<6 || !/[A-Za-z]/.test(a) || !/[0-9]/.test(a)){ mrdNote.textContent = amErrText({code:'weak'}, t); return; }
+      if(a !== v('mrdRecPw2')){ mrdNote.textContent = 'The two passwords do not match'; return; }
+      const rr = await amRpc('am_recover_hr', { p_emp: empId, p_name: v('mrdRecName').trim(), p_code: v('mrdRecCode'), p_new: a });
+      if(!rr.ok){ mrdNote.textContent = amErrText(rr, t); return; }
+      r = await amRpc('am_login', Object.assign({ p_emp: empId, p_pw: a }, amTargetArgs(t)));
+      if(!r.ok){ mrdNote.textContent = amErrText(r, t); return; }
+    } else if(mrdPendingFirst){
+      // "Set your password" view
+      const s = pwRuleState();
+      if(!s.len || !s.mix){ mrdNote.textContent = amErrText({code:'weak'}, t); return; }
+      if(!s.same){ mrdNote.textContent = 'The two passwords do not match'; return; }
+      r = await amRpc('am_first_password', Object.assign({ p_emp: mrdPendingFirst.empId, p_temp: mrdPendingFirst.temp,
+            p_new: mrdNewPw.value }, amTargetArgs(t)));
+      if(!r.ok){
+        mrdNote.textContent = amErrText(r, t);
+        if(r.code==='bad' || r.code==='locked' || r.code==='no_access'){ // temp password no longer valid (HR reset it again)
+          const msg = mrdNote.textContent; openLoginModal(t); mrdNote.textContent = msg;
+        }
+        return;
+      }
+    } else {
+      const empId = mrdEmpId.value.trim();
+      if(!empId){ mrdNote.textContent = 'Enter your Employee ID'; return; }
+      if(!mrdPwd.value){ mrdNote.textContent = 'Enter your password'; return; }
+      r = await amRpc('am_login', Object.assign({ p_emp: empId, p_pw: mrdPwd.value }, amTargetArgs(t)));
+      if(!r.ok){ mrdNote.textContent = amErrText(r, t); return; }
+      if(r.must_change){
+        mrdPendingFirst = { empId: r.emp_id || empId, temp: mrdPwd.value, name: r.name || '' };
+        showSetPwView(mrdPendingFirst.empId, mrdPendingFirst.name);
+        return;
+      }
+    }
+    // Signed in. Carry who it is + the server token (never the password).
+    const signed = Object.assign({}, t, { token: r.token, empId: r.emp_id || null, empName: r.name || '',
+                                          perms: Array.isArray(r.roles) ? r.roles : [] });
+    await migrateOldStore();
+    await loadStore([]); // shared settings
+    if(mrdRemember.checked){
+      try{ localStorage.setItem(MRD_REMEMBER_KEY, JSON.stringify(signed)); }catch(e){ /* best-effort */ }
+    }
     closeLoginModal();
-    enterAppAs(t);
+    enterAppAs(signed);
   } finally {
     loginInFlight = false;
+    mrdSigninBtn.disabled = false;
+    if(mrdSigninBtn.textContent==='...') mrdSigninBtn.textContent = btnText;
   }
 }
 
 // Build the session from a login target and open the app
 function enterAppAs(t){
+  const who = { empId:t.empId||null, empName:t.empName||'', token:t.token||null, perms:Array.isArray(t.perms)?t.perms:[] };
   if(t.kind==='line'){
     // Per-shift login: the supervisor is locked to the shift they signed in with.
-    session = { username:slugify(t.line), role:'supervisor', line:t.line, shift:t.shift, shiftLocked:true };
+    session = Object.assign({ username:slugify(t.line), role:'supervisor', line:t.line, shift:t.shift, shiftLocked:true }, who);
     selectedLine = t.line;
     currentShift = t.shift;
   } else if(t.role==='management'){
-    session = { username:'mgmt', role:'management', line:null };
+    session = Object.assign({ username:'mgmt', role:'management', line:null }, who);
     selectedLine = ALL_LINES[0];
   } else {
-    session = { username:t.role, role:t.role, line:null };
+    session = Object.assign({ username:t.role, role:t.role, line:null }, who);
     selectedLine = ALL_LINES[0];
   }
   document.getElementById('meridianLogin').classList.add('hidden');
@@ -6040,18 +6315,30 @@ function enterAppAs(t){
   initApp();
 }
 
-// Auto-enter if this phone was set to "remember me"
+// Auto-enter if this phone was set to "remember me". The phone keeps only a server token; it is
+// re-checked here, so a user HR deleted / reset / moved off this line or role must sign in again.
+// A phone remembered by an older build (no token, or no Employee ID) also signs in once more.
 async function bootRemembered(){
   let t = null;
   try{
     const raw = localStorage.getItem(MRD_REMEMBER_KEY);
     if(raw) t = JSON.parse(raw);
   }catch(e){ /* nothing remembered */ }
-  if(t && (t.kind==='line' || t.kind==='role')){
-    await migrateOldStore();
-    await loadStore([]);
-    enterAppAs(t);
+  if(!t || !(t.kind==='line' || t.kind==='role')) return;
+  if(!t.token || !t.empId){ try{ localStorage.removeItem(MRD_REMEMBER_KEY); }catch(e){} return; }
+  const chk = await amRpc('am_check_session', { p_token: t.token });
+  if(!chk.ok && chk.code!=='offline' && chk.code!=='server'){
+    try{ localStorage.removeItem(MRD_REMEMBER_KEY); }catch(e){}
+    return;
   }
+  if(chk.ok){
+    if(chk.name) t.empName = chk.name;
+    if(Array.isArray(chk.roles)) t.perms = chk.roles;
+    try{ localStorage.setItem(MRD_REMEMBER_KEY, JSON.stringify(t)); }catch(e){}
+  }
+  await migrateOldStore();
+  await loadStore([]);
+  enterAppAs(t);
 }
 
 // If the Supabase URL/key at the top of this file are still placeholders, nothing will
@@ -6209,7 +6496,7 @@ document.getElementById('exportBtn').addEventListener('click', (e)=>{
 document.getElementById('wipeBtn').addEventListener('click', async (e)=>{
   const ok1 = await uiConfirm('Erase EVERY record — all lines, production, quality, HR and Preparation? This cannot be undone.');
   if(!ok1) return;
-  const ok2 = await uiConfirm('Last check: everything will be gone and all passwords reset to 1234. Take a Backup first if you might want any of it back. Continue?');
+  const ok2 = await uiConfirm('Last check: everything will be gone. (Employee IDs and passwords are kept.) Take a Backup first if you might want any of it back. Continue?');
   if(!ok2) return;
   const b=e.target; const t=b.textContent; b.textContent='Wiping...'; b.disabled=true;
   const failed = await wipeAllData();
@@ -6235,6 +6522,9 @@ document.getElementById('importFile').addEventListener('change', async (e)=>{
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  // Build 10-09a: end this phone's server sign-in too (not awaited — logout must never hang).
+  if(session && session.token) amRpc('am_logout', { p_token: session.token });
+  initAppGeneration++;   // a sign-in that is still loading must not open the app after Logout
   session = null;
   if(refreshInterval){ clearInterval(refreshInterval); refreshInterval = null; }
   if(visibilityRefreshHandler){ document.removeEventListener('visibilitychange', visibilityRefreshHandler); visibilityRefreshHandler = null; }
@@ -6369,6 +6659,7 @@ async function initApp(){
   const myGen = ++initAppGeneration;
   allLinesLoaded = (loginScope().length === ALL_LINES.length);
   await migrateOldStore();
+  if(myGen !== initAppGeneration || !session) return;   // logged out while loading
   await loadStore(loginScope(), { skipHr: !(session.role==='hr' || session.role==='management') });
   probeServerClock();                                   // Build 08a: learn the server's time (not awaited)
   if(!window._clockTimer){ window._clockTimer = setInterval(probeServerClock, 20*60*1000); }
@@ -6376,20 +6667,24 @@ async function initApp(){
   // function twice with overlapping awaits. If a newer call has started since this one began,
   // let that one own the screen — an older call finishing late must never overwrite it with a
   // stale session's name/panels.
-  if(myGen !== initAppGeneration) return;
+  if(myGen !== initAppGeneration || !session) return;
   document.getElementById('whoName').textContent =
-    session.role==='supervisor' ? ('Supervisor — '+lineLabel(session.line)) :
+    (session.role==='supervisor' ? ('Supervisor — '+lineLabel(session.line)) :
     session.role==='ie' ? 'IE' : session.role==='quality' ? 'Quality' :
     session.role==='hr' ? 'HR' : session.role==='qualitymgmt' ? 'Quality Management' :
-    session.role==='productionmgmt' ? 'Production Management' : 'Management';
+    session.role==='productionmgmt' ? 'Production Management' : 'Management') +
+    (session.empId ? ' · '+(session.empName ? session.empName+' ' : '')+'('+session.empId+')' : '');
   const loginPrefixEl = document.getElementById('loginPrefix');
   if(loginPrefixEl){ loginPrefixEl.style.display = (session.role==='management') ? 'none' : ''; }
 
   // Backup/Restore is a management-only tool (they see the whole dataset).
   const isMgmt = (session.role==='management');
-  document.getElementById('exportBtn').classList.toggle('hidden', !isMgmt);
-  document.getElementById('importBtn').classList.toggle('hidden', !isMgmt);
-  document.getElementById('wipeBtn').classList.toggle('hidden', !isMgmt);
+  // Build 10-14a: Backup / Restore / Wipe only for Executive Summary IDs that HR gave the
+  // "Backup / Restore / Wipe" permission.
+  const isAdmin = isMgmt && Array.isArray(session.perms) && session.perms.includes('admin');
+  document.getElementById('exportBtn').classList.toggle('hidden', !isAdmin);
+  document.getElementById('importBtn').classList.toggle('hidden', !isAdmin);
+  document.getElementById('wipeBtn').classList.toggle('hidden', !isAdmin);
   // On a wide screen (laptop/monitor), let Management's dashboard use more of the width.
   // Supervisor/IE/Quality entry panels stay at the phone/tablet-friendly width.
   document.getElementById('appScreen').classList.toggle('mgmt-wide', isMgmt);
@@ -7331,7 +7626,9 @@ function refreshLineSmvFlags(){
     const ln = b.dataset.line;
     const missing = lineMissingSmv(ln, currentDate, currentShift);
     const checking = !ieFlagsReady && ln!==selectedLine;
-    b.textContent = (missing ? '\u26a0 ' : '') + lineLabel(ln) + (checking ? ' \u2026' : '');
+    // Build 10-10a: no "…" while checking — it widened every button, so the row first wrapped under
+    // the Shift box and then jumped up beside it ~2 s later. The label now only changes if a line is red.
+    b.textContent = (missing ? '\u26a0 ' : '') + lineLabel(ln);
     b.style.background = missing ? 'var(--danger)' : '';
     b.style.boxShadow = (missing && ln===selectedLine) ? '0 0 0 3px var(--ink)' : '';
     b.title = missing ? 'An active article on this line has no SMV or no Target % for this shift' : (checking ? 'Checking SMV\u2026' : '');
@@ -7485,7 +7782,7 @@ function renderTabs(){
   if(session.role==='supervisor') tabList = [['entry','Supervisor Entry']];
   if(session.role==='ie') tabList = [['ie','IE Entry'],['summary','All Lines Summary']];
   if(session.role==='quality') tabList = [['quality','Quality Entry']];
-  if(session.role==='hr') tabList = [['hr','HR Entry']];
+  if(session.role==='hr') tabList = [['hr','HR Entry'],['pwmgmt','Password Management']];
   if(session.role==='qualitymgmt') tabList = [['qualitymgmt','Quality Management']];
   // Deliberately a single tab: this login exists so MIS can pull the daily report without
   // being handed Management's password, which also unlocks Backup/Restore.
@@ -7555,6 +7852,7 @@ function buildPanel(key){
   if(key==='ie') el.innerHTML = iePanelHTML();
   if(key==='quality') el.innerHTML = qualityPanelHTML();
   if(key==='hr') el.innerHTML = hrPanelHTML();
+  if(key==='pwmgmt') el.innerHTML = pwMgmtPanelHTML();
   if(key==='qualitymgmt') el.innerHTML = qualityMgmtPanelHTML();
   if(key==='productionmgmt') el.innerHTML = productionMgmtPanelHTML();
   if(key==='summary') el.innerHTML = summaryPanelHTML();
@@ -7692,11 +7990,12 @@ function preparationPanelHTML(){
     <h2><span class="dot"></span>Upper (SFG) Receiving Entry</h2>
 
     <div class="row3">
-      <div class="field"><label>Project</label>
-        <div class="suggest-wrap"><input id="urProject" type="text" placeholder="e.g. Nike FA26" autocomplete="off"><div class="suggest-list hidden" id="urProjectSuggest"></div></div>
-      </div>
       <div class="field"><label>Shop Order No</label>
         <div class="suggest-wrap"><input id="urShopOrder" type="text" placeholder="e.g. SO-88213" autocomplete="off"><div class="suggest-list hidden" id="urShopOrderSuggest"></div></div>
+      </div>
+      <div class="field"><label>Project</label>
+        <div class="suggest-wrap"><input id="urProject" type="text" placeholder="e.g. Nike FA26" autocomplete="off"><div class="suggest-list hidden" id="urProjectSuggest"></div></div>
+        <div class="note" id="urProjectNote" style="min-height:14px;"></div>
       </div>
       <div class="field"><label>Freezing Month &amp; Year</label>
         <!-- Two plain <select> dropdowns, not <input type="month"> — Safari (iPad/iPhone,
@@ -7813,11 +8112,12 @@ function mocassinPanelHTML(){
   <div class="card">
     <h2><span class="dot"></span>Send to Job Work (Hand Stitch)</h2>
     <div class="row3">
-      <div class="field"><label>Project</label>
-        <div class="suggest-wrap"><input id="scProject" type="text" placeholder="e.g. Nike FA26" autocomplete="off"><div class="suggest-list hidden" id="scProjectSuggest"></div></div>
-      </div>
       <div class="field"><label>Shop Order No</label>
         <div class="suggest-wrap"><input id="scShopOrder" type="text" placeholder="e.g. SO-88213" autocomplete="off"><div class="suggest-list hidden" id="scShopOrderSuggest"></div></div>
+      </div>
+      <div class="field"><label>Project</label>
+        <div class="suggest-wrap"><input id="scProject" type="text" placeholder="e.g. Nike FA26" autocomplete="off"><div class="suggest-list hidden" id="scProjectSuggest"></div></div>
+        <div class="note" id="scProjectNote" style="min-height:14px;"></div>
       </div>
       <div class="field"><label>Subcontractor</label>
         <div class="suggest-wrap"><input id="scSubcontractor" type="text" placeholder="e.g. Rahim Stitching" autocomplete="off"><div class="suggest-list hidden" id="scSubcontractorSuggest"></div></div>
@@ -9657,17 +9957,6 @@ function hrPanelHTML(){
   </div>
 
   <div class="card">
-    <h2><span class="dot"></span>Password Management</h2>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;max-width:660px;">
-      <div class="field" style="flex:1;min-width:150px;"><label>User</label><select id="pwUserSel"></select></div>
-      <div class="field" id="pwShiftWrap" style="flex:0 0 120px;"><label>Shift</label><select id="pwShiftSel"></select></div>
-      <div class="field" style="flex:1;min-width:150px;"><label>New Password</label><input id="pwNewVal" type="text"></div>
-      <div class="field" style="flex:0 0 110px;"><button class="btn-primary" id="pwSaveBtn" style="width:100%;">Change</button></div>
-    </div>
-    <div class="note" id="pwStatusNote"></div>
-  </div>
-
-  <div class="card">
     <h2><span class="dot"></span>Department M/P Entry — <span id="hrShiftLabel"></span></h2>
     <div class="table-scroll">
     <table>
@@ -9961,7 +10250,282 @@ function exportPanelHTML(){
 }
 
 /* ---------------- EVENTS ---------------- */
+/* ---------------- HR · PASSWORD MANAGEMENT (build 10-09a) ----------------
+   Employee ID users for Lines 1–6, sub-sections and Preparation, plus the shared role passwords.
+   Everything lives on the server (am_* functions); nothing about passwords is kept in the app's
+   own data. Access Location options come straight from ALL_LINES, so a line added in code shows
+   up here by itself. */
+let pmSection = 'lasting';
+let pmUsers = [];          // [{emp_id,name,lines,shifts,must_change,last_login_at}]
+let pmLoaded = false;
+let pmEditing = null;      // null | 'new' | emp_id
+let pmDraft = null;        // {emp_id,name,lines:[],shifts:[]}
+let pmSearch = '';
+let pmMsg = '';            // html of the result box under the table
+let pmBusy = false;
+
+const PM_SECTIONS = [['cutting','Cutting',false],['sewing','Sewing',false],['fitting','Fitting',false],['lasting','Lasting',true]];
+// Build 10-14a: roles are given in the same Access Location list as the lines.
+const PM_ACCESS_ROLES = [['ie','IE'],['quality','Line QC'],['qualitymgmt','QC Management'],
+                  ['productionmgmt','Production Management'],['hr','HR'],['management','Executive Summary'],
+                  ['admin','Backup / Restore / Wipe']];
+function pmRoleLabel(k){ const r = PM_ACCESS_ROLES.find(x=>x[0]===k); return r ? r[1] : k; }
+function pmOrderRoles(arr){ return PM_ACCESS_ROLES.map(r=>r[0]).filter(k=> (arr||[]).includes(k)); }
+
+function pmErr(r){
+  switch(r && r.code){
+    case 'exists':    return 'This Employee ID is already in the list';
+    case 'bad_id':    return 'Employee ID: use numbers/letters only';
+    case 'no_name':   return 'Enter the Name';
+    case 'no_lines':  return 'Pick at least one Access Location';
+    case 'no_shifts': return 'Pick at least one Shift';
+    case 'not_found': return 'This user is no longer in the list — tap Refresh';
+    case 'weak':      return 'Password needs at least 4 characters';
+    case 'auth':      return 'HR sign-in has expired — Logout and sign in again';
+    case 'bad_role':  return 'Unknown role in Access Location';
+    case 'admin_needs_exec': return 'Backup / Restore / Wipe needs Executive Summary too';
+    case 'self_hr':   return 'You cannot remove HR from your own ID';
+    case 'self_delete': return 'You cannot delete your own ID';
+    case 'no_setup':  return 'Server setup not finished (ID login SQL not run yet)';
+    case 'offline':   return 'Cannot reach the server — check internet and try again';
+    default:          return 'Server error — try again';
+  }
+}
+function pmOrderLines(arr){ return ALL_LINES.filter(l=> (arr||[]).includes(l)); }
+function pmPills(arr, labelFn){
+  return (arr||[]).map(v=>`<span class="pm-pill">${esc(labelFn ? labelFn(v) : v)}</span>`).join('');
+}
+
+function pwMgmtPanelHTML(){
+  return `
+  <div class="pm-sec">
+    ${PM_SECTIONS.map(([k,lbl,open])=>`<button type="button" class="pm-sec-btn${k===pmSection?' active':''}${open?'':' off'}" data-pmsec="${k}">${lbl}<small>${open?'Open':'Coming soon'}</small></button>`).join('')}
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>Lasting — Users</h2>
+    <div class="pm-bar">
+      <input type="text" id="pmSearch" placeholder="Search ID or Name" value="${esc(pmSearch)}">
+      <button type="button" class="btn-secondary pm-add" id="pmAddBtn">+ Add User</button>
+    </div>
+    <div class="table-scroll" id="pmScroll">
+      <table class="pm-table">
+        <thead><tr><th>Employee ID</th><th>Name</th><th>Access Location</th><th>Shift</th><th>Status</th><th>Edit</th><th>Password</th><th>Delete</th></tr></thead>
+        <tbody id="pmBody"><tr><td colspan="8" class="pm-empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div id="pmMsg"></div>
+  </div>`;
+}
+
+function pmRowHTML(u){
+  const editing = (pmEditing!==null && pmEditing!=='new' && pmEditing===u.emp_id);
+  if(editing) return pmEditRowHTML(false);
+  const status = u.must_change ? '<span class="pm-st wait">Not signed in yet</span>' : '<span class="pm-st ok">Active</span>';
+  return `<tr>
+    <td class="num">${esc(u.emp_id)}</td>
+    <td>${esc(u.name)}</td>
+    <td>${pmPills(pmOrderLines(u.lines), lineLabel)}${pmOrderRoles(u.roles).map(k=>`<span class="pm-pill role">${esc(pmRoleLabel(k))}</span>`).join('')}</td>
+    <td>${(u.lines||[]).length ? pmPills((u.shifts||[]).slice().sort()) : '<span class="pm-dash">—</span>'}</td>
+    <td>${status}</td>
+    <td><button type="button" class="pm-act" data-pmedit="${esc(u.emp_id)}">Edit</button></td>
+    <td><button type="button" class="pm-act" data-pmreset="${esc(u.emp_id)}">Reset</button></td>
+    <td><button type="button" class="pm-act del" data-pmdel="${esc(u.emp_id)}" title="Delete">✕</button></td>
+  </tr>`;
+}
+function pmEditRowHTML(isNew){
+  const d = pmDraft;
+  return `<tr class="pm-editing">
+    <td>${isNew ? `<input type="text" id="pmEdId" inputmode="numeric" class="pm-in" style="width:100px" value="${esc(d.emp_id)}" placeholder="Employee ID">` : `<span class="num">${esc(d.emp_id)}</span>`}</td>
+    <td><input type="text" id="pmEdName" class="pm-in" style="width:140px" value="${esc(d.name)}" placeholder="Name"></td>
+    <td><button type="button" class="pm-ms" id="pmMsLines" data-pmms="lines"></button></td>
+    <td><button type="button" class="pm-ms pm-ms-sm" id="pmMsShifts" data-pmms="shifts"></button></td>
+    <td>${isNew ? '<span class="pm-st wait">New</span>' : ''}</td>
+    <td><button type="button" class="pm-act save" id="pmSaveRow">Save</button></td>
+    <td></td>
+    <td><button type="button" class="pm-act" id="pmCancelRow">Cancel</button></td>
+  </tr>`;
+}
+function pmMsText(kind){
+  if(kind==='shifts' && !pmDraft.lines.length) return '—';
+  const v = kind==='lines' ? pmOrderLines(pmDraft.lines).map(lineLabel).concat(pmOrderRoles(pmDraft.roles).map(pmRoleLabel))
+                           : pmDraft.shifts.slice().sort();
+  return v.length ? v.join(', ') : (kind==='lines' ? 'Select…' : '–');
+}
+function pmRefreshMs(){
+  const ml = document.getElementById('pmMsLines'); if(ml) ml.textContent = pmMsText('lines');
+  const ms = document.getElementById('pmMsShifts');
+  if(ms){ ms.textContent = pmMsText('shifts'); ms.disabled = !pmDraft.lines.length; ms.title = pmDraft.lines.length ? '' : 'Shift is only for lines'; }
+}
+function pmRender(){
+  const body = document.getElementById('pmBody');
+  if(!body) return;
+  pmCloseDropdown();
+  const q = pmSearch.trim().toLowerCase();
+  const list = pmUsers.filter(u=> !q || String(u.emp_id).toLowerCase().includes(q) || String(u.name||'').toLowerCase().includes(q));
+  let html = '';
+  if(pmEditing==='new') html += pmEditRowHTML(true);
+  html += list.map(pmRowHTML).join('');
+  if(!html) html = `<tr><td colspan="8" class="pm-empty">${pmLoaded ? (q ? 'No match' : 'No users yet — tap + Add User') : 'Loading…'}</td></tr>`;
+  body.innerHTML = html;
+  document.getElementById('pmMsg').innerHTML = pmMsg;
+  if(pmDraft) pmRefreshMs();
+}
+
+// Multi-select dropdown, drawn fixed on top of the page so the sideways-scrolling table can't clip it.
+let pmDd = null;
+function pmPlaceDropdown(dd){
+  const btn = dd._btn; if(!btn || !btn.isConnected){ pmCloseDropdown(); return; }
+  const r = btn.getBoundingClientRect();
+  const h = Math.min(dd.scrollHeight, 300);
+  let top = r.bottom + 4;
+  if(top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+  dd.style.top = top + 'px';
+  dd.style.left = Math.max(8, Math.min(r.left, window.innerWidth - dd.offsetWidth - 8)) + 'px';
+}
+// Any scroll (page or the sideways table) or keyboard open/close: keep the list under its button.
+document.addEventListener('scroll', e=>{ if(pmDd && !(e.target===pmDd)) pmPlaceDropdown(pmDd); }, true);
+window.addEventListener('resize', ()=>{ if(pmDd) pmPlaceDropdown(pmDd); });
+function pmCloseDropdown(){ if(pmDd){ pmDd.remove(); pmDd = null; } }
+function pmOpenDropdown(btn, kind){
+  if(pmDd && pmDd.dataset.kind===kind){ pmCloseDropdown(); return; }
+  pmCloseDropdown();
+  const optHtml = (arr, grp, sel)=> arr.map(([v,l])=>`<label class="pm-opt"><input type="checkbox" data-grp="${grp}" value="${esc(v)}" ${sel.includes(v)?'checked':''}> ${esc(l)}</label>`).join('');
+  const dd = document.createElement('div');
+  dd.className = 'pm-dd'; dd.dataset.kind = kind;
+  dd.innerHTML = kind==='lines'
+    ? '<div class="pm-dd-h">Lines</div>' + optHtml(ALL_LINES.map(l=>[l, lineLabel(l)]), 'lines', pmDraft.lines)
+      + '<div class="pm-dd-h">Roles</div>' + optHtml(PM_ACCESS_ROLES, 'roles', pmDraft.roles)
+    : optHtml(SHIFTS.map(s=>[s, s]), 'shifts', pmDraft.shifts);
+  document.body.appendChild(dd);
+  dd._btn = btn;
+  pmPlaceDropdown(dd);
+  dd.addEventListener('change', e=>{
+    const cb = e.target; if(!cb || cb.type!=='checkbox') return;
+    const arr = pmDraft[cb.dataset.grp];
+    const i = arr.indexOf(cb.value);
+    if(cb.checked && i<0) arr.push(cb.value);
+    if(!cb.checked && i>=0) arr.splice(i,1);
+    // Backup / Restore / Wipe works only together with Executive Summary — tick it along.
+    if(cb.value==='admin' && cb.checked && !pmDraft.roles.includes('management')){
+      pmDraft.roles.push('management');
+      const ex = dd.querySelector('input[value="management"]'); if(ex) ex.checked = true;
+    }
+    if(cb.value==='management' && !cb.checked && pmDraft.roles.includes('admin')){
+      pmDraft.roles.splice(pmDraft.roles.indexOf('admin'),1);
+      const ad = dd.querySelector('input[value="admin"]'); if(ad) ad.checked = false;
+    }
+    if(!pmDraft.lines.length) pmDraft.shifts = [];
+    pmRefreshMs();
+  });
+  pmDd = dd;
+}
+document.addEventListener('click', e=>{
+  if(!pmDd) return;
+  if(pmDd.contains(e.target) || (e.target.closest && e.target.closest('[data-pmms]'))) return;
+  pmCloseDropdown();
+}, true);
+
+async function pmLoad(){
+  const r = await amRpc('am_hr_list_users', { p_token: session && session.token, p_section: pmSection });
+  pmLoaded = true;
+  if(r.ok){ pmUsers = Array.isArray(r.users) ? r.users : []; }
+  else { pmMsg = `<div class="pm-box err">${esc(pmErr(r))}</div>`; }
+  if(pmEditing!==null) return;   // never redraw under a row HR is typing in; the list refreshes after Save/Cancel
+  pmRender();
+}
+function pmStartEdit(id){
+  if(pmBusy) return;
+  pmMsg = '';
+  if(id==='new'){ pmDraft = { emp_id:'', name:'', lines:[], shifts:[], roles:[] }; }
+  else {
+    const u = pmUsers.find(x=>x.emp_id===id); if(!u) return;
+    pmDraft = { emp_id:u.emp_id, name:u.name||'', lines:(u.lines||[]).slice(), shifts:(u.shifts||[]).slice(), roles:(u.roles||[]).slice() };
+  }
+  pmEditing = id;
+  pmRender();
+  const first = document.getElementById(id==='new' ? 'pmEdId' : 'pmEdName');
+  if(first) setTimeout(()=>focusIfIdle(first), 30);
+}
+async function pmSaveRow(){
+  if(pmBusy || !pmDraft) return;
+  const isNew = (pmEditing==='new');
+  if(isNew) pmDraft.emp_id = (document.getElementById('pmEdId').value||'').trim();
+  pmDraft.name = (document.getElementById('pmEdName').value||'').trim();
+  const local = !pmDraft.emp_id ? 'Enter the Employee ID' : !pmDraft.name ? 'Enter the Name'
+              : (!pmDraft.lines.length && !pmDraft.roles.length) ? 'Pick at least one Access Location'
+              : (pmDraft.lines.length && !pmDraft.shifts.length) ? 'Pick at least one Shift' : '';
+  if(local){ document.getElementById('pmMsg').innerHTML = `<div class="pm-box err">${esc(local)}</div>`; return; }
+  pmBusy = true;
+  const btn = document.getElementById('pmSaveRow'); if(btn){ btn.disabled = true; btn.textContent = '...'; }
+  const r = await amRpc('am_hr_save_user', { p_token: session.token, p_section: pmSection, p_mode: isNew ? 'add' : 'edit',
+              p_emp: pmDraft.emp_id, p_name: pmDraft.name, p_lines: pmOrderLines(pmDraft.lines),
+              p_shifts: pmDraft.lines.length ? pmDraft.shifts.slice().sort() : [], p_roles: pmOrderRoles(pmDraft.roles) });
+  pmBusy = false;
+  if(!r.ok){
+    if(btn){ btn.disabled = false; btn.textContent = 'Save'; }
+    document.getElementById('pmMsg').innerHTML = `<div class="pm-box err">${esc(pmErr(r))}</div>`;
+    return;
+  }
+  const id = pmDraft.emp_id, nm = pmDraft.name;
+  pmMsg = isNew
+    ? `<div class="pm-box ok">✓ ${esc(nm)} (${esc(id)}) added · Temporary password: <b class="pm-temp">${esc(r.temp)}</b><br><span>Tell this to the user. They set their own password at first sign in.</span></div>`
+    : `<div class="pm-box ok">✓ ${esc(nm)} (${esc(id)}) updated</div>`;
+  pmEditing = null; pmDraft = null;
+  await pmLoad();
+}
+async function pmReset(id){
+  if(pmBusy) return;
+  const u = pmUsers.find(x=>x.emp_id===id);
+  const ok = await uiConfirm('Reset the password of ' + (u && u.name ? u.name+' ' : '') + '(' + id + ')? Their old password stops working and they must sign in again with a new temporary password.');
+  if(!ok) return;
+  pmBusy = true;
+  const r = await amRpc('am_hr_reset_password', { p_token: session.token, p_emp: id });
+  pmBusy = false;
+  pmMsg = r.ok
+    ? `<div class="pm-box ok">✓ Password reset for ${esc(u && u.name ? u.name+' ' : '')}(${esc(id)}) · Temporary password: <b class="pm-temp">${esc(r.temp)}</b><br><span>Tell this to the user. They set their own password at first sign in.</span></div>`
+    : `<div class="pm-box err">${esc(pmErr(r))}</div>`;
+  await pmLoad();
+}
+async function pmDelete(id){
+  if(pmBusy) return;
+  const u = pmUsers.find(x=>x.emp_id===id);
+  const ok = await uiConfirm('Delete ' + (u && u.name ? u.name+' ' : '') + '(' + id + ')? This ID will no longer be able to sign in. Records already saved keep their name.');
+  if(!ok) return;
+  pmBusy = true;
+  const r = await amRpc('am_hr_delete_user', { p_token: session.token, p_emp: id });
+  pmBusy = false;
+  pmMsg = r.ok ? `<div class="pm-box ok">✓ ${esc(u && u.name ? u.name+' ' : '')}(${esc(id)}) deleted</div>` : `<div class="pm-box err">${esc(pmErr(r))}</div>`;
+  await pmLoad();
+}
+
+function pmAttach(){
+  document.querySelectorAll('[data-pmsec]').forEach(b=>{
+    b.onclick = ()=>{ if(b.dataset.pmsec!=='lasting') toast('Not ready yet — coming soon.'); };
+  });
+  const search = document.getElementById('pmSearch');
+  search.oninput = ()=>{ pmSearch = search.value; pmRender(); };
+  document.getElementById('pmAddBtn').onclick = ()=> pmStartEdit('new');
+  document.getElementById('pmBody').onclick = (e)=>{
+    const t = e.target.closest('button'); if(!t) return;
+    if(t.dataset.pmedit) pmStartEdit(t.dataset.pmedit);
+    else if(t.dataset.pmreset) pmReset(t.dataset.pmreset);
+    else if(t.dataset.pmdel) pmDelete(t.dataset.pmdel);
+    else if(t.dataset.pmms) pmOpenDropdown(t, t.dataset.pmms);
+    else if(t.id==='pmSaveRow') pmSaveRow();
+    else if(t.id==='pmCancelRow'){ pmEditing = null; pmDraft = null; pmMsg=''; pmRender(); }
+  };
+  document.getElementById('pmBody').oninput = (e)=>{   // keep typed text if the list re-draws (search)
+    if(!pmDraft) return;
+    if(e.target.id==='pmEdId') pmDraft.emp_id = e.target.value;
+    if(e.target.id==='pmEdName') pmDraft.name = e.target.value;
+  };
+  pmRender();
+  pmLoad();
+}
+
 function attachPanelEvents(key){
+  if(key==='pwmgmt'){ pmAttach(); return; }
   const dateStr = currentDate;
 
   if(key==='entry'){
@@ -10419,7 +10983,7 @@ function attachPanelEvents(key){
       function urFilterByProgress(pool){
         return pool.filter(en=> urGroupIsComplete(en.project, en.shopOrder, en.article) === apShowCompleted);
       }
-      const urKnownProjects = ()=> uniq(urFilterByProgress(urAllPast).map(en=>en.project));
+      const urKnownProjects = ()=> urProjectInput.disabled ? [] : uniq(urFilterByProgress(urAllPast).map(en=>en.project));
       // Cascading: Shop Order narrows to the typed Project; Article narrows to the typed
       // Project + Shop Order. Falls back to the full list when the parent field is empty.
       const urKnownShopOrders = ()=>{
@@ -10439,6 +11003,7 @@ function attachPanelEvents(key){
       wireSuggest(urProjectInput, document.getElementById('urProjectSuggest'), urKnownProjects);
       wireSuggest(urShopOrderInput, document.getElementById('urShopOrderSuggest'), urKnownShopOrders);
       wireSuggest(urArticleInput, document.getElementById('urArticleSuggest'), urKnownArticles);
+      wireProjectLock(urShopOrderInput, urProjectInput, document.getElementById('urProjectNote'));
 
       // Shop Order Freezing (production-planning cycle, independent of calendar date and of
       // IE's monthRanges). Tagged at the Shop Order level only — the same Shop Order can cover
@@ -10852,7 +11417,7 @@ function attachPanelEvents(key){
 
       const scAllPast = getAllSubcontractSends();
       const uniqSc = (arr)=> Array.from(new Set(arr.filter(Boolean)));
-      const scKnownProjects = uniqSc(scAllPast.map(en=>en.project));
+      const scKnownProjects = ()=> scProjectInput.disabled ? [] : uniqSc(scAllPast.map(en=>en.project));
       const scKnownShopOrders = ()=>{
         const proj = scProjectInput.value.trim().toLowerCase();
         const pool = proj ? scAllPast.filter(en=>en.project.toLowerCase()===proj) : scAllPast;
@@ -10871,6 +11436,7 @@ function attachPanelEvents(key){
       wireSuggest(scShopOrderInput, document.getElementById('scShopOrderSuggest'), scKnownShopOrders);
       wireSuggest(scSubcontractorInput, document.getElementById('scSubcontractorSuggest'), scKnownSubcontractors);
       wireSuggest(scArticleInput, document.getElementById('scArticleSuggest'), scKnownArticles);
+      wireProjectLock(scShopOrderInput, scProjectInput, document.getElementById('scProjectNote'));
 
       // Order Qty is fixed when the Shop Order is created — set once on its first Send to
       // Job Work entry, then locked (read-only) on every later Send for that same Shop
@@ -13524,49 +14090,6 @@ function attachPanelEvents(key){
       document.getElementById('unlockReason').value = '';
       await saveStore(); renderUnlockStatus();
       toast('\u2713 Opened: ' + lineLabel(line) + ' \u00b7 ' + date + ' \u00b7 ' + (SHIFT_LABELS[shift]||shift));
-    };
-
-    // ---- Password Management (per-shift for lines) ----
-    const pwUserSel = document.getElementById('pwUserSel');
-    const pwShiftSel = document.getElementById('pwShiftSel');
-    const pwShiftWrap = document.getElementById('pwShiftWrap');
-    pwUserSel.innerHTML = [
-      ...ALL_LINES.map(l=>`<option value="${l}" data-kind="line">${esc(lineLabel(l))}</option>`),
-      `<option value="ie" data-kind="role">IE</option>`,
-      `<option value="quality" data-kind="role">Quality</option>`,
-      `<option value="hr" data-kind="role">HR</option>`,
-      `<option value="qualitymgmt" data-kind="role">Quality Management</option>`,
-      `<option value="productionmgmt" data-kind="role">Production Management</option>`,
-      `<option value="management" data-kind="role">Executive Summary</option>`
-    ].join('');
-    pwShiftSel.innerHTML = SHIFTS.map(s=>`<option value="${s}">${SHIFT_LABELS[s]}</option>`).join('');
-    function refreshPwShiftVisibility(){
-      const isLine = pwUserSel.selectedOptions[0] && pwUserSel.selectedOptions[0].dataset.kind==='line';
-      pwShiftWrap.style.display = isLine ? '' : 'none';
-    }
-    refreshPwShiftVisibility();
-    pwUserSel.onchange = refreshPwShiftVisibility;
-
-    document.getElementById('pwSaveBtn').onclick = async ()=>{
-      const opt = pwUserSel.selectedOptions[0];
-      const kind = opt ? opt.dataset.kind : 'role';
-      const newVal = document.getElementById('pwNewVal').value.trim();
-      const noteEl = document.getElementById('pwStatusNote');
-      if(!newVal){ noteEl.textContent = 'Enter a Password'; return; }
-      let label;
-      if(kind==='line'){
-        const shift = pwShiftSel.value;
-        store.userPasswords[linePwKey(pwUserSel.value, shift)] = newVal;
-        label = lineLabel(pwUserSel.value)+' — '+SHIFT_LABELS[shift];
-      } else if(pwUserSel.value==='management'){
-        store.mgmtPassword = newVal; label = 'Executive Summary';
-      } else {
-        store.userPasswords[pwUserSel.value] = newVal; label = opt.textContent;
-      }
-      await saveStore();
-      document.getElementById('pwNewVal').value='';
-      noteEl.textContent = '✓ Password changed for '+label;
-      setTimeout(()=>{ noteEl.textContent=''; }, 3000);
     };
 
     // Department M/P entry — shift-wise
