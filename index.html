@@ -1009,7 +1009,7 @@
       <button class="mrd-role disabled-role" data-coming-soon="1">IE Mgmt<span>Soon</span></button>
       <button class="mrd-role" data-role="productionmgmt">Production Mgmt</button>
     </div>
-    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-15c-supabase</span></div>
+    <div class="mrd-foot">Apex Footwear <span style="opacity:.55;">&middot; build 2026-10-15d-supabase</span></div>
   </div>
 
   <!-- PAGE 2 — Lasting section login -->
@@ -1058,7 +1058,7 @@
     <div id="mrdViewSignin">
       <div id="mrdIdWrap">
         <label class="fld" for="mrdEmpId">Employee ID</label>
-        <input type="text" id="mrdEmpId" placeholder="Employee ID" autocomplete="off" inputmode="numeric">
+        <input type="text" id="mrdEmpId" placeholder="Employee ID" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text">
         <div style="height:12px;"></div>
       </div>
       <label class="fld" for="mrdPwd">Password</label>
@@ -1074,7 +1074,7 @@
     <!-- Build 10-14a: HR recovery — 8-digit code kept by IE Audit (server-side hash only) -->
     <div id="mrdViewRecover" style="display:none;">
       <label class="fld" for="mrdRecId">Employee ID</label>
-      <input type="text" id="mrdRecId" autocomplete="off" inputmode="numeric">
+      <input type="text" id="mrdRecId" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text">
       <div style="height:12px;"></div>
       <label class="fld" for="mrdRecName">Name <span style="font-weight:400;">(only for a new HR ID)</span></label>
       <input type="text" id="mrdRecName" autocomplete="off">
@@ -1366,7 +1366,7 @@
 /* ---------------- APP UPDATE CHECK (build 21k) ---------------- */
 // Keep this in step with the footer's build label. The update check reads this exact line from
 // the copy of the page currently published, so a newer upload is spotted by every open phone.
-const APP_BUILD = '2026-10-15c-supabase';
+const APP_BUILD = '2026-10-15d-supabase';
 // Installed home-screen apps (iPhone especially) keep serving an old copy of the page. Each open
 // device now asks the server for the published page — a cheap "not modified" answer unless it
 // really changed — and offers a one-tap reload when the build differs. It NEVER reloads on its
@@ -10421,7 +10421,7 @@ function pmRowHTML(u){
 function pmEditRowHTML(isNew){
   const d = pmDraft;
   return `<tr class="pm-editing">
-    <td>${isNew ? `<input type="text" id="pmEdId" inputmode="numeric" class="pm-in" style="width:100px" value="${esc(d.emp_id)}" placeholder="Employee ID">` : `<span class="num">${esc(d.emp_id)}</span>`}</td>
+    <td>${isNew ? `<input type="text" id="pmEdId" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" class="pm-in" style="width:100px" value="${esc(d.emp_id)}" placeholder="Employee ID">` : `<span class="num">${esc(d.emp_id)}</span>`}</td>
     <td><input type="text" id="pmEdName" class="pm-in" style="width:140px" value="${esc(d.name)}" placeholder="Name"></td>
     <td><button type="button" class="pm-ms" id="pmMsLines" data-pmms="lines"></button></td>
     <td><button type="button" class="pm-ms pm-ms-sm" id="pmMsShifts" data-pmms="shifts"></button></td>
