@@ -13008,7 +13008,7 @@ function attachPanelEvents(key){
       tb.querySelectorAll('[data-del-month]').forEach(b=>b.onclick=async()=>{
         if(!confirm(`Delete ${b.dataset.delMonth}?\n\nIt will no longer be in the Monthly list of the Executive Summary and Quality Management.`)) return;
         store.monthRanges = (store.monthRanges||[]).filter(m=>m.name!==b.dataset.delMonth);
-        await saveStore(); renderMonthRanges();
+        await saveStore(); buildPanel('ie'); renderAll();
       });
       // a month saved without its year: fill the form so one Save renames it (same dates)
       tb.querySelectorAll('[data-edit-month]').forEach(b=>b.onclick=()=>{
@@ -13087,8 +13087,12 @@ function attachPanelEvents(key){
       document.getElementById('ieMonthName').value='';
       document.getElementById('ieMonthFrom').value='';
       document.getElementById('ieMonthTo').value='';
-      await saveStore(); renderMonthRanges();
-      flashSaved(e.target);
+      await saveStore();
+      // Rebuild the whole IE panel (not just this table) — the Freezing Qty and Monthly
+      // Average Target % sections below read store.monthRanges once when the panel is
+      // built, so without this they kept showing "no month set" after a month was just
+      // added here, even though it had actually saved.
+      buildPanel('ie'); renderAll();
     };
 
     // ---- IE Members (Build 10-04g) ----
